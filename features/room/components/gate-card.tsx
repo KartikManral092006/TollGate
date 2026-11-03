@@ -137,10 +137,13 @@ export function GateCard({
   onRing,
   onWhy,
   footer,
+  contextOpen = false,
 }: {
   gate: GateView;
   viewer: Viewer;
   highlighted?: boolean;
+  // Start with Context open (the gate's own page).
+  contextOpen?: boolean;
   footer?: React.ReactNode;
   // Plain-language explanation: the team's AI provider, or the built-in rules.
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
@@ -152,7 +155,7 @@ export function GateCard({
   onRing?: (gate: GateView, userId: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [showContext, setShowContext] = useState(false);
+  const [showContext, setShowContext] = useState(contextOpen);
   const [why, setWhy] = useState<{
     state: "loading" | "done" | "error";
     result?: WhyResult;

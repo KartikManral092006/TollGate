@@ -378,6 +378,49 @@ export async function claimLateReminders(
   return rows.map((row) => row.id);
 }
 
+// Everything a gate view needs (features/gates/shared/view toGateView).
+const GATE_INCLUDE = {
+  requester: { select: { id: true, name: true } },
+  repo: { select: { name: true, mode: true } },
+  votes: {
+    orderBy: { createdAt: "asc" },
+    select: {
+      userId: true,
+      decision: true,
+      reason: true,
+      createdAt: true,
+      user: { select: { name: true } },
+    },
+  },
+  grant: { select: { expiresAt: true, usedAt: true } },
+  followUpOf: {
+    select: {
+      code: true,
+      question: true,
+      votes: {
+        where: { decision: "deny" },
+        select: { userId: true, user: { select: { name: true } } },
+      },
+    },
+  },
+  followUps: { select: { code: true }, orderBy: { createdAt: "asc" }, take: 1 },
+  policyRule: {
+    select: { action: true, preset: true, env: true, createdBy: { select: { name: true } } },
+  },
+  calls: {
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      callId: true,
+      kind: true,
+      status: true,
+      durationSec: true,
+      participants: true,
+      startedById: true,
+    },
+  },
+} as const;
+
 export function listTeamGates(
   db: PrismaClient,
   teamId: string,
@@ -388,46 +431,11 @@ export function listTeamGates(
     orderBy: { createdAt: "desc" },
     take: Math.min(options.take ?? 50, 500),
     ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
-    include: {
-      requester: { select: { id: true, name: true } },
-      repo: { select: { name: true, mode: true } },
-      votes: {
-        orderBy: { createdAt: "asc" },
-        select: {
-          userId: true,
-          decision: true,
-          reason: true,
-          createdAt: true,
-          user: { select: { name: true } },
-        },
-      },
-      grant: { select: { expiresAt: true, usedAt: true } },
-      followUpOf: {
-        select: {
-          code: true,
-          question: true,
-          votes: {
-            where: { decision: "deny" },
-            select: { userId: true, user: { select: { name: true } } },
-          },
-        },
-      },
-      followUps: { select: { code: true }, orderBy: { createdAt: "asc" }, take: 1 },
-      policyRule: {
-        select: { action: true, preset: true, env: true, createdBy: { select: { name: true } } },
-      },
-      calls: {
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          callId: true,
-          kind: true,
-          status: true,
-          durationSec: true,
-          participants: true,
-          startedById: true,
-        },
-      },
-    },
+    include: GATE_INCLUDE,
   });
+}
+
+// One gate of a team, or null (another team's gate looks the same as a missing one).
+export function getTeamGate(db: PrismaClient, teamId: string, gateId: string) {
+  return db.gate.findFirst({ where: { id: gateId, teamId }, include: GATE_INCLUDE });
 }
