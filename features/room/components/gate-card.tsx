@@ -6,6 +6,7 @@ import {
   EyeOff,
   MessageCircleQuestion,
   GitBranch,
+  ListChecks,
   Loader2,
   ShieldCheck,
   ThumbsDown,
@@ -412,6 +413,18 @@ export function GateCard({
           )
         )}
         {outcome && <p className="text-xs text-muted-foreground">{outcome}</p>}
+        {gate.rule && (
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <ListChecks className="mt-px size-3.5 shrink-0" aria-hidden />
+            <span>
+              {gate.rule.action === "auto_approve"
+                ? "Approved on arrival by a team rule"
+                : "Needs one approval by a team rule"}{" "}
+              for {gate.rule.preset} on {gate.rule.env} in {gate.repo}
+              {gate.rule.by ? `, added by ${gate.rule.by}` : ""}.
+            </span>
+          </p>
+        )}
 
         {open && gate.insights && gate.insights.approvers.length > 0 && (
           <SuggestedApprovers

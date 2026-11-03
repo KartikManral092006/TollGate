@@ -31,6 +31,7 @@ model User {
   invitesCreated Invite[]
   hookTokens     HookToken[]
   gatesRequested Gate[]
+  policyRules    PolicyRule[]
   votes          Vote[]
   callsStarted   CallSession[]
 
@@ -120,6 +121,12 @@ enum AiProvider {
   openai_compatible
 }
 
+// What a team rule does to a matching non-production gate.
+enum PolicyAction {
+  one_approval // quorum 1 instead of the preset's
+  auto_approve // approved on arrival, recorded with the rule
+}
+
 enum CallStatus {
   permitted
   live
@@ -182,16 +189,19 @@ model Invite {
 }
 
 model RepoLink {
-  id        String      @id
-  teamId    String
-  name      String // e.g. "acme/billing"
-  mode      GateMode    @default(guard)
-  presets   Json // server-authoritative presets, including quorum (features/gates/shared/presets)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  team      Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  tokens    HookToken[]
-  gates     Gate[]
+  id                   String       @id
+  teamId               String
+  name                 String // e.g. "acme/billing"
+  mode                 GateMode     @default(guard)
+  presets              Json // server-authoritative presets, including quorum (features/gates/shared/presets)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  team                 Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tokens               HookToken[]
+  gates                Gate[]
+  rules                PolicyRule[]
+  // Suggestions the owner said no to ("preset:env:action"), so they aren't offered again.
+  dismissedSuggestions String[]     @default([])
 
   @@unique([teamId, name])
   @@map("repo_links")
@@ -239,6 +249,7 @@ model Gate {
   remindedAt   DateTime? // the one "still parked" reminder went out
   question     String?       @db.VarChar(500) // set when an approver asked instead of deciding
   followUpOfId String? // the asked gate this retry answers
+  policyRuleId String? // approved on arrival by this team rule
   messageId    String? // Nexconn message for metadata updates
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -250,6 +261,7 @@ model Gate {
   calls        CallSession[]
   followUpOf   Gate?         @relation("GateFollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)
   followUps    Gate[]        @relation("GateFollowUp")
+  policyRule   PolicyRule?   @relation(fields: [policyRuleId], references: [id], onDelete: SetNull)
 
   @@unique([teamId, code])
   @@index([teamId, createdAt(sort: Desc)])
@@ -334,4 +346,21 @@ model TeamAiConfig {
   team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@map("team_ai_configs")
+}
+
+// A rule an owner accepted from Tollgate's suggestions: never for production.
+model PolicyRule {
+  id          String       @id
+  repoId      String
+  preset      String
+  env         String // staging | other
+  action      PolicyAction
+  createdById String?
+  createdAt   DateTime     @default(now())
+  repo        RepoLink     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  createdBy   User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  gates       Gate[]
+
+  @@unique([repoId, preset, env])
+  @@map("policy_rules")
 }

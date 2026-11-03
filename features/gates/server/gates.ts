@@ -4,6 +4,7 @@ import type { CreateGateInput } from "@/features/gates/shared/hook-api";
 import {
   authoritativeQuorum,
   DEFAULT_PRESETS,
+  detectEnv,
   matchPreset,
   presetListSchema,
   type Preset,
@@ -16,6 +17,7 @@ import {
   type Evaluation,
 } from "@/features/gates/shared/quorum";
 import { redact, truncate } from "@/features/gates/shared/redact";
+import { applyRule } from "@/features/insights/shared/policy";
 import { canVote, type TeamRoleValue } from "@/features/teams/shared/schemas";
 
 // How long after a question the requester's next gate in the same repo counts as the answer.
@@ -52,10 +54,25 @@ export async function createGate(
     // The server never sees the real repo root; only pattern matching applies here.
     repoRoot: cwd.text,
   });
-  const quorum = authoritativeQuorum(serverMatch, input.quorum);
+  const presetQuorum = authoritativeQuorum(serverMatch, input.quorum);
   const env = serverMatch?.env === "prod" ? "prod" : (input.env ?? serverMatch?.env ?? "other");
-
+  const preset = serverMatch?.preset.name ?? input.preset;
   const now = ids.now?.() ?? new Date();
+
+  // A team rule only applies when the server's own presets recognised the command, so a local
+  // .tollgate.json can't name its way into one.
+  const rule = serverMatch
+    ? await db.policyRule.findUnique({
+        where: { repoId_preset_env: { repoId: principal.repoId, preset, env } },
+        select: { id: true, action: true },
+      })
+    : null;
+  const policy = applyRule(rule, {
+    env,
+    commandLooksProd: detectEnv(command.text) === "prod",
+    quorum: presetQuorum,
+  });
+  const ruleApplied = rule && (policy.autoApprove || policy.quorum !== presetQuorum);
 
   return db.$transaction(async (tx) => {
     const [row] = await tx.$queryRaw<{ code: number }[]>`
@@ -86,7 +103,7 @@ export async function createGate(
         teamId: principal.teamId,
         repoId: principal.repoId,
         requesterId: principal.requesterId,
-        preset: serverMatch?.preset.name ?? input.preset,
+        preset,
         env,
         command: truncate(command.text, 4000),
         cwd: truncate(cwd.text, 500),
@@ -96,8 +113,10 @@ export async function createGate(
         redactions:
           input.redactions + command.count + cwd.count + context.count + (intent?.count ?? 0),
         cmdHash: input.cmdHash,
-        quorum,
+        quorum: policy.quorum,
         followUpOfId: asked?.id ?? null,
+        policyRuleId: ruleApplied ? rule.id : null,
+        ...(policy.autoApprove ? { status: "approved" as const, decidedAt: now } : {}),
       },
     });
   });
@@ -370,6 +389,9 @@ export function listTeamGates(
         },
       },
       followUps: { select: { code: true }, orderBy: { createdAt: "asc" }, take: 1 },
+      policyRule: {
+        select: { action: true, preset: true, env: true, createdBy: { select: { name: true } } },
+      },
       calls: {
         orderBy: { createdAt: "asc" },
         select: {

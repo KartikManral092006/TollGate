@@ -43,6 +43,8 @@ import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { timeAgo } from "@/features/room/shared/format";
 import { AiCard } from "@/features/settings/components/ai-card";
 import { CopyField } from "@/features/settings/components/copy-field";
+import { RulesCard } from "@/features/settings/components/rules-card";
+import type { PolicyState } from "@/features/insights/server/policy";
 import type { InviteRow, RepoRow } from "@/features/teams/server/settings";
 import { REPO_NAME_RE } from "@/features/teams/shared/schemas";
 import type { AiConfigView } from "@/features/why/shared/providers";
@@ -441,8 +443,10 @@ export function SettingsClient({
   repos,
   invites,
   ai,
+  policy,
 }: {
   teamId: string;
+  policy: PolicyState;
   ai: AiConfigView;
   viewer: { id: string; role: string };
   members: Member[];
@@ -455,6 +459,7 @@ export function SettingsClient({
     ...(canLink ? [{ id: "link", label: "Link a repo" }] : []),
     { id: "repos", label: "Linked repos" },
     ...(isOwner ? [{ id: "invite", label: "Invite" }] : []),
+    { id: "rules", label: "Rules" },
     { id: "ai", label: "AI" },
     { id: "members", label: "Members" },
   ];
@@ -488,6 +493,9 @@ export function SettingsClient({
             <InvitesCard teamId={teamId} invites={invites} />
           </StaggerItem>
         )}
+        <StaggerItem>
+          <RulesCard teamId={teamId} isOwner={isOwner} state={policy} />
+        </StaggerItem>
         <StaggerItem>
           <AiCard teamId={teamId} isOwner={isOwner} initial={ai} />
         </StaggerItem>

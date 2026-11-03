@@ -34,3 +34,12 @@ export const callEndedSchema = z
 
 // Ask the agent instead of deciding. The question closes the gate and reaches the agent.
 export const askSchema = z.object({ question: z.string().trim().min(1).max(500) }).strict();
+
+// Accept or dismiss one of the suggested team rules ("preset:env:action").
+export const ruleSuggestionSchema = z
+  .object({
+    repoId: z.string().regex(/^[A-Za-z0-9]{1,64}$/),
+    key: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}:(staging|other):(one_approval|auto_approve)$/),
+    dismiss: z.boolean().optional(),
+  })
+  .strict();
