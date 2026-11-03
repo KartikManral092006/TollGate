@@ -38,11 +38,12 @@ const RULES: Rule[] = [
     re: /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/-]{8,}=*/g,
     replace: (_m, scheme: string) => `${scheme} ${REDACTED}`,
   },
-  // FOO_TOKEN=..., export DB_PASSWORD="...", etc. Non-secret names (NODE_ENV=prod) stay.
+  // FOO_TOKEN=..., export DB_PASSWORD="...", bare PASSWORD=..., etc. Non-secret names
+  // (NODE_ENV=prod) stay.
   // DATABASE_URL=... is left to url-credentials on purpose: approvers need to see the host.
   {
     name: "secret-assignment",
-    re: /\b([A-Za-z_][A-Za-z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD|CREDENTIALS?|AUTH)[A-Za-z0-9_]*)=("[^"]*"|'[^']*'|[^\s;&|]+)/gi,
+    re: /\b((?:[A-Za-z_][A-Za-z0-9_]*)?(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD|CREDENTIALS?|AUTH)[A-Za-z0-9_]*)=("[^"]*"|'[^']*'|[^\s;&|]+)/gi,
     replace: (_m, name: string) => `${name}=${REDACTED}`,
   },
   {
