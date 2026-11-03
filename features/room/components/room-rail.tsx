@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { AllClear } from "@/components/road/all-clear";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { EnvBadge } from "@/features/room/components/gate-status";
 import { ParkCountdown } from "@/features/room/components/park-countdown";
@@ -44,7 +45,7 @@ export function RoomRail({ gates, members }: { gates: GateView[]; members: Membe
           </span>
         </h2>
         {waiting.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">Nothing is waiting. All clear.</p>
+          <AllClear className="mt-3" />
         ) : (
           <ul className="mt-2 flex flex-col">
             <AnimatePresence initial={false}>

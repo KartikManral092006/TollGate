@@ -99,6 +99,11 @@ function outcomeLine(gate: GateView): string | null {
   }
 }
 
+// Where a wrong yes is expensive, approving takes a deliberate hold instead of a tap.
+export function needsHold(gate: GateView): boolean {
+  return gate.env === "prod" || (gate.insights?.signals ?? []).some((s) => s.level === "high");
+}
+
 // A note with a coloured edge instead of a box: the thread stays one flat timeline.
 function Note({
   tone,
@@ -184,9 +189,7 @@ export function GateCard({
   const canAsk = canAct && onAsk !== undefined && gate.status === "pending";
   const denial = gate.votes.find((vote) => vote.decision === "deny");
   const outcome = outcomeLine(gate);
-  // Where a wrong yes is expensive, approving takes a deliberate hold instead of a tap.
-  const holdToApprove =
-    gate.env === "prod" || (gate.insights?.signals ?? []).some((s) => s.level === "high");
+  const holdToApprove = needsHold(gate);
 
   async function approve() {
     setBusy(true);
@@ -205,6 +208,7 @@ export function GateCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
       aria-label={`Gate TG-${gate.code}, ${meta.label}`}
+      data-actionable={canAct ? gate.id : undefined}
       className={cn(
         "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-b py-5 transition-colors sm:grid-cols-[2.25rem_minmax(0,1fr)] sm:gap-x-4",
         highlighted && "-mx-3 rounded-md bg-signal/10 px-3",
@@ -521,6 +525,7 @@ export function GateCard({
         {canAct && (
           // Full-width, thumb-sized on phones; a compact row on the right on wider screens.
           <div
+            data-gate-actions={gate.id}
             className={cn(
               "grid gap-2 sm:flex sm:justify-end",
               canAsk ? "grid-cols-3" : "grid-cols-2",
