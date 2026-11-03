@@ -54,7 +54,7 @@ function gate(
     ...patch,
   };
   // The same rules the room uses, so the demo shows real signals for its migration.
-  return { ...view, insights: { precedent, signals: riskSignals(view, []) } };
+  return { ...view, insights: { precedent, signals: riskSignals(view, []), approvers: [] } };
 }
 
 const TONE: Record<NonNullable<Line["tone"]>, string> = {

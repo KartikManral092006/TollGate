@@ -39,7 +39,18 @@ export type RiskSignal = {
   text: string;
 };
 
+export type SuggestedApprover = {
+  userId: string;
+  name: string;
+  // Voted on `decided` of the last `of` decided gates in the scope.
+  decided: number;
+  of: number;
+  // "preset": this kind of command in this repo; "repo": anything in this repo.
+  scope: "preset" | "repo";
+};
+
 export type GateInsights = {
   precedent: Precedent | null;
   signals: RiskSignal[];
+  approvers: SuggestedApprover[];
 };

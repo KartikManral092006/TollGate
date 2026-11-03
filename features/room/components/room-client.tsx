@@ -253,6 +253,14 @@ export function RoomClient({
                             }}
                             onDeny={setDenying}
                             onAsk={setAsking}
+                            onRing={
+                              callsEnabled &&
+                              live === "live" &&
+                              !calls.busy &&
+                              calls.active === null
+                                ? (gate, userId) => void calls.ring(gate, userId)
+                                : undefined
+                            }
                             onWhy={explain}
                             footer={
                               callsEnabled && live === "live" && isOpenStatus(item.gate.status) ? (
