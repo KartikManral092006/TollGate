@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { redis } from "@/lib/redis";
+import { lastRedisError, redis } from "@/lib/redis";
 
 type CheckStatus = "ok" | "down";
 type CheckResult = { status: CheckStatus; reason?: string };
@@ -21,7 +21,8 @@ function reasonOf(error: unknown): string {
     (error as { errorCode?: unknown } | null)?.errorCode;
   if (typeof code === "string" && /^[A-Za-z0-9_]{1,32}$/.test(code)) return code;
   const name = error instanceof Error ? error.name : "";
-  return /^[A-Za-z]{1,40}$/.test(name) ? name : "error";
+  // Production bundles shorten class names (MaxRetriesPerRequestError becomes "r").
+  return /^[A-Za-z]{6,40}$/.test(name) ? name : "error";
 }
 
 async function check(name: string, probe: () => Promise<unknown>): Promise<CheckResult> {
@@ -50,6 +51,8 @@ export async function GET() {
     check("db", () => db.$queryRaw`SELECT 1`),
     check("redis", () => redis.ping()),
   ]);
+  // ioredis reports "max retries"; the connection error behind it is the useful part.
+  if (cache.status === "down") cache.reason = lastRedisError() ?? cache.reason;
 
   const healthy = database.status === "ok" && cache.status === "ok";
 
