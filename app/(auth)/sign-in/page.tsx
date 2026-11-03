@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Logo } from "@/components/logo";
-import { SignPanel } from "@/components/road/sign-panel";
-import { TollPlaza } from "@/features/landing/components/toll-plaza";
+import { CommandStream } from "@/features/landing/components/command-stream";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
 import { AuthNotConfiguredError, githubEnabled, googleEnabled } from "@/features/auth/server/auth";
 import { getOptionalSession } from "@/features/auth/server/session";
@@ -45,23 +44,34 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   return (
     <main className="grid min-h-dvh grid-rows-[auto_1fr] lg:grid-cols-[1.05fr_1fr] lg:grid-rows-1">
       {/* The road: on phones a compact band, on desktop a full panel with the moving gate. */}
-      <section className="relative flex flex-col gap-6 overflow-hidden bg-asphalt px-5 pt-6 pb-8 text-white lg:justify-between lg:px-12 lg:py-12">
-        <span
+      {/* The product in one picture: commands streaming through a gate, risky ones held. */}
+      <section className="dark relative isolate flex flex-col gap-6 overflow-hidden bg-[#101417] px-5 pt-6 pb-8 text-white lg:justify-between lg:px-12 lg:py-12">
+        <CommandStream className="absolute inset-0 -z-10" />
+        <div
           aria-hidden
-          className="absolute inset-x-0 bottom-3 h-1 bg-[repeating-linear-gradient(90deg,rgb(255_255_255/0.28)_0_28px,transparent_28px_52px)] lg:bottom-8"
+          className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(16_20_23/0.2),rgb(16_20_23/0.75))]"
         />
         <Logo className="text-white" />
-        <SignPanel className="max-w-xl" innerClassName="lg:px-8 lg:py-8">
-          <p className="text-2xl leading-tight font-extrabold tracking-tight text-balance lg:text-4xl">
-            Your team&apos;s toll gate for coding agents
+        <div className="max-w-lg">
+          <p className="text-3xl leading-tight font-extrabold tracking-tight text-balance lg:text-5xl">
+            Human approval for AI coding agents
           </p>
-          <p className="mt-2 text-sm text-white/85 lg:text-base">
-            Risky commands stop here until a teammate says yes.
-          </p>
-        </SignPanel>
-        <div className="hidden lg:block">
-          <TollPlaza />
+          <ul className="mt-5 hidden flex-col gap-2.5 text-white/70 lg:flex">
+            {[
+              "Risky commands wait for your team; everyday ones run untouched",
+              "Deny with a reason and the agent changes its plan",
+              "Secrets are redacted before anything leaves the laptop",
+            ].map((point) => (
+              <li key={point} className="flex items-start gap-2.5">
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#2eb67d]" />
+                {point}
+              </li>
+            ))}
+          </ul>
         </div>
+        <p className="hidden text-sm text-white/45 lg:block">
+          Red dots are risky commands held at the gate. Green ones were approved.
+        </p>
       </section>
 
       <section className="flex justify-center px-4 py-8 lg:items-center lg:px-12 lg:py-10">
