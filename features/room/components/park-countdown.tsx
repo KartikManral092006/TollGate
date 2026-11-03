@@ -18,7 +18,12 @@ export function useNow(intervalMs = 1000): number | null {
   return now;
 }
 
+// A minute past the deadline the hook would have parked it already: the agent is gone
+// (closed, crashed, or an older hook), so say that instead of "Parking…" forever.
+export const GONE_AFTER_MS = 60_000;
+
 export function parkLabel(remainingMs: number): string {
+  if (remainingMs <= -GONE_AFTER_MS) return "Agent stopped waiting";
   if (remainingMs <= 0) return "Parking…";
   const total = Math.ceil(remainingMs / 1000);
   const minutes = Math.floor(total / 60);
@@ -76,7 +81,9 @@ export function ParkCountdown({
           strokeDashoffset={circumference * (1 - fraction)}
         />
       </svg>
-      {compact ? parkLabel(remaining).replace("Parks in ", "") : parkLabel(remaining)}
+      {compact && remaining > 0
+        ? parkLabel(remaining).replace("Parks in ", "")
+        : parkLabel(remaining)}
     </span>
   );
 }

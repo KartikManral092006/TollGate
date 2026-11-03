@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  Eye,
   EyeOff,
   GitBranch,
   ListChecks,
@@ -29,7 +30,7 @@ import {
   type GateDisplayStatus,
   type GateView,
 } from "@/features/gates/shared/view";
-import { PrecedentNote } from "@/features/insights/components/precedent-note";
+import { joinNames, PrecedentNote } from "@/features/insights/components/precedent-note";
 import { RiskSignals } from "@/features/insights/components/risk-signals";
 import { SuggestedApprovers } from "@/features/insights/components/suggested-approvers";
 import type { WhyResult } from "@/features/why/shared/providers";
@@ -99,6 +100,20 @@ function outcomeLine(gate: GateView): string | null {
   }
 }
 
+function TypingDots() {
+  return (
+    <span aria-hidden className="inline-flex gap-0.5">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1 animate-bounce rounded-full bg-brand"
+          style={{ animationDelay: `${i * 0.15}s` }}
+        />
+      ))}
+    </span>
+  );
+}
+
 // Where a wrong yes is expensive, approving takes a deliberate hold instead of a tap.
 export function needsHold(gate: GateView): boolean {
   return gate.env === "prod" || (gate.insights?.signals ?? []).some((s) => s.level === "high");
@@ -143,12 +158,15 @@ export function GateCard({
   onWhy,
   footer,
   contextOpen = false,
+  presence,
 }: {
   gate: GateView;
   viewer: Viewer;
   highlighted?: boolean;
   // Start with Context open (the gate's own page).
   contextOpen?: boolean;
+  // Teammates (by name) looking at this gate or writing a reason or question for it.
+  presence?: { looking: string[]; typing: string[] };
   footer?: React.ReactNode;
   // Plain-language explanation: the team's AI provider, or the built-in rules.
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
@@ -273,6 +291,32 @@ export function GateCard({
             )}
           </p>
         </header>
+
+        <AnimatePresence initial={false}>
+          {presence && (presence.typing.length > 0 || presence.looking.length > 0) && (
+            <motion.p
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="-mt-1 flex items-center gap-1.5 text-xs font-medium text-brand"
+              aria-live="polite"
+            >
+              {presence.typing.length > 0 ? (
+                <>
+                  <TypingDots />
+                  {joinNames(presence.typing)} {presence.typing.length === 1 ? "is" : "are"} writing
+                  a reason or question…
+                </>
+              ) : (
+                <>
+                  <Eye className="size-3.5" aria-hidden />
+                  {joinNames(presence.looking)} {presence.looking.length === 1 ? "is" : "are"}{" "}
+                  looking at this
+                </>
+              )}
+            </motion.p>
+          )}
+        </AnimatePresence>
 
         {gate.followUp && (
           <p className="flex items-start gap-2 text-sm text-muted-foreground">

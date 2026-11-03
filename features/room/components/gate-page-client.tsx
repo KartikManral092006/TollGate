@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import type { GateView } from "@/features/gates/shared/view";
+import { usePresence } from "@/features/presence/client/use-presence";
+import { presenceFor } from "@/features/presence/shared/presence";
 import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
@@ -56,10 +58,12 @@ export function GatePageClient({
   teamId,
   viewer,
   initial,
+  members,
 }: {
   teamId: string;
   viewer: Viewer;
   initial: GateView;
+  members: { id: string; name: string }[];
 }) {
   const [gate, setGate] = useState(initial);
 
@@ -80,6 +84,13 @@ export function GatePageClient({
   }, [refresh]);
 
   const actions = useGateActions({ refresh });
+  const people = usePresence(teamId, {
+    viewing: gate.id,
+    typing: actions.composing?.id ?? null,
+  });
+  const ids = presenceFor(gate.id, people, viewer.id);
+  const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? "A teammate";
+  const presence = { looking: ids.looking.map(nameOf), typing: ids.typing.map(nameOf) };
 
   return (
     <>
@@ -106,6 +117,7 @@ export function GatePageClient({
           onDeny={actions.deny}
           onAsk={actions.ask}
           onWhy={actions.explain}
+          presence={presence}
         />
         <aside className="py-5">
           <h2 className="text-sm font-bold">Timeline</h2>
