@@ -271,7 +271,7 @@ export function Simulator() {
         </div>
         <div
           ref={roomRef}
-          className="relative flex max-h-[30rem] flex-col gap-3 overflow-y-auto lg:max-h-[34rem]"
+          className="relative flex flex-col gap-3 lg:max-h-[34rem] lg:overflow-y-auto"
         >
           {cards.length === 0 ? (
             <div className="flex h-72 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
@@ -285,6 +285,12 @@ export function Simulator() {
                 viewer={{ id: "demo-you", canVote: true }}
                 onApprove={approve}
                 onDeny={setDenying}
+                onWhy={async (target) => {
+                  await new Promise((done) => setTimeout(done, 700));
+                  return target.code === 17
+                    ? "This applies a database migration to the shared staging database. The migration deletes the legacy_total column from invoices, along with every value stored in it. Anything that still reads that column (reports, exports, other services) will break, and the data can't be recovered unless a backup exists. Staging is shared, so teammates are affected too."
+                    : "This applies the revised migration: it first copies the invoices table to invoices_backup, then renames legacy_total to legacy_total_archived instead of deleting it. No data is removed and the rename can be reversed, though code still reading the old column name will need updating.";
+                }}
               />
             ))
           )}

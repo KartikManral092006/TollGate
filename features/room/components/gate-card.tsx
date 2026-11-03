@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Sparkles,
   ChevronDown,
   EyeOff,
   GitBranch,
@@ -72,17 +73,38 @@ export function GateCard({
   highlighted = false,
   onApprove,
   onDeny,
+  onWhy,
   footer,
 }: {
   gate: GateView;
   viewer: Viewer;
   highlighted?: boolean;
   footer?: React.ReactNode;
+  // Plain-language explanation of the command; omitted when no AI key is configured.
+  onWhy?: (gate: GateView) => Promise<string | null>;
   onApprove: (gate: GateView) => Promise<void>;
   onDeny: (gate: GateView) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [showContext, setShowContext] = useState(false);
+  const [why, setWhy] = useState<{ state: "loading" | "done" | "error"; text?: string } | null>(
+    null,
+  );
+
+  async function explain() {
+    if (!onWhy || why?.state === "loading") return;
+    if (why?.state === "done") {
+      setWhy(null);
+      return;
+    }
+    setWhy({ state: "loading" });
+    try {
+      const text = await onWhy(gate);
+      setWhy(text ? { state: "done", text } : { state: "error" });
+    } catch {
+      setWhy({ state: "error" });
+    }
+  }
   const meta = STATUS[gate.status];
   const open = isOpenStatus(gate.status);
   const mine = gate.requester.id === viewer.id;
@@ -209,6 +231,21 @@ export function GateCard({
               />
             </button>
           )}
+          {onWhy && (
+            <button
+              type="button"
+              onClick={explain}
+              aria-expanded={why?.state === "done"}
+              className="inline-flex items-center gap-1 rounded-sm font-medium text-brand underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              {why?.state === "loading" ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="size-3.5" aria-hidden />
+              )}
+              Why?
+            </button>
+          )}
           <span className="ms-auto">
             <QuorumDots approvals={gate.approvals} quorum={gate.quorum} />
           </span>
@@ -224,6 +261,28 @@ export function GateCard({
             >
               {gate.context}
             </motion.pre>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {why && why.state !== "loading" && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden rounded-lg border border-brand/25 bg-brand/5 px-3 py-2.5 text-sm"
+              role="note"
+            >
+              <p className="mb-1 flex items-center gap-1 text-xs font-medium text-brand">
+                <Sparkles className="size-3.5" aria-hidden /> AI explanation · it explains, the
+                decision is yours
+              </p>
+              <p className="whitespace-pre-wrap">
+                {why.state === "done"
+                  ? why.text
+                  : "Couldn't explain this one right now. Read the command and context, or ask the requester."}
+              </p>
+            </motion.div>
           )}
         </AnimatePresence>
 
