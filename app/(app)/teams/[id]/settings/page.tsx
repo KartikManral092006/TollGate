@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { verifySession } from "@/features/auth/server/session";
 import { displayName } from "@/features/gates/shared/view";
 import { SettingsClient } from "@/features/settings/components/settings-client";
-import { SubpageHeader } from "@/features/teams/components/subpage-header";
+import { TeamHeader } from "@/features/teams/components/team-header";
 import { loadSettings } from "@/features/teams/server/settings";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { ID_RE } from "@/features/teams/shared/schemas";
@@ -33,7 +33,7 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
   ]);
   return (
     <div className="flex min-h-dvh flex-col">
-      <SubpageHeader teamId={id} teamName={membership.team.name} title="Settings" />
+      <TeamHeader teamId={id} name={membership.team.name} />
       <SettingsClient
         teamId={id}
         viewer={{ id: user.id, role: membership.role }}

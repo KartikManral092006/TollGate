@@ -5,6 +5,7 @@ import { verifySession } from "@/features/auth/server/session";
 import { listTeamGates } from "@/features/gates/server/gates";
 import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
 import { displayName, toGateView } from "@/features/gates/shared/view";
+import { loadSetupState } from "@/features/onboarding/server/setup";
 import { RoomClient } from "@/features/room/components/room-client";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { canVote, ID_RE } from "@/features/teams/shared/schemas";
@@ -28,7 +29,11 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
   const membership = await getMembership(db, id, user.id);
   if (!membership) notFound();
 
-  const [members, gates] = await Promise.all([listMembers(db, id), listTeamGates(db, id)]);
+  const [members, gates, setup] = await Promise.all([
+    listMembers(db, id),
+    listTeamGates(db, id),
+    loadSetupState(db, id, user.id),
+  ]);
   const highlight =
     typeof query.gate === "string" && GATE_ID_RE.test(query.gate) ? query.gate : null;
 
@@ -48,6 +53,9 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
       initialGates={gates.map(toGateView)}
       highlightGateId={highlight}
       callsEnabled={env.CALLS_ENABLED === "1"}
+      setup={setup}
+      serverUrl={env.NEXT_PUBLIC_APP_URL}
+      isOwner={membership.role === "owner"}
     />
   );
 }

@@ -67,7 +67,7 @@ export function EnvBadge({ env }: { env: string }) {
       className={cn(
         "inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide uppercase",
         prod
-          ? "bg-red-600 text-white dark:bg-red-400 dark:text-black"
+          ? "bg-gate-denied text-white dark:text-black"
           : env === "staging"
             ? "bg-gate-pending-bg text-gate-pending-fg"
             : "bg-muted text-muted-foreground",

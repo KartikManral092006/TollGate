@@ -55,10 +55,7 @@ export function IncomingCallSheet({
           >
             <PhoneOff /> Decline
           </Button>
-          <Button
-            className="h-12 bg-emerald-700 text-white hover:bg-emerald-700/90 dark:bg-emerald-500 dark:text-black"
-            onClick={onAccept}
-          >
+          <Button className="h-12" onClick={onAccept}>
             <Phone /> {inCall ? "Switch" : "Answer"}
           </Button>
         </DrawerFooter>

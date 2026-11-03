@@ -1,26 +1,19 @@
 "use client";
 
-import { ArrowLeft, Bell, MoreHorizontal, ScrollText, Settings2 } from "lucide-react";
-import Link from "next/link";
+import { Bell } from "lucide-react";
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import type { LiveState } from "@/features/room/client/use-room-live";
+import { TeamHeader } from "@/features/teams/components/team-header";
 import { cn } from "@/lib/utils";
 
 export type Member = { id: string; name: string; role: string };
 
 const LIVE_LABEL: Record<LiveState, string> = {
   live: "Live",
-  connecting: "Connecting",
-  offline: "Updating every few seconds",
+  connecting: "Connecting…",
+  offline: "Auto-refreshing",
 };
 
 export function RoomHeader({
@@ -40,17 +33,11 @@ export function RoomHeader({
   onEnableAlerts?: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-2 border-b bg-background/85 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-4">
-      <Link
-        href="/home"
-        aria-label="All teams"
-        className={buttonVariants({ variant: "ghost", size: "icon" })}
-      >
-        <ArrowLeft />
-      </Link>
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base leading-tight font-semibold">{name}</h1>
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <TeamHeader
+      teamId={teamId}
+      name={name}
+      status={
+        <span className="flex flex-wrap items-center gap-x-1.5">
           <span
             aria-hidden
             className={cn(
@@ -66,36 +53,31 @@ export function RoomHeader({
           {openCount > 0 && (
             <>
               <span aria-hidden>·</span>
-              <span className="font-medium text-gate-pending-fg">{openCount} waiting</span>
+              <span className="font-semibold text-gate-pending-fg">{openCount} waiting</span>
             </>
           )}
-        </p>
-      </div>
-      <AvatarGroup className="hidden sm:flex">
-        {members.slice(0, 4).map((member) => (
-          <PersonAvatar key={member.id} id={member.id} name={member.name} size="sm" />
-        ))}
-        {members.length > 4 && <AvatarGroupCount>+{members.length - 4}</AvatarGroupCount>}
-      </AvatarGroup>
-      {onEnableAlerts && (
-        <Button variant="ghost" size="icon" aria-label="Turn on alerts" onClick={onEnableAlerts}>
-          <Bell />
-        </Button>
-      )}
-      <ThemeToggle />
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Team menu" />}>
-          <MoreHorizontal />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem render={<Link href={`/teams/${teamId}/audit`} />}>
-            <ScrollText /> Audit log
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href={`/teams/${teamId}/settings`} />}>
-            <Settings2 /> Settings
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </header>
+        </span>
+      }
+      actions={
+        <>
+          <AvatarGroup className="hidden sm:flex">
+            {members.slice(0, 4).map((member) => (
+              <PersonAvatar key={member.id} id={member.id} name={member.name} size="sm" />
+            ))}
+            {members.length > 4 && <AvatarGroupCount>+{members.length - 4}</AvatarGroupCount>}
+          </AvatarGroup>
+          {onEnableAlerts && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEnableAlerts}
+              className="gap-1.5 text-gate-pending-fg"
+            >
+              <Bell /> <span className="hidden sm:inline">Turn on alerts</span>
+            </Button>
+          )}
+        </>
+      }
+    />
   );
 }
