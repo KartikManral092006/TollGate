@@ -11,7 +11,13 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BarrierHero } from "@/features/landing/components/barrier-hero";
+import {
+  ExitsRoad,
+  MovingLane,
+  SignDrop,
+  SpinSign,
+} from "@/features/landing/components/landing-motion";
+import { TollPlaza } from "@/features/landing/components/toll-plaza";
 import { Simulator } from "@/features/landing/components/simulator";
 import { cn } from "@/lib/utils";
 
@@ -85,11 +91,11 @@ export default function LandingPage() {
         <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pt-10 pb-16 sm:pt-16 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
           <div className="flex flex-col gap-6">
             {/* The headline is a highway sign: green panel, white inset border. */}
-            <h1 className="rounded-2xl bg-[#00704a] p-1.5 text-white shadow-lg">
+            <SignDrop className="rounded-2xl bg-[#00704a] p-1.5 text-white shadow-lg">
               <span className="block rounded-xl border-2 border-white/90 px-5 py-6 text-[2.15rem] leading-[1.08] font-extrabold tracking-tight text-balance sm:px-7 sm:py-8 sm:text-5xl">
                 Your team decides before your agent does something you can&apos;t undo.
               </span>
-            </h1>
+            </SignDrop>
             <p className="max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground">
               When Claude Code is about to deploy to production, change a shared database or publish
               a package, it stops and asks your team in a live thread. One tap approves. A reason
@@ -114,7 +120,7 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          <BarrierHero />
+          <TollPlaza />
         </section>
 
         <section id="demo" className="scroll-mt-20 border-y bg-muted/40">
@@ -136,21 +142,7 @@ export default function LandingPage() {
           <h2 className="mb-8 text-2xl font-extrabold tracking-tight sm:text-3xl">
             Three exits to a safer agent
           </h2>
-          <ol className="relative grid gap-6 md:grid-cols-3">
-            <span
-              aria-hidden
-              className="absolute top-5 right-[16%] left-[16%] hidden h-1 bg-[repeating-linear-gradient(90deg,var(--border)_0_18px,transparent_18px_30px)] md:block"
-            />
-            {EXITS.map((exit, index) => (
-              <li key={exit.title} className="relative flex flex-col gap-3">
-                <span className="relative z-10 inline-flex w-fit items-center rounded-lg border-2 border-white bg-[#00704a] px-3 py-1.5 text-sm font-bold text-white shadow ring-2 ring-[#00704a]">
-                  Exit {index + 1}
-                </span>
-                <h3 className="text-lg font-bold">{exit.title}</h3>
-                <p className="text-muted-foreground">{exit.body}</p>
-              </li>
-            ))}
-          </ol>
+          <ExitsRoad exits={EXITS} />
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-4 pb-16">
@@ -158,14 +150,14 @@ export default function LandingPage() {
             Built for the moment it matters
           </h2>
           <ul className="grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
-            {SIGNS.map((sign) => (
+            {SIGNS.map((sign, index) => (
               <li key={sign.title} className="flex gap-4">
-                <span
-                  aria-hidden
-                  className="mt-1 grid size-10 shrink-0 rotate-45 place-items-center rounded-md border-2 border-asphalt bg-signal dark:border-signal-foreground"
+                <SpinSign
+                  index={index}
+                  className="mt-1 size-10 shrink-0 rounded-md border-2 border-asphalt bg-signal dark:border-signal-foreground"
                 >
                   <sign.icon className="size-4.5 -rotate-45 text-signal-foreground" />
-                </span>
+                </SpinSign>
                 <div>
                   <h3 className="font-bold">{sign.title}</h3>
                   <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
@@ -179,10 +171,7 @@ export default function LandingPage() {
 
         <section className="mx-auto w-full max-w-6xl px-4 pb-20">
           <div className="relative overflow-hidden rounded-3xl bg-asphalt px-6 py-10 text-white sm:px-10">
-            <span
-              aria-hidden
-              className="absolute inset-x-0 bottom-5 h-1 bg-[repeating-linear-gradient(90deg,rgb(255_255_255/0.3)_0_28px,transparent_28px_52px)]"
-            />
+            <MovingLane />
             <div className="relative flex flex-col gap-6 md:flex-row md:items-center">
               <div className="flex-1">
                 <h2 className="text-2xl font-extrabold tracking-tight">Set it up in two minutes</h2>
