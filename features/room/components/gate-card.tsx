@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { HoldButton } from "@/components/hold-button";
 import { Button } from "@/components/ui/button";
 import {
   CodeBlock,
@@ -179,6 +180,9 @@ export function GateCard({
   const canAsk = canAct && onAsk !== undefined && gate.status === "pending";
   const denial = gate.votes.find((vote) => vote.decision === "deny");
   const outcome = outcomeLine(gate);
+  // Where a wrong yes is expensive, approving takes a deliberate hold instead of a tap.
+  const holdToApprove =
+    gate.env === "prod" || (gate.insights?.signals ?? []).some((s) => s.level === "high");
 
   async function approve() {
     setBusy(true);
@@ -538,11 +542,28 @@ export function GateCard({
               <ThumbsDown aria-hidden />
               Deny…
             </Button>
-            <Button className="h-11 sm:h-9 sm:px-5" onClick={approve} disabled={busy}>
-              {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ThumbsUp aria-hidden />}
-              Approve
-            </Button>
+            {holdToApprove ? (
+              <HoldButton
+                className="h-11 sm:h-9 sm:px-5"
+                onHold={() => void approve()}
+                disabled={busy}
+                label={`Hold to approve TG-${gate.code}`}
+              >
+                {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ThumbsUp aria-hidden />}
+                Hold to approve
+              </HoldButton>
+            ) : (
+              <Button className="h-11 sm:h-9 sm:px-5" onClick={approve} disabled={busy}>
+                {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ThumbsUp aria-hidden />}
+                Approve
+              </Button>
+            )}
           </div>
+        )}
+        {canAct && holdToApprove && (
+          <p className="-mt-1 text-xs text-muted-foreground sm:text-end">
+            {gate.env === "prod" ? "Production" : "High risk"}: press and hold Approve for a second.
+          </p>
         )}
         {open && mine && (
           <p className="text-xs text-muted-foreground">
