@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, MoreHorizontal, ScrollText, Settings2 } from "lucide-react";
+import { ArrowLeft, Bell, MoreHorizontal, ScrollText, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,12 +29,15 @@ export function RoomHeader({
   members,
   live,
   openCount,
+  onEnableAlerts,
 }: {
   teamId: string;
   name: string;
   members: Member[];
   live: LiveState;
   openCount: number;
+  // Shown while browser notifications haven't been allowed yet.
+  onEnableAlerts?: () => void;
 }) {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-2 border-b bg-background/85 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-4">
@@ -74,6 +77,11 @@ export function RoomHeader({
         ))}
         {members.length > 4 && <AvatarGroupCount>+{members.length - 4}</AvatarGroupCount>}
       </AvatarGroup>
+      {onEnableAlerts && (
+        <Button variant="ghost" size="icon" aria-label="Turn on alerts" onClick={onEnableAlerts}>
+          <Bell />
+        </Button>
+      )}
       <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Team menu" />}>

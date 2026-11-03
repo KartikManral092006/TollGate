@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { mirrorGate } from "@/features/gates/server";
+import { announceParkedDecision, mirrorGate } from "@/features/gates/server";
 import { castVote, VoteRejectedError } from "@/features/gates/server/gates";
 import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
 import { voteSchema } from "@/features/gates/shared/schemas";
@@ -34,6 +34,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
       newId: () => newAlnumId(),
     });
     mirrorGate(id);
+    const decided =
+      outcome.evaluation.status === "approved" || outcome.evaluation.status === "denied";
+    if (decided && outcome.previous === "parked") announceParkedDecision(id);
     return json({
       status: outcome.evaluation.status,
       approvals: outcome.evaluation.approvals,
