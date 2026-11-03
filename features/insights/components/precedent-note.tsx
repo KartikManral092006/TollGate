@@ -30,7 +30,7 @@ export function PrecedentNote({ precedent }: { precedent: Precedent }) {
   return (
     <div
       className={cn(
-        "rounded-lg border-s-4 bg-muted/50 px-3 py-2 text-sm",
+        "border-s-2 ps-3 text-sm",
         denied ? "border-gate-denied" : "border-gate-approved",
       )}
       role="note"

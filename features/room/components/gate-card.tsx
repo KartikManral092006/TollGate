@@ -1,22 +1,19 @@
 "use client";
 
 import {
-  Sparkles,
   ChevronDown,
   EyeOff,
-  MessageCircleQuestion,
   GitBranch,
   ListChecks,
   Loader2,
+  MessageCircleQuestion,
   ShieldCheck,
+  Sparkles,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import { Dot } from "@/components/dot";
-import { RouteShield } from "@/components/road/route-shield";
-import { TrafficLight, type Light } from "@/components/road/traffic-light";
 import { Button } from "@/components/ui/button";
 import {
   CodeBlock,
@@ -35,20 +32,29 @@ import { PrecedentNote } from "@/features/insights/components/precedent-note";
 import { RiskSignals } from "@/features/insights/components/risk-signals";
 import { SuggestedApprovers } from "@/features/insights/components/suggested-approvers";
 import type { WhyResult } from "@/features/why/shared/providers";
-import { EnvBadge, STATUS, StatusChip } from "@/features/room/components/gate-status";
+import { EnvBadge, STATUS } from "@/features/room/components/gate-status";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
 
 export type Viewer = { id: string; canVote: boolean };
 
-const LIGHT: Record<GateDisplayStatus, Light> = {
-  pending: "amber",
-  asked: "amber",
-  approved: "green",
-  denied: "red",
-  parked: "off",
-  expired: "off",
+const DOT: Record<GateDisplayStatus, string> = {
+  pending: "bg-gate-pending",
+  asked: "bg-gate-pending",
+  approved: "bg-gate-approved",
+  denied: "bg-gate-denied",
+  parked: "bg-gate-parked",
+  expired: "bg-gate-parked",
+};
+
+const TEXT: Record<GateDisplayStatus, string> = {
+  pending: "text-gate-pending-fg",
+  asked: "text-gate-pending-fg",
+  approved: "text-gate-approved-fg",
+  denied: "text-gate-denied-fg",
+  parked: "text-muted-foreground",
+  expired: "text-muted-foreground",
 };
 
 function QuorumDots({ approvals, quorum }: { approvals: number; quorum: number }) {
@@ -79,7 +85,7 @@ function outcomeLine(gate: GateView): string | null {
       const names = gate.votes.filter((v) => v.decision === "approve").map((v) => v.name);
       const by = names.length > 0 ? `Approved by ${names.join(", ")}` : "Approved";
       if (!gate.grant) return null;
-      return `${by} after parking · ${gate.grant.usedAt ? "the agent's retry used it" : "the agent's retry passes within 24 h"}`;
+      return `${by} after parking, ${gate.grant.usedAt ? "and the agent's retry used it" : "so the agent's retry passes within 24 h"}.`;
     }
     case "parked":
       return "Nobody decided in time. The agent moved on; approving now lets its retry pass.";
@@ -90,6 +96,34 @@ function outcomeLine(gate: GateView): string | null {
   }
 }
 
+// A note with a coloured edge instead of a box: the thread stays one flat timeline.
+function Note({
+  tone,
+  label,
+  children,
+}: {
+  tone: "signal" | "approved" | "denied" | "pending" | "brand";
+  label?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const edge = {
+    signal: "border-signal",
+    approved: "border-gate-approved",
+    denied: "border-gate-denied",
+    pending: "border-gate-pending",
+    brand: "border-brand",
+  }[tone];
+  return (
+    <div className={cn("border-s-2 ps-3 text-sm", edge)}>
+      {label && <p className="mb-0.5 text-xs font-semibold text-muted-foreground">{label}</p>}
+      {children}
+    </div>
+  );
+}
+
+// One gate in the room's thread. Not a card: the requester's avatar on the left with a line in
+// the gate's colour running down beside everything about it, divided from the next entry by a
+// hairline, like the rest of the app.
 export function GateCard({
   gate,
   viewer,
@@ -156,70 +190,69 @@ export function GateCard({
 
   return (
     <motion.article
-      layout
+      layout="position"
       id={`gate-${gate.id}`}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
       aria-label={`Gate TG-${gate.code}, ${meta.label}`}
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm",
-        highlighted && "ring-2 ring-brand/60",
+        "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-b py-5 transition-colors sm:grid-cols-[2.25rem_minmax(0,1fr)] sm:gap-x-4",
+        highlighted && "-mx-3 rounded-md bg-signal/10 px-3",
       )}
     >
-      <motion.span
-        aria-hidden
-        layout
-        className={cn("absolute inset-y-0 start-0 w-1.5", meta.stripe)}
-      />
-      <div className="flex flex-col gap-3 p-3 ps-4 sm:p-4 sm:ps-5">
-        <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <RouteShield code={gate.code} />
-          <EnvBadge env={gate.env} />
-          <span className="text-xs text-muted-foreground">{gate.preset}</span>
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.span
-              key={shown}
-              className="ms-auto flex items-center gap-2"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.18 }}
-            >
-              <TrafficLight lit={LIGHT[shown]} />
-              <StatusChip status={shown} />
-            </motion.span>
-          </AnimatePresence>
-        </header>
+      {/* Who asked, and the gate's state as a line running down beside it. */}
+      <div className="flex flex-col items-center gap-2 pt-0.5">
+        <PersonAvatar id={gate.requester.id} name={gate.requester.name} />
+        <motion.span
+          aria-hidden
+          layout
+          className={cn("w-0.5 flex-1 rounded-full transition-colors duration-300", DOT[shown])}
+        />
+      </div>
 
-        <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-          <PersonAvatar id={gate.requester.id} name={gate.requester.name} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">
-              <span className="font-medium text-foreground">
+      <div className="flex min-w-0 flex-col gap-3">
+        <header className="flex flex-col gap-1">
+          <div className="flex items-start gap-3">
+            <p className="min-w-0 flex-1 text-sm">
+              <span className="font-semibold">
                 {mine ? "Your agent" : `${gate.requester.name}'s agent`}
               </span>{" "}
-              wants to run
+              <span className="text-muted-foreground">wants to run</span>{" "}
+              <span className="font-mono font-bold">TG-{gate.code}</span>
             </p>
-            <p className="flex min-w-0 items-center gap-1">
-              <span className="truncate font-mono">{gate.repo}</span>
-              {gate.branch && (
-                <>
-                  <GitBranch className="ms-1 size-3 shrink-0" aria-hidden />
-                  <span className="truncate font-mono">{gate.branch}</span>
-                </>
-              )}
-              <Dot />
-              <time
-                className="shrink-0"
-                dateTime={gate.createdAt}
-                title={clockTime(gate.createdAt)}
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={shown}
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                transition={{ duration: 0.18 }}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 text-sm font-semibold",
+                  TEXT[shown],
+                )}
               >
-                {timeAgo(gate.createdAt)}
-              </time>
-            </p>
+                <span aria-hidden className={cn("size-2 rounded-full", DOT[shown])} />
+                {meta.label}
+              </motion.span>
+            </AnimatePresence>
           </div>
-        </div>
+          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <EnvBadge env={gate.env} />
+            <span>{gate.preset}</span>
+            <span className="truncate font-mono">{gate.repo}</span>
+            {gate.branch && (
+              <span className="flex min-w-0 items-center gap-1">
+                <GitBranch className="size-3 shrink-0" aria-hidden />
+                <span className="truncate font-mono">{gate.branch}</span>
+              </span>
+            )}
+            <time dateTime={gate.createdAt} title={clockTime(gate.createdAt)}>
+              {timeAgo(gate.createdAt)}
+            </time>
+          </p>
+        </header>
 
         {gate.followUp && (
           <p className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -232,19 +265,23 @@ export function GateCard({
         )}
 
         {gate.intent ? (
-          <p className="rounded-lg border-s-4 border-signal bg-muted/50 px-3 py-2 text-sm">
-            <span className="block text-xs font-semibold text-muted-foreground">
-              {gate.followUp
+          <Note
+            tone="signal"
+            label={
+              gate.followUp
                 ? "The agent's answer, in its own words"
-                : "The agent's reason, in its own words"}
-            </span>
+                : "The agent's reason, in its own words"
+            }
+          >
             &ldquo;{gate.intent}&rdquo;
-          </p>
+          </Note>
         ) : (
           gate.followUp && (
-            <p className="rounded-lg bg-gate-pending-bg px-3 py-2 text-sm text-gate-pending-fg">
-              The agent ran the command again without answering the question.
-            </p>
+            <Note tone="pending">
+              <span className="text-gate-pending-fg">
+                The agent ran the command again without answering the question.
+              </span>
+            </Note>
           )
         )}
 
@@ -284,7 +321,7 @@ export function GateCard({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {gate.redactions > 0 && (
             <Tooltip>
               <TooltipTrigger render={<span className="inline-flex items-center gap-1" />}>
@@ -342,7 +379,7 @@ export function GateCard({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="max-h-60 overflow-auto rounded-lg border bg-muted/40 p-2.5 font-mono text-xs whitespace-pre-wrap"
+              className="max-h-60 overflow-auto rounded-md bg-muted px-3 py-2.5 font-mono text-xs whitespace-pre-wrap"
             >
               {gate.context}
             </motion.pre>
@@ -355,27 +392,35 @@ export function GateCard({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden rounded-lg border border-brand/25 bg-brand/5 px-3 py-2.5 text-sm"
+              className="overflow-hidden"
               role="note"
             >
-              <p className="mb-1 flex flex-wrap items-center gap-1 text-xs font-medium text-brand">
-                <Sparkles className="size-3.5" aria-hidden />
-                {why.result?.source === "ai"
-                  ? `AI explanation${why.result.model ? ` · ${why.result.model}` : ""}`
-                  : "Built-in explanation"}
-                <span className="font-normal text-muted-foreground">· the decision is yours</span>
-              </p>
-              <p className="whitespace-pre-wrap">
-                {why.state === "done" && why.result
-                  ? why.result.text
-                  : "Couldn't explain this one right now. Read the command and context, or ask the requester."}
-              </p>
-              {why.result?.fallback && (
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  Your team&apos;s AI provider didn&apos;t answer, so this is the built-in
-                  explanation.
+              <Note
+                tone="brand"
+                label={
+                  <span className="flex flex-wrap items-center gap-1 text-brand">
+                    <Sparkles className="size-3.5" aria-hidden />
+                    {why.result?.source === "ai"
+                      ? `AI explanation${why.result.model ? `, ${why.result.model}` : ""}`
+                      : "Built-in explanation"}
+                    <span className="font-normal text-muted-foreground">
+                      (the decision is yours)
+                    </span>
+                  </span>
+                }
+              >
+                <p className="whitespace-pre-wrap">
+                  {why.state === "done" && why.result
+                    ? why.result.text
+                    : "Couldn't explain this one right now. Read the command and context, or ask the requester."}
                 </p>
-              )}
+                {why.result?.fallback && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Your team&apos;s AI provider didn&apos;t answer, so this is the built-in
+                    explanation.
+                  </p>
+                )}
+              </Note>
             </motion.div>
           )}
         </AnimatePresence>
@@ -383,7 +428,12 @@ export function GateCard({
         {gate.votes.length > 0 && (
           <ul className="flex flex-col gap-1.5">
             {gate.votes.map((vote) => (
-              <li key={vote.userId} className="flex items-start gap-2 text-sm">
+              <motion.li
+                key={vote.userId}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-start gap-2 text-sm"
+              >
                 <PersonAvatar id={vote.userId} name={vote.name} size="sm" />
                 <span className="min-w-0">
                   <span className="font-medium">{vote.name}</span>{" "}
@@ -406,24 +456,26 @@ export function GateCard({
                     <span className="text-muted-foreground">: {vote.reason}</span>
                   )}
                 </span>
-              </li>
+              </motion.li>
             ))}
           </ul>
         )}
 
         {shown === "asked" && gate.question ? (
-          <p className="rounded-lg bg-gate-pending-bg px-3 py-2 text-sm text-gate-pending-fg">
-            Sent to the agent to answer: &ldquo;{gate.question}&rdquo;{" "}
-            {gate.answeredIn
-              ? `Its answer is in TG-${gate.answeredIn}.`
-              : "Its answer arrives with its next try."}
-          </p>
+          <Note tone="pending" label="Sent to the agent to answer">
+            &ldquo;{gate.question}&rdquo;{" "}
+            <span className="text-muted-foreground">
+              {gate.answeredIn
+                ? `Its answer is in TG-${gate.answeredIn}.`
+                : "Its answer arrives with its next try."}
+            </span>
+          </Note>
         ) : (
           gate.status === "denied" &&
           denial?.reason && (
-            <p className="rounded-lg bg-gate-denied-bg px-3 py-2 text-sm text-gate-denied-fg">
-              Sent to the agent as its next instruction: “{denial.reason}”
-            </p>
+            <Note tone="denied" label="Sent to the agent as its next instruction">
+              <span className="text-gate-denied-fg">&ldquo;{denial.reason}&rdquo;</span>
+            </Note>
           )
         )}
         {outcome && <p className="text-xs text-muted-foreground">{outcome}</p>}
@@ -451,11 +503,17 @@ export function GateCard({
         )}
 
         {canAct && (
-          <div className={cn("grid gap-2 pt-1", canAsk ? "grid-cols-3" : "grid-cols-2")}>
+          // Full-width, thumb-sized on phones; a compact row on the right on wider screens.
+          <div
+            className={cn(
+              "grid gap-2 sm:flex sm:justify-end",
+              canAsk ? "grid-cols-3" : "grid-cols-2",
+            )}
+          >
             {canAsk && (
               <Button
-                variant="outline"
-                className="h-11"
+                variant="ghost"
+                className="h-11 sm:h-9"
                 onClick={() => onAsk?.(gate)}
                 disabled={busy}
               >
@@ -465,14 +523,14 @@ export function GateCard({
             )}
             <Button
               variant="outline"
-              className="h-11 border-gate-denied/40 text-gate-denied-fg hover:bg-gate-denied-bg hover:text-gate-denied-fg"
+              className="h-11 border-gate-denied/40 text-gate-denied-fg hover:bg-gate-denied-bg hover:text-gate-denied-fg sm:h-9"
               onClick={() => onDeny(gate)}
               disabled={busy}
             >
               <ThumbsDown aria-hidden />
               Deny…
             </Button>
-            <Button className="h-11" onClick={approve} disabled={busy}>
+            <Button className="h-11 sm:h-9 sm:px-5" onClick={approve} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ThumbsUp aria-hidden />}
               Approve
             </Button>

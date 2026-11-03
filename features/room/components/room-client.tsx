@@ -199,7 +199,7 @@ export function RoomClient({
           {items.length === 0 ? (
             // An empty room starts at the top, so the setup guide is the first thing people see.
             <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-3 py-4 sm:px-4">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-4 sm:px-6">
                 <SetupGuide
                   teamId={team.id}
                   serverUrl={serverUrl}
@@ -236,7 +236,7 @@ export function RoomClient({
             <MessageScrollerProvider>
               <MessageScroller className="flex-1">
                 <MessageScrollerViewport>
-                  <MessageScrollerContent className="mx-auto w-full max-w-2xl gap-4 px-3 py-4 sm:px-4">
+                  <MessageScrollerContent className="mx-auto w-full max-w-3xl gap-0 px-4 py-4 sm:px-6">
                     <SetupGuide
                       teamId={team.id}
                       serverUrl={serverUrl}
@@ -247,7 +247,7 @@ export function RoomClient({
                       return (
                         <Fragment key={item.key}>
                           {item.day && (
-                            <Marker variant="separator" className="text-xs">
+                            <Marker variant="separator" className="py-3 text-xs">
                               <MarkerContent>{item.day}</MarkerContent>
                             </Marker>
                           )}
@@ -318,7 +318,7 @@ export function RoomClient({
                 onHangUp={() => void calls.hangUp()}
               />
             )}
-            <div className="mx-auto w-full max-w-2xl">
+            <div className="mx-auto w-full max-w-3xl">
               <Composer disabled={live !== "live"} onSend={send} />
             </div>
           </div>
