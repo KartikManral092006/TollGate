@@ -81,7 +81,13 @@ export function CommandMenu({
       title="Search Tollgate"
       description="Jump to a team, a page or a waiting gate"
     >
-      <Command>
+      {/* Plain substring matching: fuzzy matching finds "aud" scattered through a long
+          command and jumps to the wrong gate. */}
+      <Command
+        filter={(value, search) =>
+          value.toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0
+        }
+      >
         <CommandInput placeholder="Search teams, pages, gates…" />
         <CommandList>
           <CommandEmpty>Nothing matches.</CommandEmpty>
