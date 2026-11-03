@@ -99,6 +99,17 @@ The Nexconn Call SDK in the room, behind `CALLS_ENABLED=1` and a live Nexconn co
 - **Call bar:** timer, a "ends in" warning in the last minute, mute (`enableMicrophone`) and hang-up. The client ends the call at the permit's `maxSec`; the server sweeper is the backstop.
 - **Not yet tested live:** this needs T7 (calling enabled at $0) and two devices on the real App Key.
 
+## Deployment (Nov 3)
+
+Free stack: **Vercel Hobby** (app, functions in `sin1`) + **Neon** (Postgres, Singapore) + **Upstash** (Redis, ap-southeast-1). `/api/health` reports `{"status":"ok","db":"ok","redis":"ok"}`. This replaces PLAN.md §6's "no serverless" rule: Neon's pooled connection solves the connection problem, and each hook poll is a short request.
+
+- `vercel.json` runs `pnpm db:deploy && pnpm build`. Migrations use `DIRECT_URL` (Neon direct); the app uses `DATABASE_URL` (Neon pooled).
+- `build` runs `prisma generate` itself. Vercel restores a cached `node_modules`, so `postinstall` doesn't run and the git-ignored client would be missing.
+- Redis uses TLS automatically for `*.upstash.io`. Copy the Upstash URL only after revealing the password: the masked URL fails with WRONGPASS.
+- `/api/health` gives short failure reasons (`timeout`, `ENOTFOUND`, `WRONGPASS`, `unreachable`, …) without hosts or secrets.
+- **Branch:** GitHub's default, and so Vercel production, is `gate-core`. Every step is pushed to both `main` and `gate-core` until it's switched to `main`.
+- **Free-tier budget:** Upstash allows 500K commands a month, and the hook polls every 2 s (about 150 commands per 5-minute wait). Watch the Upstash dashboard during launch week.
+
 ## Decisions
 
 - **One deny vetoes.** Anyone who knows why it's dangerous can stop it; approvals need quorum.
@@ -111,7 +122,7 @@ The Nexconn Call SDK in the room, behind `CALLS_ENABLED=1` and a live Nexconn co
 
 ## Next
 
-1. Nov 4: Kartik creates the Tollgate Nexconn app and fills `.env`; run T1, T2, T6 live, T7; deploy the skeleton on HTTPS; new GitHub repo.
+1. Kartik: switch the GitHub default branch and Vercel's production branch to `main`; connect Vercel to GitHub so pushes deploy.
 2. Live test with the real Nexconn keys: team chat, gate cards over Nexconn, then a ring laptop → phone once T7 confirms $0.
 3. T0 (c), for Kartik: in a scratch repo linked with `init`, run `claude --dangerously-skip-permissions` and ask it to run `npm publish`. Check that the gate still appears and a deny still blocks.
 4. Call UI: huddle bar, Ring button, incoming-call sheet; permits are ready server-side.
