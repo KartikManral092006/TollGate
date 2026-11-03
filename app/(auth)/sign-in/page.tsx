@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Logo } from "@/components/logo";
 import { SignPanel } from "@/components/road/sign-panel";
-import { BarrierHero } from "@/features/landing/components/barrier-hero";
+import { TollPlaza } from "@/features/landing/components/toll-plaza";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
 import { AuthNotConfiguredError, githubEnabled, googleEnabled } from "@/features/auth/server/auth";
 import { getOptionalSession } from "@/features/auth/server/session";
@@ -60,7 +60,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
           </p>
         </SignPanel>
         <div className="hidden lg:block">
-          <BarrierHero />
+          <TollPlaza />
         </div>
       </section>
 

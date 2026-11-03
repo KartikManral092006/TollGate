@@ -4,6 +4,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { AppShell } from "@/components/shell/app-shell";
 import { PageHeader } from "@/components/shell/page-header";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { Section } from "@/components/shell/section";
 import { buttonVariants } from "@/components/ui/button";
 import { NamePrompt } from "@/features/auth/components/name-prompt";
@@ -71,11 +72,11 @@ export default async function HomePage() {
             title="Your teams"
             description="Each team has its own room, audit log and repos. Amber means something is waiting for a decision."
           >
-            <ul className="divide-y border-y">
+            <Stagger role="list" className="divide-y border-y">
               {memberships.map(({ team, role }) => {
                 const open = team._count.gates;
                 return (
-                  <li key={team.id}>
+                  <StaggerItem key={team.id} role="listitem">
                     <Link
                       href={`/teams/${team.id}`}
                       className="group flex items-center gap-4 py-3.5 outline-none focus-visible:bg-muted"
@@ -109,10 +110,10 @@ export default async function HomePage() {
                         aria-hidden
                       />
                     </Link>
-                  </li>
+                  </StaggerItem>
                 );
               })}
-            </ul>
+            </Stagger>
           </Section>
         )}
 

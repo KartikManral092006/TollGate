@@ -241,7 +241,11 @@ export function ReviewClient({
 
       {current === null ? (
         <main className="flex flex-1 items-start px-4 py-16 sm:px-6 lg:px-10">
-          <AllClear title="Queue empty" description="Every gate has been decided. Nice work." />
+          <AllClear
+            large
+            title="Queue empty"
+            description="Every gate has been decided. Nice work."
+          />
         </main>
       ) : (
         <main className="grid flex-1 content-start items-start gap-x-12 px-4 pb-16 sm:px-6 lg:grid-cols-[minmax(0,48rem)_minmax(0,20rem)] lg:px-10">
