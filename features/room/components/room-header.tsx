@@ -57,7 +57,7 @@ export function RoomHeader({
           )}
         </p>
       </div>
-      <AvatarGroup className="hidden *:data-[slot=avatar]:ring-background sm:flex">
+      <AvatarGroup className="hidden *:data-[slot=avatar]:ring-background sm:flex xl:hidden">
         {members.slice(0, 5).map((member) => (
           <PersonAvatar key={member.id} id={member.id} name={member.name} size="sm" />
         ))}

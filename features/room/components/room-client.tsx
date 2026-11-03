@@ -34,6 +34,7 @@ import { Composer } from "@/features/room/components/composer";
 import { DenyDrawer } from "@/features/room/components/deny-drawer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
+import { RoomRail } from "@/features/room/components/room-rail";
 import { useRoomLive } from "@/features/room/client/use-room-live";
 import type { ChatLine } from "@/features/room/shared/chat";
 import { dayLabel } from "@/features/room/shared/format";
@@ -193,121 +194,136 @@ export function RoomClient({
         onEnableAlerts={alerts.permission === "default" ? () => void alerts.enable() : undefined}
       />
 
-      {items.length === 0 ? (
-        // An empty room starts at the top, so the setup guide is the first thing people see.
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-3 py-4 sm:px-4">
-            <SetupGuide teamId={team.id} serverUrl={serverUrl} isOwner={isOwner} initial={setup} />
-            {setup.complete ? (
-              <Empty className="my-8">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <ShieldAlert />
-                  </EmptyMedia>
-                  <EmptyTitle>No gates yet</EmptyTitle>
-                  <EmptyDescription>
-                    When a teammate&apos;s coding agent tries something risky, it shows up here for
-                    the team to decide.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <p className="text-xs text-muted-foreground">
-                    Send a test one with <code className="font-mono">npx tollgate-cli test</code>.
-                  </p>
-                </EmptyContent>
-              </Empty>
-            ) : (
-              <p className="text-center text-sm text-muted-foreground">
-                Gates show up here once your computer is connected.
-              </p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <MessageScrollerProvider>
-          <MessageScroller className="flex-1">
-            <MessageScrollerViewport>
-              <MessageScrollerContent className="mx-auto w-full max-w-2xl gap-4 px-3 py-4 sm:px-4">
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          {items.length === 0 ? (
+            // An empty room starts at the top, so the setup guide is the first thing people see.
+            <div className="flex-1 overflow-y-auto">
+              <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-3 py-4 sm:px-4">
                 <SetupGuide
                   teamId={team.id}
                   serverUrl={serverUrl}
                   isOwner={isOwner}
                   initial={setup}
                 />
-                {items.map((item) => {
-                  return (
-                    <Fragment key={item.key}>
-                      {item.day && (
-                        <Marker variant="separator" className="text-xs">
-                          <MarkerContent>{item.day}</MarkerContent>
-                        </Marker>
-                      )}
-                      <MessageScrollerItem>
-                        {item.kind === "gate" ? (
-                          <GateCard
-                            gate={item.gate}
-                            viewer={viewer}
-                            highlighted={item.gate.id === highlightGateId}
-                            onApprove={async (gate) => {
-                              await vote(gate, "approve");
-                            }}
-                            onDeny={setDenying}
-                            onAsk={setAsking}
-                            onRing={
-                              callsEnabled &&
-                              live === "live" &&
-                              !calls.busy &&
-                              calls.active === null
-                                ? (gate, userId) => void calls.ring(gate, userId)
-                                : undefined
-                            }
-                            onWhy={explain}
-                            footer={
-                              callsEnabled && live === "live" && isOpenStatus(item.gate.status) ? (
-                                <GateCallMenu
-                                  gate={item.gate}
-                                  callees={callees}
-                                  disabled={calls.busy || calls.active !== null}
-                                  onHuddle={(gate) =>
-                                    void calls.huddle(
-                                      gate,
-                                      members.filter((m) => m.id !== viewer.id).map((m) => m.id),
-                                    )
-                                  }
-                                  onRing={(gate, userId) => void calls.ring(gate, userId)}
-                                  onJoin={(gate, call) => void calls.join(gate, call)}
-                                />
-                              ) : undefined
-                            }
-                          />
-                        ) : (
-                          <ChatLineView
-                            line={item.line}
-                            name={names.get(item.line.senderId) ?? "Teammate"}
-                          />
-                        )}
-                      </MessageScrollerItem>
-                    </Fragment>
-                  );
-                })}
-              </MessageScrollerContent>
-            </MessageScrollerViewport>
-            <MessageScrollerButton />
-          </MessageScroller>
-        </MessageScrollerProvider>
-      )}
+                {setup.complete ? (
+                  <Empty className="my-8">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <ShieldAlert />
+                      </EmptyMedia>
+                      <EmptyTitle>No gates yet</EmptyTitle>
+                      <EmptyDescription>
+                        When a teammate&apos;s coding agent tries something risky, it shows up here
+                        for the team to decide.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                      <p className="text-xs text-muted-foreground">
+                        Send a test one with{" "}
+                        <code className="font-mono">npx tollgate-cli test</code>.
+                      </p>
+                    </EmptyContent>
+                  </Empty>
+                ) : (
+                  <p className="text-center text-sm text-muted-foreground">
+                    Gates show up here once your computer is connected.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <MessageScrollerProvider>
+              <MessageScroller className="flex-1">
+                <MessageScrollerViewport>
+                  <MessageScrollerContent className="mx-auto w-full max-w-2xl gap-4 px-3 py-4 sm:px-4">
+                    <SetupGuide
+                      teamId={team.id}
+                      serverUrl={serverUrl}
+                      isOwner={isOwner}
+                      initial={setup}
+                    />
+                    {items.map((item) => {
+                      return (
+                        <Fragment key={item.key}>
+                          {item.day && (
+                            <Marker variant="separator" className="text-xs">
+                              <MarkerContent>{item.day}</MarkerContent>
+                            </Marker>
+                          )}
+                          <MessageScrollerItem>
+                            {item.kind === "gate" ? (
+                              <GateCard
+                                gate={item.gate}
+                                viewer={viewer}
+                                highlighted={item.gate.id === highlightGateId}
+                                onApprove={async (gate) => {
+                                  await vote(gate, "approve");
+                                }}
+                                onDeny={setDenying}
+                                onAsk={setAsking}
+                                onRing={
+                                  callsEnabled &&
+                                  live === "live" &&
+                                  !calls.busy &&
+                                  calls.active === null
+                                    ? (gate, userId) => void calls.ring(gate, userId)
+                                    : undefined
+                                }
+                                onWhy={explain}
+                                footer={
+                                  callsEnabled &&
+                                  live === "live" &&
+                                  isOpenStatus(item.gate.status) ? (
+                                    <GateCallMenu
+                                      gate={item.gate}
+                                      callees={callees}
+                                      disabled={calls.busy || calls.active !== null}
+                                      onHuddle={(gate) =>
+                                        void calls.huddle(
+                                          gate,
+                                          members
+                                            .filter((m) => m.id !== viewer.id)
+                                            .map((m) => m.id),
+                                        )
+                                      }
+                                      onRing={(gate, userId) => void calls.ring(gate, userId)}
+                                      onJoin={(gate, call) => void calls.join(gate, call)}
+                                    />
+                                  ) : undefined
+                                }
+                              />
+                            ) : (
+                              <ChatLineView
+                                line={item.line}
+                                name={names.get(item.line.senderId) ?? "Teammate"}
+                              />
+                            )}
+                          </MessageScrollerItem>
+                        </Fragment>
+                      );
+                    })}
+                  </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton />
+              </MessageScroller>
+            </MessageScrollerProvider>
+          )}
 
-      <div className="border-t bg-background/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
-        {calls.active && (
-          <CallBar
-            call={calls.active}
-            onMute={() => void calls.toggleMute()}
-            onHangUp={() => void calls.hangUp()}
-          />
-        )}
-        <div className="mx-auto w-full max-w-2xl">
-          <Composer disabled={live !== "live"} onSend={send} />
+          <div className="border-t bg-background/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
+            {calls.active && (
+              <CallBar
+                call={calls.active}
+                onMute={() => void calls.toggleMute()}
+                onHangUp={() => void calls.hangUp()}
+              />
+            )}
+            <div className="mx-auto w-full max-w-2xl">
+              <Composer disabled={live !== "live"} onSend={send} />
+            </div>
+          </div>
         </div>
+        <RoomRail gates={gates} members={members} />
       </div>
 
       <IncomingCallSheet
