@@ -129,5 +129,5 @@ export function callPolicy(): CallPolicy {
 }
 
 export function gateUrl(teamId: string, gateId: string): string {
-  return new URL(`/teams/${teamId}?gate=${gateId}`, env.NEXT_PUBLIC_APP_URL).toString();
+  return new URL(`/teams/${teamId}/gates/${gateId}`, env.NEXT_PUBLIC_APP_URL).toString();
 }

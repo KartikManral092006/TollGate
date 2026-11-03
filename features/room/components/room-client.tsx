@@ -1,8 +1,7 @@
 "use client";
 
 import { ShieldAlert } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { Fragment, useEffect, useMemo } from "react";
 import {
   Empty,
   EmptyContent,
@@ -28,13 +27,12 @@ import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { useAlerts } from "@/features/notify/client/use-alerts";
 import { SetupGuide } from "@/features/onboarding/components/setup-guide";
 import type { SetupState } from "@/features/onboarding/shared/steps";
-import type { WhyResult } from "@/features/why/shared/providers";
 import { ChatLineView } from "@/features/room/components/chat-line";
 import { Composer } from "@/features/room/components/composer";
-import { DenyDrawer } from "@/features/room/components/deny-drawer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
 import { RoomRail } from "@/features/room/components/room-rail";
+import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { useRoomLive } from "@/features/room/client/use-room-live";
 import type { ChatLine } from "@/features/room/shared/chat";
 import { dayLabel } from "@/features/room/shared/format";
@@ -43,16 +41,6 @@ type ThreadItem = (
   | { kind: "gate"; key: string; at: number; gate: GateView }
   | { kind: "line"; key: string; at: number; line: ChatLine }
 ) & { day: string | null };
-
-const VOTE_ERRORS: Record<string, string> = {
-  closed: "This gate was already decided.",
-  voted: "You already voted on this gate.",
-  own_gate: "You can't approve your own agent's command.",
-  not_waiting:
-    "The agent has stopped waiting, so it can't hear a question now. Approve or deny instead.",
-  not_allowed: "Your role can't vote in this team.",
-  rate_limited: "Too many votes. Try again in a minute.",
-};
 
 export function RoomClient({
   team,
@@ -98,8 +86,7 @@ export function RoomClient({
         .map((m) => ({ id: m.id, name: m.name })),
     [members, viewer.id],
   );
-  const [denying, setDenying] = useState<GateView | null>(null);
-  const [asking, setAsking] = useState<GateView | null>(null);
+  const actions = useGateActions({ refresh });
   const names = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
 
   const items = useMemo<ThreadItem[]>(
@@ -136,52 +123,6 @@ export function RoomClient({
     }, 200);
     return () => clearTimeout(timer);
   }, [highlightGateId]);
-
-  async function vote(gate: GateView, decision: "approve" | "deny", reason?: string) {
-    const response = await fetch(`/api/gates/${gate.id}/vote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reason ? { decision, reason } : { decision }),
-    });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { error?: string };
-      toast.error(VOTE_ERRORS[body.error ?? ""] ?? "Your vote didn't go through. Try again.");
-      void refresh();
-      return false;
-    }
-    const result = (await response.json()) as { status: string; approvals: number; quorum: number };
-    if (decision === "deny") toast.success(`Denied TG-${gate.code}. The agent gets your reason.`);
-    else if (result.status === "approved") toast.success(`TG-${gate.code} approved`);
-    else toast.success(`Approved · ${result.approvals}/${result.quorum} so far`);
-    void refresh();
-    return true;
-  }
-
-  async function ask(gate: GateView, question: string) {
-    const response = await fetch(`/api/gates/${gate.id}/ask`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
-    });
-    void refresh();
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { error?: string };
-      toast.error(VOTE_ERRORS[body.error ?? ""] ?? "Your question didn't go through. Try again.");
-      return false;
-    }
-    toast.success(`Question sent on TG-${gate.code}. The agent answers when it tries again.`);
-    return true;
-  }
-
-  async function explain(gate: GateView): Promise<WhyResult | null> {
-    const response = await fetch(`/api/gates/${gate.id}/why`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-    if (!response.ok) return null;
-    return (await response.json()) as WhyResult;
-  }
 
   return (
     // Fills the space beside the sidebar (under the phone top bar), so the thread scrolls alone.
@@ -258,10 +199,10 @@ export function RoomClient({
                                 viewer={viewer}
                                 highlighted={item.gate.id === highlightGateId}
                                 onApprove={async (gate) => {
-                                  await vote(gate, "approve");
+                                  await actions.approve(gate);
                                 }}
-                                onDeny={setDenying}
-                                onAsk={setAsking}
+                                onDeny={actions.deny}
+                                onAsk={actions.ask}
                                 onRing={
                                   callsEnabled &&
                                   live === "live" &&
@@ -270,7 +211,7 @@ export function RoomClient({
                                     ? (gate, userId) => void calls.ring(gate, userId)
                                     : undefined
                                 }
-                                onWhy={explain}
+                                onWhy={actions.explain}
                                 footer={
                                   callsEnabled &&
                                   live === "live" &&
@@ -334,12 +275,7 @@ export function RoomClient({
         onDecline={() => void calls.decline()}
       />
 
-      <DenyDrawer
-        gate={denying}
-        onClose={() => setDenying(null)}
-        onSubmit={(gate, reason) => vote(gate, "deny", reason)}
-      />
-      <DenyDrawer gate={asking} mode="ask" onClose={() => setAsking(null)} onSubmit={ask} />
+      {actions.drawers}
     </div>
   );
 }

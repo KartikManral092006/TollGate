@@ -160,7 +160,7 @@ function Details({ gate, teamId }: { gate: GateView; teamId: string }) {
           </ul>
         )}
         <Link
-          href={`/teams/${teamId}?gate=${gate.id}`}
+          href={`/teams/${teamId}/gates/${gate.id}`}
           className="mt-1 inline-flex w-fit items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           Open in the room <ArrowUpRight className="size-3.5" />
