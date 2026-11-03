@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/code-block";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
+import type { WhyResult } from "@/features/why/shared/providers";
 import { EnvBadge, STATUS, StatusChip } from "@/features/room/components/gate-status";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
@@ -80,16 +81,17 @@ export function GateCard({
   viewer: Viewer;
   highlighted?: boolean;
   footer?: React.ReactNode;
-  // Plain-language explanation of the command; omitted when no AI key is configured.
-  onWhy?: (gate: GateView) => Promise<string | null>;
+  // Plain-language explanation: the team's AI provider, or the built-in rules.
+  onWhy?: (gate: GateView) => Promise<WhyResult | null>;
   onApprove: (gate: GateView) => Promise<void>;
   onDeny: (gate: GateView) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [showContext, setShowContext] = useState(false);
-  const [why, setWhy] = useState<{ state: "loading" | "done" | "error"; text?: string } | null>(
-    null,
-  );
+  const [why, setWhy] = useState<{
+    state: "loading" | "done" | "error";
+    result?: WhyResult;
+  } | null>(null);
 
   async function explain() {
     if (!onWhy || why?.state === "loading") return;
@@ -99,8 +101,8 @@ export function GateCard({
     }
     setWhy({ state: "loading" });
     try {
-      const text = await onWhy(gate);
-      setWhy(text ? { state: "done", text } : { state: "error" });
+      const result = await onWhy(gate);
+      setWhy(result ? { state: "done", result } : { state: "error" });
     } catch {
       setWhy({ state: "error" });
     }
@@ -273,15 +275,24 @@ export function GateCard({
               className="overflow-hidden rounded-lg border border-brand/25 bg-brand/5 px-3 py-2.5 text-sm"
               role="note"
             >
-              <p className="mb-1 flex items-center gap-1 text-xs font-medium text-brand">
-                <Sparkles className="size-3.5" aria-hidden /> AI explanation · it explains, the
-                decision is yours
+              <p className="mb-1 flex flex-wrap items-center gap-1 text-xs font-medium text-brand">
+                <Sparkles className="size-3.5" aria-hidden />
+                {why.result?.source === "ai"
+                  ? `AI explanation${why.result.model ? ` · ${why.result.model}` : ""}`
+                  : "Built-in explanation"}
+                <span className="font-normal text-muted-foreground">· the decision is yours</span>
               </p>
               <p className="whitespace-pre-wrap">
-                {why.state === "done"
-                  ? why.text
+                {why.state === "done" && why.result
+                  ? why.result.text
                   : "Couldn't explain this one right now. Read the command and context, or ask the requester."}
               </p>
+              {why.result?.fallback && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Your team&apos;s AI provider didn&apos;t answer, so this is the built-in
+                  explanation.
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

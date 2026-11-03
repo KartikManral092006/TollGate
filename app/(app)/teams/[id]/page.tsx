@@ -48,7 +48,6 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
       initialGates={gates.map(toGateView)}
       highlightGateId={highlight}
       callsEnabled={env.CALLS_ENABLED === "1"}
-      whyEnabled={Boolean(env.AI_API_KEY)}
     />
   );
 }
