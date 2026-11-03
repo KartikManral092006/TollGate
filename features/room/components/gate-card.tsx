@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { Dot } from "@/components/dot";
 import { Button } from "@/components/ui/button";
 import {
   CodeBlock,
@@ -178,9 +179,7 @@ export function GateCard({
                   <span className="truncate font-mono">{gate.branch}</span>
                 </>
               )}
-              <span aria-hidden className="shrink-0">
-                ·
-              </span>
+              <Dot />
               <time
                 className="shrink-0"
                 dateTime={gate.createdAt}

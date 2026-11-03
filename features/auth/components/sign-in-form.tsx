@@ -98,13 +98,13 @@ export function SignInForm(props: {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm shadow-lg">
       <CardHeader>
         <CardTitle>
-          <h1 className="text-xl font-semibold">Sign in to Tollgate</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">Sign in to Tollgate</h1>
         </CardTitle>
         <CardDescription>
-          Approve or stop your team&apos;s coding agents before they touch prod.
+          No password: we email you a sign-in link. New here? The same link creates your account.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

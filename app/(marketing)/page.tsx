@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BarrierHero } from "@/features/landing/components/barrier-hero";
@@ -61,18 +62,6 @@ const SIGNS: { icon: LucideIcon; title: string; body: string }[] = [
     body: "Who approved what, why and how fast, with a CSV export for the post-mortem.",
   },
 ];
-
-function Logo() {
-  return (
-    <span className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-      <span
-        aria-hidden
-        className="h-3 w-9 rounded-full bg-[repeating-linear-gradient(-45deg,#c8102e_0_6px,#ffffff_6px_12px)] ring-1 ring-black/15"
-      />
-      Tollgate
-    </span>
-  );
-}
 
 export default function LandingPage() {
   return (
