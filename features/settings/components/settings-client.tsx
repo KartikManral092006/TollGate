@@ -1,19 +1,12 @@
 "use client";
 
-import {
-  FolderGit2,
-  KeyRound,
-  Link2,
-  Loader2,
-  ShieldCheck,
-  Terminal,
-  UserPlus,
-  Users,
-  Zap,
-} from "lucide-react";
+import { KeyRound, Link2, Loader2, ShieldCheck, Terminal, Zap } from "lucide-react";
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shell/page-header";
+import { Section } from "@/components/shell/section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,11 +18,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Stagger, StaggerItem } from "@/components/motion/stagger";
-import { ExitTab, SignIcon } from "@/components/road/sign-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CodeBlock,
   CodeBlockActions,
@@ -39,15 +29,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { PolicyState } from "@/features/insights/server/policy";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { timeAgo } from "@/features/room/shared/format";
-import { AiCard } from "@/features/settings/components/ai-card";
+import { AiSettings } from "@/features/settings/components/ai-card";
 import { CopyField } from "@/features/settings/components/copy-field";
-import { RulesCard } from "@/features/settings/components/rules-card";
-import type { PolicyState } from "@/features/insights/server/policy";
+import { RulesSettings } from "@/features/settings/components/rules-card";
 import type { InviteRow, RepoRow } from "@/features/teams/server/settings";
 import { REPO_NAME_RE } from "@/features/teams/shared/schemas";
 import type { AiConfigView } from "@/features/why/shared/providers";
+import { cn } from "@/lib/utils";
 
 type Member = { id: string; name: string; role: string };
 
@@ -81,7 +72,7 @@ function ConfirmRevoke({
   return (
     <AlertDialog>
       <AlertDialogTrigger
-        render={<Button variant="ghost" size="sm" className="text-destructive" />}
+        render={<Button variant="ghost" size="sm" className="shrink-0 text-destructive" />}
       >
         Revoke
       </AlertDialogTrigger>
@@ -113,7 +104,7 @@ function ConfirmRevoke({
   );
 }
 
-function LinkRepoCard({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
+function LinkRepo({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"guard" | "delegate">("guard");
@@ -149,107 +140,84 @@ function LinkRepoCard({ teamId, isOwner }: { teamId: string; isOwner: boolean })
     }
   }
 
+  if (issued) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex max-w-2xl flex-col gap-3 border-s-4 border-gate-approved ps-4"
+      >
+        <p className="text-sm font-semibold text-gate-approved-fg">
+          Token created for {issued.repo}. Run this in the repo:
+        </p>
+        <CodeBlock size="sm" className="border-0 bg-asphalt text-white dark:bg-asphalt">
+          <CodeBlockContent wrap className="pe-11! text-xs break-all">
+            {issued.command}
+          </CodeBlockContent>
+          <CodeBlockActions>
+            <CodeBlockCopyButton
+              value={issued.command}
+              className="bg-white/10! text-white/80 ring-white/20! hover:bg-white/20! hover:text-white"
+            />
+          </CodeBlockActions>
+        </CodeBlock>
+        <p className="text-xs text-muted-foreground">
+          Shown once. If you lose it, create another token and revoke this one. Then restart Claude
+          Code and run <code className="font-mono">npx tollgate-cli test</code>.
+        </p>
+        <Button variant="outline" size="sm" className="self-start" onClick={() => setIssued(null)}>
+          Done
+        </Button>
+      </motion.div>
+    );
+  }
+
   return (
-    <Card id="link" className="scroll-mt-32">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
-          <SignIcon>
-            <Terminal />
-          </SignIcon>
-          Link a repo
-        </CardTitle>
-        <CardDescription>
-          Each developer links the repo on their own machine. The token can raise gates for this
-          repo and read their status; it can never approve anything.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {issued ? (
-          <div className="flex flex-col gap-3 rounded-xl border border-gate-approved/40 bg-gate-approved-bg p-3">
-            <p className="text-sm font-medium text-gate-approved-fg">
-              Token created for {issued.repo}. Run this in the repo:
-            </p>
-            <CodeBlock size="sm" className="bg-background">
-              <CodeBlockContent wrap className="pe-11! text-xs break-all">
-                {issued.command}
-              </CodeBlockContent>
-              <CodeBlockActions>
-                <CodeBlockCopyButton value={issued.command} />
-              </CodeBlockActions>
-            </CodeBlock>
-            <p className="text-xs text-muted-foreground">
-              Shown once. If you lose it, create another token and revoke this one. Then restart
-              Claude Code and run <code className="font-mono">npx tollgate-cli test</code>.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={() => setIssued(null)}
-            >
-              Done
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={submit} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="repo-name">Repository</Label>
-              <Input
-                id="repo-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="acme/billing"
-                autoComplete="off"
-                spellCheck={false}
-                className="font-mono"
-                aria-invalid={name.length > 0 && !valid}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Mode</Label>
-              <ToggleGroup
-                value={[mode]}
-                onValueChange={(value: string[]) =>
-                  value[0] && setMode(value[0] as "guard" | "delegate")
-                }
-                variant="outline"
-                aria-label="Mode"
-              >
-                <ToggleGroupItem value="guard">
-                  <ShieldCheck /> Guard
-                </ToggleGroupItem>
-                <ToggleGroupItem value="delegate" disabled={!isOwner}>
-                  <Zap /> Delegate
-                </ToggleGroupItem>
-              </ToggleGroup>
-              <p className="text-xs text-muted-foreground">
-                {mode === "guard"
-                  ? "Recommended. Tollgate can only stop commands; after the team approves, Claude Code still asks as usual."
-                  : "The team's approval lets that exact command run without Claude Code asking again. Owner only."}
-              </p>
-            </div>
-            <Button type="submit" className="self-start" disabled={!valid || busy}>
-              {busy ? <Loader2 className="animate-spin" /> : <KeyRound />}
-              Create token
-            </Button>
-          </form>
-        )}
-      </CardContent>
-    </Card>
+    <form onSubmit={submit} className="grid max-w-2xl gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="repo-name">Repository</Label>
+        <Input
+          id="repo-name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="acme/billing"
+          autoComplete="off"
+          spellCheck={false}
+          className="h-10 font-mono"
+          aria-invalid={name.length > 0 && !valid}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>Mode</Label>
+        <ToggleGroup
+          value={[mode]}
+          onValueChange={(value: string[]) => value[0] && setMode(value[0] as "guard" | "delegate")}
+          variant="outline"
+          aria-label="Mode"
+        >
+          <ToggleGroupItem value="guard" className="h-10">
+            <ShieldCheck /> Guard
+          </ToggleGroupItem>
+          <ToggleGroupItem value="delegate" disabled={!isOwner} className="h-10">
+            <Zap /> Delegate
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+      <p className="text-xs text-muted-foreground sm:col-span-2">
+        {mode === "guard"
+          ? "Recommended. Tollgate can only stop commands; after the team approves, Claude Code still asks as usual."
+          : "The team's approval lets that exact command run without Claude Code asking again. Owner only."}
+      </p>
+      <Button type="submit" className="justify-self-start" disabled={!valid || busy}>
+        {busy ? <Loader2 className="animate-spin" /> : <Terminal />}
+        Create token
+      </Button>
+    </form>
   );
 }
 
-function ReposCard({
-  teamId,
-  repos,
-  isOwner,
-}: {
-  teamId: string;
-  repos: RepoRow[];
-  isOwner: boolean;
-}) {
+function Repos({ teamId, repos, isOwner }: { teamId: string; repos: RepoRow[]; isOwner: boolean }) {
   const router = useRouter();
-  if (repos.length === 0) return null;
 
   async function revoke(tokenId: string) {
     const { ok } = await postJson(`/api/teams/${teamId}/tokens/${tokenId}`, {}, "DELETE");
@@ -261,60 +229,51 @@ function ReposCard({
     }
   }
 
+  if (repos.length === 0) {
+    return <p className="text-sm text-muted-foreground">No repos linked yet.</p>;
+  }
+
   return (
-    <Card id="repos" className="scroll-mt-32">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
-          <SignIcon>
-            <FolderGit2 />
-          </SignIcon>
-          Linked repos
-        </CardTitle>
-        <CardDescription>Revoke a token if a laptop is lost or someone leaves.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {repos.map((repo) => (
-          <section key={repo.id} className="flex flex-col gap-2">
-            <h3 className="flex items-center gap-2 font-mono text-sm font-semibold">
-              {repo.name}
-              <Badge variant={repo.mode === "delegate" ? "default" : "secondary"}>
-                {repo.mode === "delegate" ? "Delegate" : "Guard"}
-              </Badge>
-            </h3>
-            {repo.tokens.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No active tokens.</p>
-            ) : (
-              <ul className="divide-y rounded-lg border">
-                {repo.tokens.map((token) => (
-                  <li key={token.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                    <KeyRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-mono text-xs">{token.prefix}…</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {token.createdBy}
-                        {token.mine ? " (you)" : ""} ·{" "}
-                        {token.lastUsedAt ? `used ${timeAgo(token.lastUsedAt)}` : "never used"}
-                      </p>
-                    </div>
-                    {(isOwner || token.mine) && (
-                      <ConfirmRevoke
-                        title="Revoke this token?"
-                        description={`Risky commands from the machine using ${token.prefix}… will be blocked until it's linked again.`}
-                        onConfirm={() => revoke(token.id)}
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))}
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-6">
+      {repos.map((repo) => (
+        <div key={repo.id} className="flex flex-col gap-2">
+          <h3 className="flex items-center gap-2 font-mono text-sm font-semibold">
+            {repo.name}
+            <Badge variant={repo.mode === "delegate" ? "default" : "secondary"}>
+              {repo.mode === "delegate" ? "Delegate" : "Guard"}
+            </Badge>
+          </h3>
+          {repo.tokens.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No active tokens.</p>
+          ) : (
+            <ul className="divide-y border-y">
+              {repo.tokens.map((token) => (
+                <li key={token.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <KeyRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="w-28 shrink-0 truncate font-mono text-xs">{token.prefix}…</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                    {token.createdBy}
+                    {token.mine ? " (you)" : ""},{" "}
+                    {token.lastUsedAt ? `used ${timeAgo(token.lastUsedAt)}` : "never used"}
+                  </span>
+                  {(isOwner || token.mine) && (
+                    <ConfirmRevoke
+                      title="Revoke this token?"
+                      description={`Risky commands from the machine using ${token.prefix}… will be blocked until it's linked again.`}
+                      onConfirm={() => revoke(token.id)}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
-function InvitesCard({ teamId, invites }: { teamId: string; invites: InviteRow[] }) {
+function Invites({ teamId, invites }: { teamId: string; invites: InviteRow[] }) {
   const router = useRouter();
   const [role, setRole] = useState<"approver" | "guest">("approver");
   const [busy, setBusy] = useState(false);
@@ -344,100 +303,170 @@ function InvitesCard({ teamId, invites }: { teamId: string; invites: InviteRow[]
   }
 
   return (
-    <Card id="invite" className="scroll-mt-32">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
-          <SignIcon>
-            <UserPlus />
-          </SignIcon>
-          Invite people
-        </CardTitle>
-        <CardDescription>
-          Approvers are teammates. Clients approve from a link on their phone: no install, no Slack
-          seat.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <ToggleGroup
-            value={[role]}
-            onValueChange={(value: string[]) =>
-              value[0] && setRole(value[0] as "approver" | "guest")
-            }
-            variant="outline"
-            aria-label="Invite as"
-          >
-            <ToggleGroupItem value="approver">Teammate</ToggleGroupItem>
-            <ToggleGroupItem value="guest">Client</ToggleGroupItem>
-          </ToggleGroup>
-          <Button onClick={create} disabled={busy}>
-            {busy ? <Loader2 className="animate-spin" /> : <Link2 />}
-            Create link
-          </Button>
-        </div>
-        {link && (
-          <div className="flex flex-col gap-1.5">
-            <CopyField value={link} label="invite link" mono={false} />
-            <p className="text-xs text-muted-foreground">Works for 10 people for 3 days.</p>
-          </div>
-        )}
-        {invites.length > 0 && (
-          <ul className="divide-y rounded-lg border">
-            {invites.map((invite) => (
-              <li key={invite.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                <Link2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="min-w-0 flex-1 truncate">
-                  {ROLE_LABEL[invite.role] ?? invite.role} link · {invite.uses}/{invite.maxUses}{" "}
-                  used · expires {timeAgo(invite.expiresAt)}
+    <div className="flex max-w-2xl flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <ToggleGroup
+          value={[role]}
+          onValueChange={(value: string[]) => value[0] && setRole(value[0] as "approver" | "guest")}
+          variant="outline"
+          aria-label="Invite as"
+        >
+          <ToggleGroupItem value="approver">Teammate</ToggleGroupItem>
+          <ToggleGroupItem value="guest">Client</ToggleGroupItem>
+        </ToggleGroup>
+        <Button onClick={create} disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : <Link2 />}
+          Create link
+        </Button>
+      </div>
+      {link && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="flex flex-col gap-1.5"
+        >
+          <CopyField value={link} label="invite link" mono={false} />
+          <p className="text-xs text-muted-foreground">Works for 10 people for 3 days.</p>
+        </motion.div>
+      )}
+      {invites.length > 0 && (
+        <ul className="divide-y border-y">
+          {invites.map((invite) => (
+            <li key={invite.id} className="flex items-center gap-3 py-2.5 text-sm">
+              <Link2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">
+                {ROLE_LABEL[invite.role] ?? invite.role} link
+                <span className="text-muted-foreground">
+                  , {invite.uses} of {invite.maxUses} used, expires {timeAgo(invite.expiresAt)}
                 </span>
-                <ConfirmRevoke
-                  title="Disable this invite link?"
-                  description="Anyone who hasn't joined yet won't be able to use it. People who already joined stay."
-                  onConfirm={() => revoke(invite.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function MembersCard({ members, viewerId }: { members: Member[]; viewerId: string }) {
-  return (
-    <Card id="members" className="scroll-mt-32">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
-          <SignIcon>
-            <Users />
-          </SignIcon>
-          Members
-        </CardTitle>
-        <CardDescription>
-          Owners, approvers and clients can vote. Nobody can approve their own agent&apos;s command.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ul className="flex flex-col gap-3">
-          {members.map((member) => (
-            <li key={member.id} className="flex items-center gap-3">
-              <PersonAvatar id={member.id} name={member.name} />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                {member.name}
-                {member.id === viewerId && <span className="text-muted-foreground"> (you)</span>}
               </span>
-              <Badge variant="outline">{ROLE_LABEL[member.role] ?? member.role}</Badge>
+              <ConfirmRevoke
+                title="Disable this invite link?"
+                description="Anyone who hasn't joined yet won't be able to use it. People who already joined stay."
+                onConfirm={() => revoke(invite.id)}
+              />
             </li>
           ))}
         </ul>
-      </CardContent>
-    </Card>
+      )}
+    </div>
+  );
+}
+
+function Members({ members, viewerId }: { members: Member[]; viewerId: string }) {
+  return (
+    <ul className="divide-y border-y">
+      {members.map((member) => (
+        <li key={member.id} className="flex items-center gap-3 py-2.5">
+          <PersonAvatar id={member.id} name={member.name} size="sm" />
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+            {member.name}
+            {member.id === viewerId && <span className="text-muted-foreground"> (you)</span>}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {ROLE_LABEL[member.role] ?? member.role}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type NavSection = { id: string; label: string };
+
+// Which section is being read: the last one whose top has passed the upper third.
+function useActiveSection(ids: string[]): string | null {
+  const [active, setActive] = useState<string | null>(ids[0] ?? null);
+  useEffect(() => {
+    const update = () => {
+      let current = ids[0] ?? null;
+      for (const id of ids) {
+        const element = document.getElementById(id);
+        if (element && element.getBoundingClientRect().top < window.innerHeight * 0.33) {
+          current = id;
+        }
+      }
+      // At the very bottom, the last section is the one in view.
+      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) {
+        current = ids.at(-1) ?? current;
+      }
+      setActive(current);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [ids]);
+  return active;
+}
+
+function SectionNav({ sections, active }: { sections: NavSection[]; active: string | null }) {
+  return (
+    <>
+      {/* Desktop: a list that follows you down the page. */}
+      <nav aria-label="Settings sections" className="sticky top-0 hidden self-start py-8 lg:block">
+        <ul className="flex flex-col gap-0.5 border-s">
+          {sections.map((section) => (
+            <li key={section.id} className="relative">
+              {active === section.id && (
+                <motion.span
+                  layoutId="settings-section-marker"
+                  transition={{ type: "spring", stiffness: 520, damping: 42 }}
+                  className="absolute inset-y-1 -start-px w-0.5 rounded-full bg-primary"
+                />
+              )}
+              <a
+                href={`#${section.id}`}
+                className={cn(
+                  "block py-1.5 ps-4 text-sm transition-colors outline-none focus-visible:text-foreground",
+                  active === section.id
+                    ? "font-semibold text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {section.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      {/* Phones: a strip under the top bar. */}
+      <nav
+        aria-label="Settings sections"
+        className="sticky top-14 z-20 -mx-4 overflow-x-auto border-b bg-background/95 px-4 backdrop-blur sm:-mx-6 sm:px-6 lg:hidden"
+      >
+        <ul className="flex gap-5">
+          {sections.map((section) => (
+            <li key={section.id} className="relative shrink-0">
+              <a
+                href={`#${section.id}`}
+                className={cn(
+                  "block py-3 text-sm whitespace-nowrap",
+                  active === section.id ? "font-semibold text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {section.label}
+              </a>
+              {active === section.id && (
+                <motion.span
+                  layoutId="settings-section-strip"
+                  className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary"
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </>
   );
 }
 
 export function SettingsClient({
   teamId,
+  teamName,
   viewer,
   members,
   repos,
@@ -446,8 +475,9 @@ export function SettingsClient({
   policy,
 }: {
   teamId: string;
-  policy: PolicyState;
+  teamName: string;
   ai: AiConfigView;
+  policy: PolicyState;
   viewer: { id: string; role: string };
   members: Member[];
   repos: RepoRow[];
@@ -455,54 +485,77 @@ export function SettingsClient({
 }) {
   const isOwner = viewer.role === "owner";
   const canLink = viewer.role !== "guest";
-  const sections = [
+  const [sections] = useState<NavSection[]>(() => [
     ...(canLink ? [{ id: "link", label: "Link a repo" }] : []),
     { id: "repos", label: "Linked repos" },
-    ...(isOwner ? [{ id: "invite", label: "Invite" }] : []),
+    ...(isOwner ? [{ id: "invite", label: "Invite people" }] : []),
     { id: "rules", label: "Rules" },
-    { id: "ai", label: "AI" },
+    { id: "ai", label: "AI explanations" },
     { id: "members", label: "Members" },
-  ];
+  ]);
+  const [ids] = useState(() => sections.map((section) => section.id));
+  const active = useActiveSection(ids);
+
   return (
-    <main className="mx-auto w-full max-w-2xl px-3 py-5 sm:px-4">
-      <Stagger className="flex flex-col gap-4">
-        {/* Exits to each section: the page is long on a phone. */}
-        <StaggerItem>
-          <nav aria-label="Jump to" className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1">
-            {sections.map((section) => (
-              <a
-                key={section.id}
-                href={`#${section.id}`}
-                className="shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <ExitTab className="text-xs">{section.label}</ExitTab>
-              </a>
-            ))}
-          </nav>
-        </StaggerItem>
-        {canLink && (
-          <StaggerItem>
-            <LinkRepoCard teamId={teamId} isOwner={isOwner} />
-          </StaggerItem>
-        )}
-        <StaggerItem>
-          <ReposCard teamId={teamId} repos={repos} isOwner={isOwner} />
-        </StaggerItem>
-        {isOwner && (
-          <StaggerItem>
-            <InvitesCard teamId={teamId} invites={invites} />
-          </StaggerItem>
-        )}
-        <StaggerItem>
-          <RulesCard teamId={teamId} isOwner={isOwner} state={policy} />
-        </StaggerItem>
-        <StaggerItem>
-          <AiCard teamId={teamId} isOwner={isOwner} initial={ai} />
-        </StaggerItem>
-        <StaggerItem>
-          <MembersCard members={members} viewerId={viewer.id} />
-        </StaggerItem>
-      </Stagger>
-    </main>
+    <>
+      <PageHeader title="Settings" description={`Repos, people and rules for ${teamName}.`} />
+      <div className="flex-1 px-4 sm:px-6 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10 lg:px-10 xl:gap-16">
+        <SectionNav sections={sections} active={active} />
+        <div className="max-w-5xl pb-16">
+          {canLink && (
+            <Section
+              id="link"
+              title="Link a repo"
+              description="Each developer links the repo on their own machine. The token can raise gates for this repo and read their status; it can never approve anything."
+            >
+              <LinkRepo teamId={teamId} isOwner={isOwner} />
+            </Section>
+          )}
+          <Section
+            id="repos"
+            title="Linked repos"
+            description="One token per developer's machine. Revoke a token if a laptop is lost or someone leaves."
+          >
+            <Repos teamId={teamId} repos={repos} isOwner={isOwner} />
+          </Section>
+          {isOwner && (
+            <Section
+              id="invite"
+              title="Invite people"
+              description="Teammates approve from the room. Clients approve from a link on their phone: no install, no Slack seat."
+            >
+              <Invites teamId={teamId} invites={invites} />
+            </Section>
+          )}
+          <Section
+            id="rules"
+            title="Rules from your decisions"
+            description="When your team approves the same kind of command every time, waiting adds little. Suggested after 10 approvals in 30 days with no denials; never for production, publishing, infrastructure or deletes outside the repo."
+          >
+            <RulesSettings teamId={teamId} isOwner={isOwner} state={policy} />
+          </Section>
+          <Section
+            id="ai"
+            title="AI explanations"
+            description={
+              <>
+                What the &ldquo;Why?&rdquo; button on gate cards uses: your own provider (paid, free
+                tier or self-hosted) or the free built-in explanations. Explanations never approve
+                or deny anything.
+              </>
+            }
+          >
+            <AiSettings teamId={teamId} isOwner={isOwner} initial={ai} />
+          </Section>
+          <Section
+            id="members"
+            title="Members"
+            description="Owners, approvers and clients can vote. Nobody can approve their own agent's command."
+          >
+            <Members members={members} viewerId={viewer.id} />
+          </Section>
+        </div>
+      </div>
+    </>
   );
 }
