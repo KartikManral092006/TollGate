@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/features/auth/client/auth-client";
 import { signInErrorMessage } from "@/features/auth/shared/errors";
 import { SIGN_IN_PATH } from "@/features/auth/shared/routes";
+import { clientEnv } from "@/lib/env.client";
 
 type Status = "idle" | "sending" | "sent" | "redirecting";
 
@@ -19,7 +20,7 @@ function describeError(error: ClientError, via: "email" | "google", google: bool
         ? "RATE_LIMITED"
         : "TOO_MANY_REQUESTS"
       : (error?.code ?? "UNKNOWN");
-  return signInErrorMessage(code, { google }) ?? "";
+  return signInErrorMessage(code, { google, appUrl: clientEnv.NEXT_PUBLIC_APP_URL }) ?? "";
 }
 
 export function SignInForm(props: {

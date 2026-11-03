@@ -41,6 +41,18 @@ describe("signInErrorMessage", () => {
 
   it("uses a generic message for unknown codes", () => {
     expect(signInErrorMessage("SOMETHING_ELSE")).toMatch(/Something went wrong/);
+    expect(signInErrorMessage("SOMETHING_ELSE")).toContain("(SOMETHING_ELSE)");
+    expect(signInErrorMessage("UNKNOWN")).toBe("Something went wrong while signing in. Try again.");
+    expect(signInErrorMessage("<script>")).toBe(
+      "Something went wrong while signing in. Try again.",
+    );
+  });
+
+  it("points to the right address when the origin doesn't match", () => {
+    expect(signInErrorMessage("INVALID_ORIGIN", { appUrl: "https://tollgate.vercel.app" })).toBe(
+      "Sign-in only works at https://tollgate.vercel.app. Open that address and try again.",
+    );
+    expect(signInErrorMessage("MISSING_OR_NULL_ORIGIN")).toMatch(/main URL/);
   });
 });
 
