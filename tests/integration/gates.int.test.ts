@@ -1,10 +1,11 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CallRejectedError, requestHuddlePermit } from "@/features/call/server/permits";
+import { CallRejectedError, requestHuddlePermit, sweepCalls } from "@/features/call/server/permits";
 import {
   castVote,
   consumeGrant,
   createGate,
+  expireParkedGates,
   getGateForRepo,
   parkGate,
   VoteRejectedError,
@@ -298,5 +299,57 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
       ok: false,
       reason: "invalid",
     });
+  });
+  it("expires parked gates after 24 h and refuses votes on them", async () => {
+    const gate = await createGate(db, principal, gateInput("vercel --prod # stale"), { newId });
+    const longAgo = new Date(Date.now() - 25 * 3_600_000);
+    await parkGate(db, { gateId: gate.id, repoId: principal.repoId, now: longAgo });
+    const fresh = await createGate(db, principal, gateInput("vercel --prod # fresh"), { newId });
+    await parkGate(db, { gateId: fresh.id, repoId: principal.repoId });
+
+    expect(
+      await expireParkedGates(db, new Date(Date.now() - 24 * 3_600_000)),
+    ).toBeGreaterThanOrEqual(1);
+    expect((await db.gate.findUniqueOrThrow({ where: { id: gate.id } })).status).toBe("expired");
+    expect((await db.gate.findUniqueOrThrow({ where: { id: fresh.id } })).status).toBe("parked");
+    await expect(
+      castVote(db, { gateId: gate.id, userId: approvers[4]!, decision: "approve", newId }),
+    ).rejects.toMatchObject({ reason: "closed" });
+  });
+
+  it("fails abandoned permits and closes calls that overran their cap", async () => {
+    const gate = await createGate(db, principal, gateInput("terraform destroy"), { newId });
+    const now = new Date();
+    const abandoned = await db.callSession.create({
+      data: {
+        id: newId(),
+        teamId,
+        gateId: gate.id,
+        kind: "ring",
+        startedById: approvers[5]!,
+        calleeIds: [approvers[6]!],
+        createdAt: new Date(now.getTime() - 5 * 60_000),
+      },
+    });
+    const overran = await db.callSession.create({
+      data: {
+        id: newId(),
+        teamId,
+        gateId: gate.id,
+        kind: "huddle",
+        status: "live",
+        callId: newId(),
+        startedById: approvers[5]!,
+        calleeIds: [],
+        maxSec: 900,
+        startedAt: new Date(now.getTime() - 20 * 60_000),
+      },
+    });
+    await sweepCalls(db, now);
+    expect((await db.callSession.findUniqueOrThrow({ where: { id: abandoned.id } })).status).toBe(
+      "failed",
+    );
+    const ended = await db.callSession.findUniqueOrThrow({ where: { id: overran.id } });
+    expect(ended).toMatchObject({ status: "ended", durationSec: 900 });
   });
 });
