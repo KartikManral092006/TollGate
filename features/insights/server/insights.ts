@@ -2,6 +2,7 @@ import "server-only";
 import type { PrismaClient } from "@/lib/generated/prisma/client";
 import { displayName, isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { findPrecedent } from "@/features/insights/shared/precedent";
+import { riskSignals } from "@/features/insights/shared/signals";
 import type { HistoryGate } from "@/features/insights/shared/types";
 
 const HISTORY_DAYS = 180;
@@ -66,7 +67,13 @@ export async function withInsights(
   const history = await loadHistory(db, teamId);
   return gates.map((gate) =>
     isOpenStatus(gate.status)
-      ? { ...gate, insights: { precedent: findPrecedent(gate, history) } }
+      ? {
+          ...gate,
+          insights: {
+            precedent: findPrecedent(gate, history),
+            signals: riskSignals(gate, history),
+          },
+        }
       : gate,
   );
 }

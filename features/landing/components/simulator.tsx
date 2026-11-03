@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { GateView } from "@/features/gates/shared/view";
+import { riskSignals } from "@/features/insights/shared/signals";
+import type { Precedent } from "@/features/insights/shared/types";
 import { DenyDrawer } from "@/features/room/components/deny-drawer";
 import { GateCard } from "@/features/room/components/gate-card";
 import { cn } from "@/lib/utils";
@@ -16,9 +18,13 @@ type Line = { id: number; text: string; tone?: "dim" | "ok" | "bad" | "warn" | "
 
 const MIGRATION = `ALTER TABLE "invoices" DROP COLUMN "legacy_total";`;
 
-function gate(code: number, patch: Partial<GateView> = {}): GateView {
+function gate(
+  code: number,
+  patch: Partial<GateView> = {},
+  precedent: Precedent | null = null,
+): GateView {
   const now = new Date().toISOString();
-  return {
+  const view: GateView = {
     id: `demo-${code}`,
     code,
     status: "pending",
@@ -44,6 +50,8 @@ function gate(code: number, patch: Partial<GateView> = {}): GateView {
     createdAt: now,
     ...patch,
   };
+  // The same rules the room uses, so the demo shows real signals for its migration.
+  return { ...view, insights: { precedent, signals: riskSignals(view, []) } };
 }
 
 const TONE: Record<NonNullable<Line["tone"]>, string> = {
@@ -181,23 +189,24 @@ export function Simulator() {
       later(3100, () =>
         setCards((current) => [
           ...current,
-          gate(18, {
-            context: `Newest migration 20261103_archive_legacy_total:\nCREATE TABLE invoices_backup AS TABLE invoices;\nALTER TABLE "invoices" RENAME COLUMN "legacy_total" TO "legacy_total_archived";`,
-            insights: {
-              precedent: {
-                gateId: target.id,
-                code: target.code,
-                status: "denied",
-                by: ["You"],
-                reason,
-                decidedAt: new Date().toISOString(),
-                match: "same",
-                repo: target.repo,
-                sameRepo: true,
-                tally: { approved: 0, denied: 1 },
-              },
+          gate(
+            18,
+            {
+              context: `Newest migration 20261103_archive_legacy_total:\nCREATE TABLE invoices_backup AS TABLE invoices;\nALTER TABLE "invoices" RENAME COLUMN "legacy_total" TO "legacy_total_archived";`,
             },
-          }),
+            {
+              gateId: target.id,
+              code: target.code,
+              status: "denied",
+              by: ["You"],
+              reason,
+              decidedAt: new Date().toISOString(),
+              match: "same",
+              repo: target.repo,
+              sameRepo: true,
+              tally: { approved: 0, denied: 1 },
+            },
+          ),
         ]),
       );
       return true;

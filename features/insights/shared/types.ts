@@ -33,6 +33,13 @@ export type Precedent = {
   tally: { approved: number; denied: number };
 };
 
+export type RiskSignal = {
+  id: string;
+  level: "high" | "medium";
+  text: string;
+};
+
 export type GateInsights = {
   precedent: Precedent | null;
+  signals: RiskSignal[];
 };

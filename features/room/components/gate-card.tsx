@@ -25,6 +25,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { PrecedentNote } from "@/features/insights/components/precedent-note";
+import { RiskSignals } from "@/features/insights/components/risk-signals";
 import type { WhyResult } from "@/features/why/shared/providers";
 import { EnvBadge, STATUS, StatusChip } from "@/features/room/components/gate-status";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
@@ -212,6 +213,7 @@ export function GateCard({
           </p>
         )}
 
+        {open && gate.insights && <RiskSignals signals={gate.insights.signals} />}
         {open && gate.insights?.precedent && <PrecedentNote precedent={gate.insights.precedent} />}
 
         {/* The command on the road, as the agent typed it. */}
