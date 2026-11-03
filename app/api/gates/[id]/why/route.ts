@@ -32,7 +32,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
 
   const input = {
     command: gate.command,
-    context: gate.context,
+    // What a package script really runs is the part worth explaining.
+    context: gate.via ? `Runs:\n${gate.via}\n\n${gate.context}` : gate.context,
     intent: gate.intent,
     preset: gate.preset,
     env: gate.env,

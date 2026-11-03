@@ -40,6 +40,31 @@ export function findRepoRoot(cwd: string): string | null {
   }
 }
 
+// The scripts of the nearest package.json between `cwd` and the repo root, so the hook can
+// see what "pnpm db:deploy" really runs. Never looks above the repo.
+export function readScripts(cwd: string, repoRoot: string): Record<string, string> | null {
+  let dir = cwd;
+  for (;;) {
+    const file = join(dir, "package.json");
+    if (existsSync(file)) {
+      try {
+        const scripts = (JSON.parse(readFileSync(file, "utf8")) as { scripts?: unknown }).scripts;
+        if (!scripts || typeof scripts !== "object") return null;
+        return Object.fromEntries(
+          Object.entries(scripts).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string",
+          ),
+        );
+      } catch {
+        return null;
+      }
+    }
+    const parent = dirname(dir);
+    if (dir === repoRoot || parent === dir || !dir.startsWith(repoRoot)) return null;
+    dir = parent;
+  }
+}
+
 export function readConfigFile(repoRoot: string): ConfigFile {
   const raw = JSON.parse(readFileSync(join(repoRoot, CONFIG_FILE), "utf8")) as unknown;
   return configSchema.parse(raw);

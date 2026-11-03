@@ -1,5 +1,9 @@
 import { commandHash, type HookGateStatus } from "../../../features/gates/shared/hook-api";
-import { matchPreset, type Preset } from "../../../features/gates/shared/presets";
+import {
+  matchCommand,
+  withDefaultPresets,
+  type Preset,
+} from "../../../features/gates/shared/presets";
 import { redact, truncate } from "../../../features/gates/shared/redact";
 
 // The PreToolUse decision. Spike T0 (Nov 3) showed two facts this file is built around:
@@ -44,6 +48,8 @@ export type HookDeps = {
   envSecrets(repoRoot: string): string[];
   gitBranch(repoRoot: string): string | null;
   context(command: string, repoRoot: string): string;
+  // package.json scripts near `cwd`, for see-through matching of "pnpm db:deploy".
+  readScripts?(cwd: string, repoRoot: string): Record<string, string> | null;
   env: Record<string, string | undefined>;
   now(): number;
   sleep(ms: number): Promise<void>;
@@ -85,7 +91,12 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
   const config = deps.loadConfig(cwd);
   if (!config) return { kind: "none", note: "no .tollgate.json" };
 
-  const match = matchPreset(config.presets, { command, cwd, repoRoot: config.repoRoot });
+  const match = matchCommand(withDefaultPresets(config.presets), {
+    command,
+    cwd,
+    repoRoot: config.repoRoot,
+    readScripts: deps.readScripts ? (dir) => deps.readScripts!(dir, config.repoRoot) : undefined,
+  });
   if (!match) return { kind: "none" };
 
   // A human can start Claude Code with TOLLGATE_BYPASS=1 in an emergency. The agent can't
@@ -121,7 +132,15 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
     const secrets = deps.envSecrets(config.repoRoot);
     const redactedCommand = redact(command, secrets);
     const redactedCwd = redact(cwd, secrets);
-    const context = redact(deps.context(command, config.repoRoot), secrets);
+    // Context comes from what actually runs, so "pnpm db:deploy" still shows the migration SQL.
+    const context = redact(deps.context(`${command}\n${match.segment}`, config.repoRoot), secrets);
+    const via =
+      match.via.length > 0
+        ? {
+            from: redact(match.via.join(" → "), secrets),
+            runs: redact(match.segment, secrets),
+          }
+        : null;
     const branch = deps.gitBranch(config.repoRoot);
     // The agent's own reason, shown to approvers as its claim (it can be wrong).
     const description = input.tool_input?.description;
@@ -139,7 +158,15 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
       branch: branch ? truncate(redact(branch, secrets).text, 200) : null,
       context: truncate(context.text, 2048),
       intent: intent ? truncate(intent.text, 300) : null,
-      redactions: redactedCommand.count + redactedCwd.count + context.count + (intent?.count ?? 0),
+      via: via
+        ? [{ from: truncate(via.from.text, 300), runs: truncate(via.runs.text, 1000) }]
+        : undefined,
+      redactions:
+        redactedCommand.count +
+        redactedCwd.count +
+        context.count +
+        (intent?.count ?? 0) +
+        (via ? via.from.count + via.runs.count : 0),
       cmdHash,
       sessionId: input.session_id,
     });

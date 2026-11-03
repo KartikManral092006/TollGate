@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { expandCommand, type ScriptReader, type Segment } from "./expand";
 
 // Shared by the server and the CLI hook (bundled into packages/cli), so: no "@/" imports,
 // no server-only code. Patterns are regex sources, matched case-insensitively.
@@ -73,7 +74,8 @@ export const DEFAULT_PRESETS: Preset[] = [
   {
     name: "publish",
     patterns: [
-      "\\b(npm|pnpm|yarn)\\s+publish\\b",
+      // Flags (and their values) may sit between the tool and "publish": pnpm --filter cli publish.
+      "\\b(npm|pnpm|yarn)\\b[^;&|\\n]*\\s+publish(\\s|$)",
       "\\bcargo\\s+publish\\b",
       "\\btwine\\s+upload\\b",
     ],
@@ -84,14 +86,29 @@ export const DEFAULT_PRESETS: Preset[] = [
   {
     name: "infra",
     patterns: [
-      "\\bterraform\\s+(apply|destroy)\\b",
-      "\\bpulumi\\s+(up|destroy)\\b",
+      "\\bterraform\\b[^;&|\\n]*\\s+(apply|destroy)(\\s|$)",
+      "\\bpulumi\\b[^;&|\\n]*\\s+(up|destroy)(\\s|$)",
       "\\baws\\s+.*\\bdelete-[a-z-]+\\b",
       "\\baws\\s+s3\\s+(rm|rb)\\b",
       "\\bgcloud\\s+.*\\bdelete\\b",
     ],
     unless: [DRY_RUN],
     quorum: 2,
+  },
+  {
+    // Code Tollgate can't read before it runs: fetched from the network, decoded, or built
+    // from a variable at run time. A person should look before it runs.
+    name: "opaque",
+    patterns: [
+      "\\b(curl|wget)\\b[^|;&]*\\|\\s*(sudo(\\s+-\\S+)*\\s+)?(env\\s+)?(ba|z|da|k)?sh\\b",
+      "\\bbase64\\s+(-d|-D|--decode)\\b[^|;&]*\\|\\s*(sudo\\s+)?(ba|z|da|k)?sh\\b",
+      "\\b(ba|z|da|k)?sh\\s+<\\(",
+      "(^|[\\s;&|])(source|\\.)\\s+<\\(",
+      "(^|[\\s;&|])eval\\s+[\"']?[$`]",
+      "\\b(ba|z|da|k)?sh(\\s+-\\w+)*\\s+-\\w*c\\s+[\"']?[$`]",
+    ],
+    env: "other",
+    quorum: 1,
   },
   {
     name: "destructive-fs",
@@ -176,6 +193,69 @@ export function matchPreset(
     return { preset, env, quorum };
   }
   return null;
+}
+
+// A local .tollgate.json can add presets and patterns but never lose the built-in ones:
+// missing presets are appended, and a same-named preset also gets the built-in patterns.
+export function withDefaultPresets(presets: Preset[]): Preset[] {
+  const defaults = new Map(DEFAULT_PRESETS.map((preset) => [preset.name, preset]));
+  const names = new Set(presets.map((preset) => preset.name));
+  const merged = presets.map((preset) => {
+    const builtIn = defaults.get(preset.name);
+    return builtIn
+      ? { ...preset, patterns: [...new Set([...preset.patterns, ...builtIn.patterns])] }
+      : preset;
+  });
+  return [...merged, ...DEFAULT_PRESETS.filter((preset) => !names.has(preset.name))];
+}
+
+export type CommandMatch = PresetMatch & {
+  // The piece that matched, and how it was reached ("pnpm db:deploy" for a package script).
+  segment: string;
+  via: string[];
+};
+
+const ENV_RANK: Record<GateEnv, number> = { prod: 2, staging: 1, other: 0 };
+
+// Matches every piece of a command (see expand.ts), each with its own `unless`, and keeps the
+// strongest match: highest quorum, then production, then the first found. The raw command is
+// matched too, so nothing the expander mis-reads is lost. `extra` adds pieces the caller
+// already knows about (the server re-checks what the hook reported a script runs).
+export function matchCommand(
+  presets: Preset[],
+  input: {
+    command: string;
+    cwd: string;
+    repoRoot: string;
+    readScripts?: ScriptReader;
+    extra?: Segment[];
+  },
+): CommandMatch | null {
+  const pieces: Segment[] = [
+    { text: input.command, via: [] },
+    ...expandCommand(input.command, { cwd: input.cwd, readScripts: input.readScripts }),
+    ...(input.extra ?? []),
+  ];
+  let best: CommandMatch | null = null;
+  for (const piece of pieces) {
+    const match = matchPreset(presets, {
+      command: piece.text,
+      cwd: input.cwd,
+      repoRoot: input.repoRoot,
+    });
+    if (!match) continue;
+    const better =
+      best === null ||
+      match.quorum > best.quorum ||
+      (match.quorum === best.quorum && ENV_RANK[match.env] > ENV_RANK[best.env]) ||
+      (match.quorum === best.quorum &&
+        match.env === best.env &&
+        best.via.length === 0 &&
+        piece.via.length > 0 &&
+        best.preset.name === match.preset.name);
+    if (better) best = { ...match, segment: piece.text, via: piece.via };
+  }
+  return best;
 }
 
 // The server is authoritative: a local .tollgate.json can add presets but never lower a

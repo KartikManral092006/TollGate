@@ -17,6 +17,7 @@ function gate(patch: Partial<GateView>): GateView {
     command: "npm publish",
     context: "",
     intent: null,
+    via: null,
     redactions: 0,
     quorum: 1,
     approvals: 0,

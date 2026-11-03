@@ -36,6 +36,8 @@ export type GateView = {
   context: string;
   // The agent's own description of the command: its claim, not a fact.
   intent: string | null;
+  // What a wrapper or package script really runs, one "from → runs" line each.
+  via: string | null;
   redactions: number;
   quorum: number;
   approvals: number;
@@ -80,6 +82,7 @@ export type GateRow = {
   command: string;
   context: string;
   intent?: string | null;
+  via?: string | null;
   redactions: number;
   quorum: number;
   denyReason: string | null;
@@ -148,6 +151,7 @@ export function toGateView(row: GateRow): GateView {
     command: row.command,
     context: row.context,
     intent: row.intent ?? null,
+    via: row.via ?? null,
     redactions: row.redactions,
     quorum: row.quorum,
     approvals: row.votes.filter((vote) => vote.decision === "approve").length,

@@ -34,6 +34,16 @@ Every other command runs untouched; the hook adds about 50 ms.
 | `.claude/settings.local.json` | No (added to `.gitignore`): your personal hook registration      |
 | `~/.config/tollgate/`         | Never in a repo: your token (file mode 0600) and the hook bundle |
 
+## What the hook can see through
+
+Agents rarely type the risky command itself. The hook looks at what a command really runs:
+
+- **Package scripts:** `pnpm db:deploy`, `npm run release`, `yarn deploy`, `bun run x` are looked up in the nearest `package.json` (with `pre`/`post` scripts and scripts that call other scripts), so the card shows _pnpm db:deploy → prisma migrate deploy_ with the migration SQL.
+- **Lists and wrappers:** every part of `a && b; c | d` is checked on its own, so `npm publish && echo --dry-run` is still a publish. Prefixes like `VAR=x`, `env`, `sudo`, `npx`, `pnpm exec`, `dotenv --` and literal `bash -c '…'`, `eval '…'`, `( … )` and `$( … )` are looked inside.
+- **Code nobody can read first:** `curl … | sh`, `base64 -d | sh`, `bash <(curl …)` and commands built from a variable (`eval "$CMD"`) are gated as _opaque_.
+
+Tollgate is not a shell parser and not a sandbox. It does **not** read Makefiles (`make deploy`), shell files (`./deploy.sh`), npm lifecycle scripts like `prepublishOnly`, or workspace scripts selected with `--filter`. It guards against an agent's mistakes, not against someone determined to get around it on their own machine.
+
 ## What leaves your machine
 
 Only for commands that match a preset: the command and working directory after **local redaction** (known token formats, `KEY=value` secrets, passwords in URLs, secret flags, and every value from your `.env*` files), Claude Code's one-line description of the command (shown to approvers as the agent's reason), your git branch, the last commit subject, and for migrations the newest migration's SQL (capped at 2 KB). The card shows how many values were hidden. The server redacts everything again.

@@ -270,6 +270,20 @@ export function GateCard({
           </CodeBlockActions>
         </CodeBlock>
 
+        {gate.via && (
+          <div className="-mt-1 flex flex-col gap-0.5 text-xs">
+            <span className="font-semibold text-muted-foreground">What it really runs</span>
+            {gate.via.split("\n").map((line) => {
+              const [from, ...rest] = line.split(" → ");
+              return (
+                <p key={line} className="font-mono break-all">
+                  <span className="text-muted-foreground">{from} →</span> {rest.join(" → ")}
+                </p>
+              );
+            })}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {gate.redactions > 0 && (
             <Tooltip>
