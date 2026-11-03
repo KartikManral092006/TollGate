@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell } from "lucide-react";
+import { Dot } from "@/components/dot";
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
@@ -37,11 +38,11 @@ export function RoomHeader({
       teamId={teamId}
       name={name}
       status={
-        <span className="flex flex-wrap items-center gap-x-1.5">
+        <span className="flex flex-wrap items-center">
           <span
             aria-hidden
             className={cn(
-              "size-1.5 rounded-full",
+              "me-1.5 size-1.5 rounded-full",
               live === "live"
                 ? "bg-gate-approved"
                 : live === "connecting"
@@ -52,7 +53,7 @@ export function RoomHeader({
           {LIVE_LABEL[live]}
           {openCount > 0 && (
             <>
-              <span aria-hidden>·</span>
+              <Dot />
               <span className="font-semibold text-gate-pending-fg">{openCount} waiting</span>
             </>
           )}

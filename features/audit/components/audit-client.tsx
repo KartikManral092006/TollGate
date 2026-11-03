@@ -15,6 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Dot } from "@/components/dot";
+import { NumberTicker } from "@/components/motion/number-ticker";
 import { gateMetrics, gatesToCsv } from "@/features/gates/shared/metrics";
 import type { GateStatusView, GateView } from "@/features/gates/shared/view";
 import { EnvBadge, StatusChip } from "@/features/room/components/gate-status";
@@ -30,22 +32,33 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "expired", label: "Expired" },
 ];
 
-function percent(value: number | null): string {
-  return value === null ? "–" : `${Math.round(value * 100)}%`;
-}
-
-function duration(sec: number | null): string {
-  if (sec === null) return "–";
+function duration(sec: number): string {
   if (sec < 60) return `${Math.round(sec)} s`;
   if (sec < 3600) return `${Math.round(sec / 60)} min`;
   return `${(sec / 3600).toFixed(1)} h`;
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
+const asCount = (n: number) => String(Math.round(n));
+const asPercent = (n: number) => `${Math.round(n * 100)}%`;
+const asDuration = (sec: number) => duration(sec);
+
+function Stat({
+  label,
+  value,
+  format,
+  hint,
+}: {
+  label: string;
+  value: number | null;
+  format: (n: number) => string;
+  hint: string;
+}) {
   return (
     <div className="rounded-xl border bg-card p-3" title={hint}>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums">
+        {value === null ? "–" : <NumberTicker value={value} format={format} />}
+      </p>
     </div>
   );
 }
@@ -112,22 +125,26 @@ export function AuditClient({
       <section aria-label="Team metrics" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat
           label="Gates"
-          value={String(metrics.total)}
+          value={metrics.total}
+          format={asCount}
           hint="Every risky command raised by this team's agents"
         />
         <Stat
           label="Median decision"
-          value={duration(metrics.medianDecisionSec)}
+          value={metrics.medianDecisionSec}
+          format={asDuration}
           hint="Time from the gate appearing to its approval or denial"
         />
         <Stat
           label="Denied"
-          value={percent(metrics.denyRate)}
+          value={metrics.denyRate}
+          format={asPercent}
           hint="Share of decided gates the team denied"
         />
         <Stat
           label="Rubber-stamped"
-          value={percent(metrics.rubberStampRate)}
+          value={metrics.rubberStampRate}
+          format={asPercent}
           hint="Approvals given within 3 seconds of the gate appearing"
         />
       </section>
@@ -192,10 +209,15 @@ export function AuditClient({
                   </span>
                   <code className="truncate font-mono text-xs">{gate.command}</code>
                   <span className="text-xs text-muted-foreground">
-                    {gate.requester.name} · {timeAgo(gate.createdAt)}
-                    {gate.status === "approved" || gate.status === "denied"
-                      ? ` · ${gate.status} by ${decider(gate)}`
-                      : ""}
+                    {gate.requester.name}
+                    <Dot />
+                    {timeAgo(gate.createdAt)}
+                    {gate.status === "approved" || gate.status === "denied" ? (
+                      <>
+                        <Dot />
+                        {gate.status} by {decider(gate)}
+                      </>
+                    ) : null}
                   </span>
                   {gate.denyReason && (
                     <span className="text-xs text-gate-denied-fg">“{gate.denyReason}”</span>
@@ -235,7 +257,9 @@ export function AuditClient({
                         {gate.command}
                       </code>
                       <span className="text-xs text-muted-foreground">
-                        {gate.repo} · {gate.preset}
+                        {gate.repo}
+                        <Dot />
+                        {gate.preset}
                       </span>
                     </TableCell>
                     <TableCell className="align-top">{gate.requester.name}</TableCell>

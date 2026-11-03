@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { Logo } from "@/components/logo";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
 import { AuthNotConfiguredError, githubEnabled, googleEnabled } from "@/features/auth/server/auth";
 import { getOptionalSession } from "@/features/auth/server/session";
@@ -40,7 +41,8 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   if (signedIn) redirect(callbackURL);
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-10">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-8 px-4 py-10">
+      <Logo />
       <SignInForm
         callbackURL={callbackURL}
         googleEnabled={googleEnabled()}

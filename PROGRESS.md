@@ -138,6 +138,15 @@ Free stack: **Vercel Hobby** (app, functions in `sin1`) + **Neon** (Postgres, Si
 - **SSRF:** provider URLs must be https and resolve only to public addresses, and requests don't follow redirects. Ollama therefore needs a public https endpoint (reverse proxy or tunnel).
 - **Test** runs unsaved settings against a sample migration. Changing provider clears cached explanations.
 
+## UI and UX overhaul (Nov 3)
+
+- **Identity, "road signage":** Overpass and Overpass Mono type; highway green, signal amber, barrier red, asphalt and lane-white tokens (AA in both themes); a striped barrier logo. Reduced motion is respected globally.
+- **Navigation:** Room, Audit log and Settings tabs with a sliding indicator, replacing the hidden ⋯ menu.
+- **Onboarding:** a "Get Tollgate working" guide in the room with five steps (name, link a repo, connect your computer, first gate, invite). It is worked out from real data and polls `/api/teams/:id/setup`, so steps tick themselves off. It shows the exact command to copy and finishes with a confetti burst.
+- **Landing:** headline on a highway-sign panel next to the barrier-arm animation (one orchestrated loop; still frame with reduced motion); exit-tab steps; road-sign feature rows.
+- **Motion components:** `NumberTicker` (audit stats) and `Celebrate`, both written on Motion. Animate UI's CLI was blocked by the safety classifier (it downloads code and rewrites `components/ui`), so the animations are written in the repo instead.
+- **Copy:** plainer labels ("Auto-refreshing", "Chat isn't available right now", the sign-in explainer), sentence-case headings, no all-caps labels, even middle-dot separators.
+
 ## Decisions
 
 - **One deny vetoes.** Anyone who knows why it's dangerous can stop it; approvals need quorum.

@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Celebrate } from "@/components/motion/celebrate";
 import { Button } from "@/components/ui/button";
 import {
   CodeBlock,
@@ -362,8 +363,9 @@ export function SetupGuide({
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-3 p-4 text-sm"
+          className="relative flex items-center gap-3 p-4 text-sm"
         >
+          <Celebrate fire />
           <PartyPopper className="size-6 text-signal" aria-hidden />
           Next time Claude Code tries something risky in your repo, it waits here for a teammate.
         </motion.div>
