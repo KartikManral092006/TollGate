@@ -89,6 +89,16 @@ Checked in headless Chrome at 375 px (light and dark) and 1280 px: no horizontal
 
 Checked in headless Chrome at 375 px (light and dark) and 1280 px: no horizontal overflow and no page errors.
 
+## Call UI (Nov 3)
+
+The Nexconn Call SDK in the room, behind `CALLS_ENABLED=1` and a live Nexconn connection. With either off, the Call SDK isn't even loaded.
+
+- **"Talk it through"** on every open gate: _Huddle with the team_ (group audio) or _Ring <name>_ (1:1 audio to a voting member). When a huddle is live, the button becomes **Join huddle · n in**.
+- **Flow:** server permit (`/api/gates/:id/{huddle,ring}`) → `startCall` with the gate and permit in `extra` → `/api/calls/:permit/joined` (the bot posts the `TG:Huddle` card) → on hang-up or end, `/api/calls/:permit/ended` with the duration.
+- **Incoming-call sheet:** names the caller and the gate. If you're already in a call, it says answering will switch, because the SDK's `acceptCall` silently ends the current call.
+- **Call bar:** timer, a "ends in" warning in the last minute, mute (`enableMicrophone`) and hang-up. The client ends the call at the permit's `maxSec`; the server sweeper is the backstop.
+- **Not yet tested live:** this needs T7 (calling enabled at $0) and two devices on the real App Key.
+
 ## Decisions
 
 - **One deny vetoes.** Anyone who knows why it's dangerous can stop it; approvals need quorum.
@@ -102,7 +112,7 @@ Checked in headless Chrome at 375 px (light and dark) and 1280 px: no horizontal
 ## Next
 
 1. Nov 4: Kartik creates the Tollgate Nexconn app and fills `.env`; run T1, T2, T6 live, T7; deploy the skeleton on HTTPS; new GitHub repo.
-2. Call UI: Ring and Huddle buttons, the incoming-call sheet and the huddle bar. The server permits are ready.
+2. Live test with the real Nexconn keys: team chat, gate cards over Nexconn, then a ring laptop → phone once T7 confirms $0.
 3. T0 (c), for Kartik: in a scratch repo linked with `init`, run `claude --dangerously-skip-permissions` and ask it to run `npm publish`. Check that the gate still appears and a deny still blocks.
 4. Call UI: huddle bar, Ring button, incoming-call sheet; permits are ready server-side.
 

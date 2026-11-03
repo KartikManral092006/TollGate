@@ -9,6 +9,7 @@ import { RoomClient } from "@/features/room/components/room-client";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { canVote, ID_RE } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 
 export const instant = false;
 
@@ -46,6 +47,7 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
       }))}
       initialGates={gates.map(toGateView)}
       highlightGateId={highlight}
+      callsEnabled={env.CALLS_ENABLED === "1"}
     />
   );
 }

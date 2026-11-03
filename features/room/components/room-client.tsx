@@ -22,6 +22,10 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
+import { useCalls } from "@/features/call/client/use-calls";
+import { CallBar } from "@/features/call/components/call-bar";
+import { GateCallMenu } from "@/features/call/components/gate-call-menu";
+import { IncomingCallSheet } from "@/features/call/components/incoming-call";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { ChatLineView } from "@/features/room/components/chat-line";
 import { Composer } from "@/features/room/components/composer";
@@ -50,18 +54,32 @@ export function RoomClient({
   members,
   initialGates,
   highlightGateId,
+  callsEnabled,
 }: {
   team: { id: string; name: string; channelId: string };
   viewer: Viewer;
   members: Member[];
   initialGates: GateView[];
   highlightGateId: string | null;
+  callsEnabled: boolean;
 }) {
   const { gates, lines, live, refresh, send } = useRoomLive({
     teamId: team.id,
     channelId: team.channelId,
     initialGates,
+    callsEnabled,
   });
+  const calls = useCalls({
+    enabled: callsEnabled && live === "live",
+    onChange: () => void refresh(),
+  });
+  const callees = useMemo(
+    () =>
+      members
+        .filter((m) => m.id !== viewer.id && m.role !== "requester")
+        .map((m) => ({ id: m.id, name: m.name })),
+    [members, viewer.id],
+  );
   const [denying, setDenying] = useState<GateView | null>(null);
   const names = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
 
@@ -176,6 +194,23 @@ export function RoomClient({
                               await vote(gate, "approve");
                             }}
                             onDeny={setDenying}
+                            footer={
+                              callsEnabled && live === "live" && isOpenStatus(item.gate.status) ? (
+                                <GateCallMenu
+                                  gate={item.gate}
+                                  callees={callees}
+                                  disabled={calls.busy || calls.active !== null}
+                                  onHuddle={(gate) =>
+                                    void calls.huddle(
+                                      gate,
+                                      members.filter((m) => m.id !== viewer.id).map((m) => m.id),
+                                    )
+                                  }
+                                  onRing={(gate, userId) => void calls.ring(gate, userId)}
+                                  onJoin={(gate, call) => void calls.join(gate, call)}
+                                />
+                              ) : undefined
+                            }
                           />
                         ) : (
                           <ChatLineView
@@ -195,10 +230,25 @@ export function RoomClient({
       </MessageScrollerProvider>
 
       <div className="border-t bg-background/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
+        {calls.active && (
+          <CallBar
+            call={calls.active}
+            onMute={() => void calls.toggleMute()}
+            onHangUp={() => void calls.hangUp()}
+          />
+        )}
         <div className="mx-auto w-full max-w-2xl">
           <Composer disabled={live !== "live"} onSend={send} />
         </div>
       </div>
+
+      <IncomingCallSheet
+        call={calls.incoming}
+        callerName={calls.incoming ? (names.get(calls.incoming.callerId) ?? "A teammate") : ""}
+        inCall={calls.active !== null}
+        onAccept={() => void calls.accept()}
+        onDecline={() => void calls.decline()}
+      />
 
       <DenyDrawer
         gate={denying}
