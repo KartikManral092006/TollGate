@@ -3,11 +3,12 @@
 import { ArrowRight, Check, History, PauseCircle, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { SpotlightCard } from "@/components/fx/spotlight-card";
 import { NumberTicker } from "@/components/motion/number-ticker";
 import { cn } from "@/lib/utils";
 
-// A clock for one tile's loop, ticking only while the tile is on screen. Reduced motion
+// Small looping demos of each feature, for the landing page's scroll story.
+
+// A clock for one demo's loop, ticking only while the tile is on screen. Reduced motion
 // freezes it at `still`, the frame that tells the story.
 function useLoop(ref: React.RefObject<HTMLElement | null>, period: number, still: number) {
   const reduced = useReducedMotion() ?? false;
@@ -22,32 +23,6 @@ function useLoop(ref: React.RefObject<HTMLElement | null>, period: number, still
   return reduced ? still : t;
 }
 
-function Tile({
-  title,
-  body,
-  className,
-  children,
-}: {
-  title: string;
-  body: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <SpotlightCard className={cn("flex flex-col", className)}>
-      <div className="flex h-full flex-col">
-        <div className="relative flex min-h-44 flex-1 items-center justify-center overflow-hidden border-b border-white/10 p-5">
-          {children}
-        </div>
-        <div className="p-5">
-          <h3 className="font-bold text-white">{title}</h3>
-          <p className="mt-1 text-sm leading-relaxed text-white/60">{body}</p>
-        </div>
-      </div>
-    </SpotlightCard>
-  );
-}
-
 const pop = {
   initial: { opacity: 0, y: 8, scale: 0.97 },
   animate: { opacity: 1, y: 0, scale: 1 },
@@ -55,7 +30,7 @@ const pop = {
   transition: { duration: 0.3 },
 };
 
-function SeeThrough() {
+export function SeeThrough() {
   const ref = useRef<HTMLDivElement>(null);
   const t = useLoop(ref, 6000, 5000);
   return (
@@ -101,7 +76,7 @@ function SeeThrough() {
 const SECRET = "hunter2-s3cret";
 const GLYPHS = "!<>-_\\/[]{}=+*^?#ABCDEF0123456789";
 
-function Redact() {
+export function Redact() {
   const ref = useRef<HTMLDivElement>(null);
   const t = useLoop(ref, 4200, 3000);
   // 0-1.2 s the secret is plain; 1.2-2 s it scrambles; then it reads [REDACTED].
@@ -145,7 +120,7 @@ function Redact() {
 
 const REPLY = "Understood. Renaming legacy_total and backing up first.";
 
-function DenyReason() {
+export function DenyReason() {
   const ref = useRef<HTMLDivElement>(null);
   const t = useLoop(ref, 6500, 6000);
   const typed = Math.max(0, Math.min(REPLY.length, Math.floor((t - 1800) / 35)));
@@ -173,7 +148,7 @@ function DenyReason() {
   );
 }
 
-function Parks() {
+export function Parks() {
   const ref = useRef<HTMLDivElement>(null);
   const t = useLoop(ref, 8000, 6500);
   const left = Math.max(0, 5 - Math.floor(t / 600));
@@ -238,7 +213,7 @@ const SIGNALS = [
   { text: "Production from branch feat/minor-units", tone: "text-[#f2c14e]" },
 ];
 
-function Signals() {
+export function Signals() {
   const ref = useRef<HTMLDivElement>(null);
   const t = useLoop(ref, 6000, 5000);
   return (
@@ -274,7 +249,7 @@ const QUEUE = [
 ];
 const KEYS = ["J", "J", "A", "J", "D"];
 
-function Review() {
+export function Review() {
   const ref = useRef<HTMLDivElement>(null);
   const t = useLoop(ref, 5000, 2100);
   const press = Math.floor(t / 1000) % KEYS.length;
@@ -322,7 +297,7 @@ function Review() {
   );
 }
 
-function Record() {
+export function Record() {
   const count = (n: number) => String(Math.round(n));
   return (
     <div className="grid w-full max-w-xs grid-cols-3 gap-4 text-center">
@@ -339,57 +314,6 @@ function Record() {
         </div>
       ))}
       <p className="col-span-3 text-[11px] text-white/35">Example numbers</p>
-    </div>
-  );
-}
-
-export function FeatureBento() {
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Tile
-        className="lg:col-span-2"
-        title="Sees what a command really runs"
-        body="Package scripts, wrappers and piped installers are opened up before matching, so pnpm db:deploy is caught as the migration it is, with the SQL that destroys data marked."
-      >
-        <SeeThrough />
-      </Tile>
-      <Tile
-        title="Secrets stay on your machine"
-        body="Tokens, passwords and .env values are redacted by the hook before anything is sent, then checked again on the server."
-      >
-        <Redact />
-      </Tile>
-      <Tile
-        title="Deny with a reason, the agent replans"
-        body="Your reason reaches the agent word for word as its next instruction. Or ask it a question first."
-      >
-        <DenyReason />
-      </Tile>
-      <Tile
-        title="Nobody awake? It parks"
-        body="Before the hook times out, the gate parks and the agent moves on. Approve it later and the same command passes once."
-      >
-        <Parks />
-      </Tile>
-      <Tile
-        title="Risk you can see before you vote"
-        body="Plain-language warnings from the SQL and the command, and what your team decided last time."
-      >
-        <Signals />
-      </Tile>
-      <Tile
-        className="lg:col-span-2"
-        title="A review queue you can clear from the keyboard"
-        body="Waiting gates one at a time, oldest first, with the explanation already open. J and K to move, A to approve, D to deny."
-      >
-        <Review />
-      </Tile>
-      <Tile
-        title="Every decision on record"
-        body="Who approved what, why and how fast, with trends and a CSV export for the post-mortem."
-      >
-        <Record />
-      </Tile>
     </div>
   );
 }
