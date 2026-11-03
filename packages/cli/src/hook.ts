@@ -51,7 +51,8 @@ export type HookDeps = {
   progress(message: string): void;
 };
 
-export const POLL_MS = 1000;
+// 2 s keeps a 5-minute wait at ~150 requests (and Redis commands) per gate.
+export const POLL_MS = 2000;
 // The hook stops waiting this long before Claude Code's timeout and parks the gate.
 export const PARK_MARGIN_SEC = 15;
 

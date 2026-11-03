@@ -6,7 +6,7 @@ import { GATE_ID_RE, type HookGateStatus } from "@/features/gates/shared/hook-ap
 import { db } from "@/lib/db";
 import { json } from "@/lib/http";
 
-// Polled about once a second by a waiting hook. A gate from another repo is a 404.
+// Polled every 2 s by a waiting hook. A gate from another repo is a 404.
 export async function GET(request: Request, ctx: RouteContext<"/api/hook/gates/[id]">) {
   await connection();
   const auth = await requireHook(request, { name: "poll", rule: { window: 60, max: 240 } });
