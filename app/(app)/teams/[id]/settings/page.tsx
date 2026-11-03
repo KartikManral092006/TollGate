@@ -35,6 +35,7 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
   return (
     <SettingsClient
       teamId={id}
+      teamName={membership.team.name}
       viewer={{ id: user.id, role: membership.role }}
       members={members.map((m) => ({
         id: m.user.id,

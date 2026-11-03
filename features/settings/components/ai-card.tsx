@@ -1,12 +1,10 @@
 "use client";
 
-import { FlaskConical, KeyRound, Loader2, Sparkles } from "lucide-react";
+import { FlaskConical, KeyRound, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { SignIcon } from "@/components/road/sign-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,7 +39,8 @@ function presetFor(view: AiConfigView): ProviderPreset {
   );
 }
 
-export function AiCard({
+// The "Why?" provider form. The page's Settings section supplies the title and explanation.
+export function AiSettings({
   teamId,
   isOwner,
   initial,
@@ -150,149 +149,134 @@ export function AiCard({
   }
 
   return (
-    <Card id="ai" className="scroll-mt-32">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
-          <SignIcon>
-            <Sparkles />
-          </SignIcon>
-          AI explanations
-        </CardTitle>
-        <CardDescription>
-          What the &ldquo;Why?&rdquo; button on gate cards uses. Bring your own provider (paid, free
-          tier or self-hosted) or keep the free built-in explanations. Explanations never approve or
-          deny anything.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {!isOwner ? (
-          <p className="text-sm">
-            Using <span className="font-medium">{saved.label ?? "Built-in (free, no AI)"}</span>
-            {saved.model && (
-              <>
-                {" "}
-                · <span className="font-mono text-xs">{saved.model}</span>
-              </>
-            )}
-            . Only the team owner can change this.
-          </p>
-        ) : (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <Label>Provider</Label>
-              <Select
-                items={items}
-                value={preset.id}
-                onValueChange={(value) => choose(String(value))}
-              >
-                <SelectTrigger className="h-10 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROVIDER_PRESETS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {preset.note && <p className="text-xs text-muted-foreground">{preset.note}</p>}
-            </div>
+    <div className="flex max-w-2xl flex-col gap-4">
+      {!isOwner ? (
+        <p className="text-sm">
+          Using <span className="font-medium">{saved.label ?? "Built-in (free, no AI)"}</span>
+          {saved.model && (
+            <>
+              {" "}
+              · <span className="font-mono text-xs">{saved.model}</span>
+            </>
+          )}
+          . Only the team owner can change this.
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label>Provider</Label>
+            <Select
+              items={items}
+              value={preset.id}
+              onValueChange={(value) => choose(String(value))}
+            >
+              <SelectTrigger className="h-10 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDER_PRESETS.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {preset.note && <p className="text-xs text-muted-foreground">{preset.note}</p>}
+          </div>
 
-            {!isBuiltin && (
-              <>
-                {needsBaseUrl && (
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="ai-base-url">Base URL</Label>
-                    <Input
-                      id="ai-base-url"
-                      value={baseUrl}
-                      onChange={(event) => setBaseUrl(event.target.value)}
-                      placeholder="https://…/v1"
-                      spellCheck={false}
-                      className="font-mono text-xs"
-                    />
-                  </div>
-                )}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ai-model">Model</Label>
+          {!isBuiltin && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {needsBaseUrl && (
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label htmlFor="ai-base-url">Base URL</Label>
                   <Input
-                    id="ai-model"
-                    value={model}
-                    onChange={(event) => setModel(event.target.value)}
-                    placeholder={preset.modelHint}
+                    id="ai-base-url"
+                    value={baseUrl}
+                    onChange={(event) => setBaseUrl(event.target.value)}
+                    placeholder="https://…/v1"
                     spellCheck={false}
                     className="font-mono text-xs"
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ai-key">
-                    API key {!preset.keyRequired && <span className="font-normal">(optional)</span>}
-                  </Label>
-                  <Input
-                    id="ai-key"
-                    type="password"
-                    autoComplete="off"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder={
-                      keyIsSaved
-                        ? `Saved key ••••${saved.keyLast4} (leave empty to keep)`
-                        : "Paste your key"
-                    }
-                  />
-                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                    <KeyRound className="size-3" aria-hidden />
-                    Encrypted on the server and never shown again.
-                    {keyIsSaved && (
-                      <button
-                        type="button"
-                        onClick={removeKey}
-                        className="text-destructive underline-offset-4 hover:underline"
-                      >
-                        Remove saved key
-                      </button>
-                    )}
-                  </p>
-                  {!saved.canSaveKeys && (
-                    <p className="text-xs text-gate-pending-fg">
-                      This server isn&apos;t set up to store keys yet (AI_KEYS_SECRET). Keyless
-                      providers still work.
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-
-            {testResult && (
-              <div
-                role="status"
-                className={
-                  testResult.ok
-                    ? "rounded-lg border border-gate-approved/30 bg-gate-approved-bg p-3 text-sm"
-                    : "rounded-lg border border-gate-denied/30 bg-gate-denied-bg p-3 text-sm text-gate-denied-fg"
-                }
-              >
-                <p className="mb-1 text-xs font-medium">
-                  {testResult.ok ? "It works. Sample explanation:" : "Test failed"}
-                </p>
-                <p className="whitespace-pre-wrap">{testResult.text}</p>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ai-model">Model</Label>
+                <Input
+                  id="ai-model"
+                  value={model}
+                  onChange={(event) => setModel(event.target.value)}
+                  placeholder={preset.modelHint}
+                  spellCheck={false}
+                  className="font-mono text-xs"
+                />
               </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={test} disabled={busy !== null}>
-                {busy === "test" ? <Loader2 className="animate-spin" /> : <FlaskConical />}
-                Test
-              </Button>
-              <Button onClick={save} disabled={busy !== null}>
-                {busy === "save" && <Loader2 className="animate-spin" />}
-                Save
-              </Button>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ai-key">
+                  API key {!preset.keyRequired && <span className="font-normal">(optional)</span>}
+                </Label>
+                <Input
+                  id="ai-key"
+                  type="password"
+                  autoComplete="off"
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.target.value)}
+                  placeholder={
+                    keyIsSaved
+                      ? `Saved key ••••${saved.keyLast4} (leave empty to keep)`
+                      : "Paste your key"
+                  }
+                />
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                  <KeyRound className="size-3" aria-hidden />
+                  Encrypted on the server and never shown again.
+                  {keyIsSaved && (
+                    <button
+                      type="button"
+                      onClick={removeKey}
+                      className="text-destructive underline-offset-4 hover:underline"
+                    >
+                      Remove saved key
+                    </button>
+                  )}
+                </p>
+                {!saved.canSaveKeys && (
+                  <p className="text-xs text-gate-pending-fg">
+                    This server isn&apos;t set up to store keys yet (AI_KEYS_SECRET). Keyless
+                    providers still work.
+                  </p>
+                )}
+              </div>
             </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          )}
+
+          {testResult && (
+            <div
+              role="status"
+              className={
+                testResult.ok
+                  ? "border-s-4 border-gate-approved bg-gate-approved-bg py-2 ps-3 pe-3 text-sm"
+                  : "border-s-4 border-gate-denied bg-gate-denied-bg py-2 ps-3 pe-3 text-sm text-gate-denied-fg"
+              }
+            >
+              <p className="mb-1 text-xs font-medium">
+                {testResult.ok ? "It works. Sample explanation:" : "Test failed"}
+              </p>
+              <p className="whitespace-pre-wrap">{testResult.text}</p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={test} disabled={busy !== null}>
+              {busy === "test" ? <Loader2 className="animate-spin" /> : <FlaskConical />}
+              Test
+            </Button>
+            <Button onClick={save} disabled={busy !== null}>
+              {busy === "save" && <Loader2 className="animate-spin" />}
+              Save
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
