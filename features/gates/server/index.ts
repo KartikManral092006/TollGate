@@ -8,11 +8,19 @@ import {
   postHuddleCard,
   type CardDeps,
 } from "@/features/gates/server/cards";
+import { sendEmail } from "@/features/email/server/resend";
 import { getNexconn, NexconnNotConfiguredError } from "@/features/nexconn/server";
+import {
+  notifyGateWaiting,
+  notifyParkedDecision,
+  type NotifyDeps,
+} from "@/features/notify/server/notify";
 import { teamChatDeps } from "@/features/teams/server";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { consumeRate } from "@/lib/rate-limit.server";
+import { redis } from "@/lib/redis";
 
 function cardDeps(): CardDeps {
   return { db, client: getNexconn(), teamChat: teamChatDeps() };
@@ -31,8 +39,51 @@ function inBackground(label: string, ids: Record<string, string>, work: () => Pr
   });
 }
 
+// One email per person per 5 minutes (a burst of gates is one email), inside the same daily
+// budget as sign-in links: Resend's free plan sends 100 a day.
+const EMAIL_GAP_SECONDS = 300;
+const EMAILS_PER_DAY = { window: 86_400, max: 90 };
+
+function notifyDeps(): NotifyDeps {
+  let nexconn: NotifyDeps["nexconn"] = null;
+  try {
+    nexconn = getNexconn();
+  } catch (error) {
+    if (!(error instanceof NexconnNotConfiguredError)) throw error;
+  }
+  return {
+    db,
+    nexconn,
+    gateUrl,
+    email: async (to, notice) => {
+      if (!env.EMAIL_API_KEY || !env.EMAIL_FROM) return false;
+      const fresh = await redis
+        .set(`notify:email:${to.userId}`, "1", "EX", EMAIL_GAP_SECONDS, "NX")
+        .catch(() => null);
+      if (fresh !== "OK") return false;
+      if (!(await consumeRate("ml:daily", EMAILS_PER_DAY)).allowed) return false;
+      await sendEmail({
+        apiKey: env.EMAIL_API_KEY,
+        from: `Tollgate <${env.EMAIL_FROM}>`,
+        to: to.address,
+        subject: notice.subject,
+        html: notice.html,
+        text: notice.text,
+      });
+      return true;
+    },
+  };
+}
+
 export function announceGate(gateId: string) {
   inBackground("gate card", { gateId }, () => postGateCard(cardDeps(), gateId));
+  inBackground("gate notice", { gateId }, () => notifyGateWaiting(notifyDeps(), gateId));
+}
+
+export function announceParkedDecision(gateId: string) {
+  inBackground("parked decision notice", { gateId }, () =>
+    notifyParkedDecision(notifyDeps(), gateId),
+  );
 }
 
 export function mirrorGate(gateId: string) {

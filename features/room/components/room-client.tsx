@@ -27,6 +27,7 @@ import { CallBar } from "@/features/call/components/call-bar";
 import { GateCallMenu } from "@/features/call/components/gate-call-menu";
 import { IncomingCallSheet } from "@/features/call/components/incoming-call";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
+import { useAlerts } from "@/features/notify/client/use-alerts";
 import { ChatLineView } from "@/features/room/components/chat-line";
 import { Composer } from "@/features/room/components/composer";
 import { DenyDrawer } from "@/features/room/components/deny-drawer";
@@ -68,6 +69,12 @@ export function RoomClient({
     channelId: team.channelId,
     initialGates,
     callsEnabled,
+  });
+  const alerts = useAlerts({
+    gates,
+    viewerId: viewer.id,
+    canVote: viewer.canVote,
+    teamChannelId: team.channelId,
   });
   const calls = useCalls({
     enabled: callsEnabled && live === "live",
@@ -141,6 +148,7 @@ export function RoomClient({
         members={members}
         live={live}
         openCount={openCount}
+        onEnableAlerts={alerts.permission === "default" ? () => void alerts.enable() : undefined}
       />
 
       <MessageScrollerProvider>
