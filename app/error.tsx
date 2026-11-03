@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 // Covers every route group (for example a database outage while reading the session).
 export default function ErrorPage({ retry }: { error: unknown; retry: () => void }) {
@@ -15,9 +15,9 @@ export default function ErrorPage({ retry }: { error: unknown; retry: () => void
         <Button className="h-11 flex-1" onClick={() => retry()}>
           Try again
         </Button>
-        <Button asChild variant="outline" className="h-11 flex-1">
-          <Link href="/">Home</Link>
-        </Button>
+        <Link href="/" className={buttonVariants({ variant: "outline", className: "h-11 flex-1" })}>
+          Home
+        </Link>
       </div>
     </main>
   );

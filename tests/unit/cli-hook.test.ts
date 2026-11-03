@@ -201,6 +201,8 @@ describe("mergeHookSettings", () => {
     expect(merged.hooks?.Stop).toEqual(existing.hooks.Stop);
     const commands = merged.hooks!.PreToolUse!.flatMap((m) => m.hooks!.map((h) => h.command));
     expect(commands).toEqual(["./my-lint.sh", 'node "/new/tollgate.mjs" hook']);
+    const tollgate = merged.hooks!.PreToolUse!.at(-1)!.hooks![0]!;
+    expect(tollgate).toMatchObject({ timeout: 300, onFailure: "block" });
     const again = mergeHookSettings(merged, 'node "/new/tollgate.mjs" hook', 300);
     expect(again).toEqual(merged);
   });

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
@@ -8,9 +8,9 @@ export default function NotFound() {
       <p className="max-w-sm text-sm text-muted-foreground">
         The room may not exist, or the link may be incomplete.
       </p>
-      <Button asChild className="h-11">
-        <Link href="/home">Go to your rooms</Link>
-      </Button>
+      <Link href="/home" className={buttonVariants({ className: "h-11" })}>
+        Go to your teams
+      </Link>
     </main>
   );
 }

@@ -45,12 +45,26 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --font-heading: var(--font-geist-sans);
+  /* Gate states: text/background pairs checked for WCAG AA in both themes. */
+  --color-gate-pending: var(--gate-pending);
+  --color-gate-pending-fg: var(--gate-pending-fg);
+  --color-gate-pending-bg: var(--gate-pending-bg);
+  --color-gate-approved: var(--gate-approved);
+  --color-gate-approved-fg: var(--gate-approved-fg);
+  --color-gate-approved-bg: var(--gate-approved-bg);
+  --color-gate-denied: var(--gate-denied);
+  --color-gate-denied-fg: var(--gate-denied-fg);
+  --color-gate-denied-bg: var(--gate-denied-bg);
+  --color-gate-parked: var(--gate-parked);
+  --color-gate-parked-fg: var(--gate-parked-fg);
+  --color-gate-parked-bg: var(--gate-parked-bg);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -80,6 +94,22 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(0.99 0.002 286);
+  --foreground: oklch(0.145 0 0);
+  --brand: oklch(0.51 0.19 266);
+  --brand-foreground: oklch(0.985 0 0);
+  --gate-pending: oklch(0.769 0.188 70.08);
+  --gate-pending-fg: oklch(0.473 0.137 46.201);
+  --gate-pending-bg: oklch(0.987 0.022 95.277);
+  --gate-approved: oklch(0.696 0.17 162.48);
+  --gate-approved-fg: oklch(0.508 0.118 165.612);
+  --gate-approved-bg: oklch(0.979 0.021 166.113);
+  --gate-denied: oklch(0.637 0.237 25.331);
+  --gate-denied-fg: oklch(0.505 0.213 27.518);
+  --gate-denied-bg: oklch(0.971 0.013 17.38);
+  --gate-parked: oklch(0.705 0.015 286.067);
+  --gate-parked-fg: oklch(0.442 0.017 285.786);
+  --gate-parked-bg: oklch(0.967 0.001 286.375);
 }
 
 .dark {
@@ -114,6 +144,20 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --brand: oklch(0.68 0.16 266);
+  --brand-foreground: oklch(0.145 0 0);
+  --gate-pending: oklch(0.828 0.189 84.429);
+  --gate-pending-fg: oklch(0.879 0.169 91.605);
+  --gate-pending-bg: oklch(0.769 0.188 70.08 / 12%);
+  --gate-approved: oklch(0.765 0.177 163.223);
+  --gate-approved-fg: oklch(0.765 0.177 163.223);
+  --gate-approved-bg: oklch(0.696 0.17 162.48 / 12%);
+  --gate-denied: oklch(0.704 0.191 22.216);
+  --gate-denied-fg: oklch(0.704 0.191 22.216);
+  --gate-denied-bg: oklch(0.637 0.237 25.331 / 14%);
+  --gate-parked: oklch(0.705 0.015 286.067);
+  --gate-parked-fg: oklch(0.705 0.015 286.067);
+  --gate-parked-bg: oklch(0.705 0.015 286.067 / 10%);
 }
 
 @layer base {
@@ -122,5 +166,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Base UI drawers need this on iOS Safari. */
+    position: relative;
+  }
+  html {
+    @apply font-sans;
   }
 }
