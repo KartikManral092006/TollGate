@@ -110,6 +110,23 @@ Free stack: **Vercel Hobby** (app, functions in `sin1`) + **Neon** (Postgres, Si
 - **Branch:** GitHub's default, and so Vercel production, is `gate-core`. Every step is pushed to both `main` and `gate-core` until it's switched to `main`.
 - **Free-tier budget:** Upstash allows 500K commands a month, and the hook polls every 2 s (about 150 commands per 5-minute wait). Watch the Upstash dashboard during launch week.
 
+## Notifications, housekeeping, landing, "Why?", CLI and sign-in (Nov 3)
+
+- **Notifications:**
+  - New gates notify every voter except the requester, through the Nexconn system channel (with push text) and by email.
+  - Email is limited to one per person per 5 minutes and shares the daily Resend budget with sign-in links.
+  - A parked gate decided later tells the requester to retry.
+  - The room shows toasts and, with the bell, browser notifications.
+- **Housekeeping without cron:** the next request after a quiet minute expires parked gates older than 24 h and closes abandoned calls. A Redis lock runs it once per minute.
+- **Landing page:** a browser-only "Simulate agent" demo using the real gate card and deny drawer. Deny with a reason makes the agent revise its plan, and "Let it time out" parks the gate.
+- **"Why?":**
+  - `claude-haiku-5-5` explains the redacted command and never recommends approve or deny.
+  - Answers are cached per gate for 7 days, and the button is hidden without `AI_API_KEY`.
+- **CLI:** `tollgate-cli` 0.1.0 is publish-ready (4 files, 128 kB) and tested through `npx` from a packed tarball. Kartik publishes it.
+- **Sign-in:**
+  - The GitHub button appears when `AUTH_GITHUB_*` is set.
+  - Home asks email sign-ups for a name and shows waiting gates per team.
+
 ## Decisions
 
 - **One deny vetoes.** Anyone who knows why it's dangerous can stop it; approvals need quorum.

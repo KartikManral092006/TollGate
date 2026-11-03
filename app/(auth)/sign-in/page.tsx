@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
-import { AuthNotConfiguredError, googleEnabled } from "@/features/auth/server/auth";
+import { AuthNotConfiguredError, githubEnabled, googleEnabled } from "@/features/auth/server/auth";
 import { getOptionalSession } from "@/features/auth/server/session";
 import { signInErrorMessage } from "@/features/auth/shared/errors";
 import { safeCallbackPath } from "@/features/auth/shared/routes";
@@ -44,6 +44,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
       <SignInForm
         callbackURL={callbackURL}
         googleEnabled={googleEnabled()}
+        githubEnabled={githubEnabled()}
         devEmailLog={env.NODE_ENV === "development" && !env.EMAIL_API_KEY}
         initialError={signInErrorMessage(first(params.error), { google: googleEnabled() })}
       />

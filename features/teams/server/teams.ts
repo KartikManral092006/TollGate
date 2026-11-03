@@ -38,7 +38,18 @@ export function listTeamsForUser(db: PrismaClient, userId: string, take = 20) {
     where: { userId },
     orderBy: { joinedAt: "desc" },
     take,
-    include: { team: { include: { _count: { select: { memberships: true, gates: true } } } } },
+    include: {
+      team: {
+        include: {
+          _count: {
+            select: {
+              memberships: true,
+              gates: { where: { status: { in: ["pending", "parked"] } } },
+            },
+          },
+        },
+      },
+    },
   });
 }
 
