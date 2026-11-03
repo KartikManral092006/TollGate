@@ -1,9 +1,11 @@
 import "server-only";
 import type { PrismaClient } from "@/lib/generated/prisma/client";
 import { displayName, isOpenStatus, type GateView } from "@/features/gates/shared/view";
+import { suggestApprovers } from "@/features/insights/shared/approvers";
 import { findPrecedent } from "@/features/insights/shared/precedent";
 import { riskSignals } from "@/features/insights/shared/signals";
 import type { HistoryGate } from "@/features/insights/shared/types";
+import { canVote } from "@/features/teams/shared/schemas";
 
 const HISTORY_DAYS = 180;
 const HISTORY_SIZE = 300;
@@ -66,7 +68,18 @@ export async function withInsights(
   gates: GateView[],
 ): Promise<GateView[]> {
   if (!gates.some((gate) => isOpenStatus(gate.status))) return gates;
-  const history = await loadHistory(db, teamId);
+  const [history, memberships] = await Promise.all([
+    loadHistory(db, teamId),
+    db.membership.findMany({
+      where: { teamId },
+      select: { userId: true, role: true, user: { select: { name: true } } },
+    }),
+  ]);
+  const members = memberships.map((m) => ({
+    id: m.userId,
+    name: displayName(m.user.name, m.userId),
+    canVote: canVote(m.role),
+  }));
   return gates.map((gate) =>
     isOpenStatus(gate.status)
       ? {
@@ -74,6 +87,7 @@ export async function withInsights(
           insights: {
             precedent: findPrecedent(gate, history),
             signals: riskSignals(gate, history),
+            approvers: suggestApprovers(gate, history, members),
           },
         }
       : gate,

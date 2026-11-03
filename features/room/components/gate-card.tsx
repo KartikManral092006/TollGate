@@ -32,6 +32,7 @@ import {
 } from "@/features/gates/shared/view";
 import { PrecedentNote } from "@/features/insights/components/precedent-note";
 import { RiskSignals } from "@/features/insights/components/risk-signals";
+import { SuggestedApprovers } from "@/features/insights/components/suggested-approvers";
 import type { WhyResult } from "@/features/why/shared/providers";
 import { EnvBadge, STATUS, StatusChip } from "@/features/room/components/gate-status";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
@@ -95,6 +96,7 @@ export function GateCard({
   onApprove,
   onDeny,
   onAsk,
+  onRing,
   onWhy,
   footer,
 }: {
@@ -108,6 +110,8 @@ export function GateCard({
   onDeny: (gate: GateView) => void;
   // Ask the agent a question instead of deciding; only while its hook is still waiting.
   onAsk?: (gate: GateView) => void;
+  // Ring a suggested approver; only when calls are available.
+  onRing?: (gate: GateView, userId: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [showContext, setShowContext] = useState(false);
@@ -408,6 +412,16 @@ export function GateCard({
           )
         )}
         {outcome && <p className="text-xs text-muted-foreground">{outcome}</p>}
+
+        {open && gate.insights && gate.insights.approvers.length > 0 && (
+          <SuggestedApprovers
+            approvers={gate.insights.approvers}
+            viewerId={viewer.id}
+            preset={gate.preset}
+            repo={gate.repo}
+            onRing={onRing ? (userId) => onRing(gate, userId) : undefined}
+          />
+        )}
 
         {canAct && (
           <div className={cn("grid gap-2 pt-1", canAsk ? "grid-cols-3" : "grid-cols-2")}>
