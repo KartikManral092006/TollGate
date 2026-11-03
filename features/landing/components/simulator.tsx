@@ -49,6 +49,7 @@ function gate(
     answeredIn: null,
     rule: null,
     decidedAt: null,
+    parksAt: null,
     parkedAt: null,
     grant: null,
     calls: [],

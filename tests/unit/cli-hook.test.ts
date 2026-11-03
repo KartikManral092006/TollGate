@@ -196,6 +196,8 @@ describe("decide", () => {
         preset: "db-migrate",
         command: "pnpm db:deploy",
         via: [{ from: "pnpm db:deploy", runs: "prisma migrate deploy [REDACTED]" }],
+        // Timeout 60 s minus the 15 s park margin.
+        waitSec: 45,
       }),
     );
     // Context is built from what runs, so the migration SQL is attached.

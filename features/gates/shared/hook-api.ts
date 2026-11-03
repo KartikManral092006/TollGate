@@ -36,6 +36,8 @@ export const createGateSchema = z
     redactions: z.number().int().min(0).max(10_000).default(0),
     cmdHash: z.string().regex(SHA256_RE),
     sessionId: z.string().max(200).optional(),
+    // How long this hook waits before parking the gate (CLI 0.2.3+), for the countdown.
+    waitSec: z.number().int().min(5).max(600).optional(),
   })
   .strict();
 

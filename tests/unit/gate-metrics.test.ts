@@ -29,6 +29,7 @@ function gate(patch: Partial<GateView>): GateView {
     answeredIn: null,
     rule: null,
     decidedAt: null,
+    parksAt: null,
     parkedAt: null,
     grant: null,
     calls: [],

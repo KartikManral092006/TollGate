@@ -169,6 +169,7 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
         (via ? via.from.count + via.runs.count : 0),
       cmdHash,
       sessionId: input.session_id,
+      waitSec: Math.round((deadline - started) / 1000),
     });
     deps.progress(
       `Tollgate: waiting on your team · TG-${gate.code} (0/${gate.quorum}) · ${gate.url}`,
