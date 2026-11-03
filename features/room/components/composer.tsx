@@ -43,7 +43,7 @@ export function Composer({
               void send();
             }
           }}
-          placeholder={disabled ? "Chat connects once Nexconn is set up" : "Message your team"}
+          placeholder={disabled ? "Chat isn't available right now" : "Message your team"}
           aria-label="Message"
           rows={1}
           maxLength={CHAT_MAX_CHARS}

@@ -1,10 +1,8 @@
 "use client";
 
-import { ShieldAlert, Terminal } from "lucide-react";
-import Link from "next/link";
+import { ShieldAlert } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
   EmptyContent,
@@ -28,6 +26,8 @@ import { GateCallMenu } from "@/features/call/components/gate-call-menu";
 import { IncomingCallSheet } from "@/features/call/components/incoming-call";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { useAlerts } from "@/features/notify/client/use-alerts";
+import { SetupGuide } from "@/features/onboarding/components/setup-guide";
+import type { SetupState } from "@/features/onboarding/shared/steps";
 import type { WhyResult } from "@/features/why/shared/providers";
 import { ChatLineView } from "@/features/room/components/chat-line";
 import { Composer } from "@/features/room/components/composer";
@@ -38,9 +38,10 @@ import { useRoomLive } from "@/features/room/client/use-room-live";
 import type { ChatLine } from "@/features/room/shared/chat";
 import { dayLabel } from "@/features/room/shared/format";
 
-type ThreadItem =
+type ThreadItem = (
   | { kind: "gate"; key: string; at: number; gate: GateView }
-  | { kind: "line"; key: string; at: number; line: ChatLine };
+  | { kind: "line"; key: string; at: number; line: ChatLine }
+) & { day: string | null };
 
 const VOTE_ERRORS: Record<string, string> = {
   closed: "This gate was already decided.",
@@ -57,6 +58,9 @@ export function RoomClient({
   initialGates,
   highlightGateId,
   callsEnabled,
+  setup,
+  serverUrl,
+  isOwner,
 }: {
   team: { id: string; name: string; channelId: string };
   viewer: Viewer;
@@ -64,6 +68,9 @@ export function RoomClient({
   initialGates: GateView[];
   highlightGateId: string | null;
   callsEnabled: boolean;
+  setup: SetupState;
+  serverUrl: string;
+  isOwner: boolean;
 }) {
   const { gates, lines, live, refresh, send } = useRoomLive({
     teamId: team.id,
@@ -106,7 +113,14 @@ export function RoomClient({
           at: line.sentTime,
           line,
         })),
-      ].sort((a, b) => a.at - b.at),
+      ]
+        .sort((a, b) => a.at - b.at)
+        // A day separator before the first item of each day.
+        .map((item, index, sorted) => {
+          const day = dayLabel(item.at);
+          const previous = index > 0 ? dayLabel(sorted[index - 1]!.at) : null;
+          return { ...item, day: day === previous ? null : day };
+        }),
     [gates, lines],
   );
   const openCount = gates.filter((gate) => isOpenStatus(gate.status)).length;
@@ -149,8 +163,6 @@ export function RoomClient({
     return (await response.json()) as WhyResult;
   }
 
-  let lastDay = "";
-
   return (
     <div className="flex h-dvh flex-col">
       <RoomHeader
@@ -162,45 +174,53 @@ export function RoomClient({
         onEnableAlerts={alerts.permission === "default" ? () => void alerts.enable() : undefined}
       />
 
-      <MessageScrollerProvider>
-        <MessageScroller className="flex-1">
-          <MessageScrollerViewport>
-            <MessageScrollerContent className="mx-auto w-full max-w-2xl gap-4 px-3 py-4 sm:px-4">
-              {items.length === 0 ? (
-                <Empty className="my-auto">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <ShieldAlert />
-                    </EmptyMedia>
-                    <EmptyTitle>No gates yet</EmptyTitle>
-                    <EmptyDescription>
-                      When a teammate&apos;s coding agent tries something risky, it shows up here
-                      for the team to decide.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                  <EmptyContent>
-                    <Link
-                      href={`/teams/${team.id}/settings`}
-                      className={buttonVariants({ className: "h-10" })}
-                    >
-                      <Terminal /> Link a repo
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      Then run <code className="font-mono">npx tollgate-cli test</code> to see a
-                      gate arrive.
-                    </p>
-                  </EmptyContent>
-                </Empty>
-              ) : (
-                items.map((item) => {
-                  const day = dayLabel(item.at);
-                  const showDay = day !== lastDay;
-                  lastDay = day;
+      {items.length === 0 ? (
+        // An empty room starts at the top, so the setup guide is the first thing people see.
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-3 py-4 sm:px-4">
+            <SetupGuide teamId={team.id} serverUrl={serverUrl} isOwner={isOwner} initial={setup} />
+            {setup.complete ? (
+              <Empty className="my-8">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <ShieldAlert />
+                  </EmptyMedia>
+                  <EmptyTitle>No gates yet</EmptyTitle>
+                  <EmptyDescription>
+                    When a teammate&apos;s coding agent tries something risky, it shows up here for
+                    the team to decide.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <p className="text-xs text-muted-foreground">
+                    Send a test one with <code className="font-mono">npx tollgate-cli test</code>.
+                  </p>
+                </EmptyContent>
+              </Empty>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">
+                Gates show up here once your computer is connected.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <MessageScrollerProvider>
+          <MessageScroller className="flex-1">
+            <MessageScrollerViewport>
+              <MessageScrollerContent className="mx-auto w-full max-w-2xl gap-4 px-3 py-4 sm:px-4">
+                <SetupGuide
+                  teamId={team.id}
+                  serverUrl={serverUrl}
+                  isOwner={isOwner}
+                  initial={setup}
+                />
+                {items.map((item) => {
                   return (
                     <Fragment key={item.key}>
-                      {showDay && (
+                      {item.day && (
                         <Marker variant="separator" className="text-xs">
-                          <MarkerContent>{day}</MarkerContent>
+                          <MarkerContent>{item.day}</MarkerContent>
                         </Marker>
                       )}
                       <MessageScrollerItem>
@@ -241,13 +261,13 @@ export function RoomClient({
                       </MessageScrollerItem>
                     </Fragment>
                   );
-                })
-              )}
-            </MessageScrollerContent>
-          </MessageScrollerViewport>
-          <MessageScrollerButton />
-        </MessageScroller>
-      </MessageScrollerProvider>
+                })}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+        </MessageScrollerProvider>
+      )}
 
       <div className="border-t bg-background/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
         {calls.active && (

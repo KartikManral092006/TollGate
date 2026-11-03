@@ -35,11 +35,11 @@ export function CallBar({
       animate={{ y: 0, opacity: 1 }}
       role="status"
       aria-live="polite"
-      className="mx-auto mb-2 flex w-full max-w-2xl items-center gap-3 rounded-2xl bg-emerald-700 px-3 py-2 text-white shadow-lg dark:bg-emerald-600"
+      className="mx-auto mb-2 flex w-full max-w-2xl items-center gap-3 rounded-2xl bg-primary px-3 py-2 text-primary-foreground shadow-lg"
     >
       <span aria-hidden className="relative flex size-2.5">
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70" />
-        <span className="relative inline-flex size-2.5 rounded-full bg-white" />
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary-foreground/70" />
+        <span className="relative inline-flex size-2.5 rounded-full bg-primary-foreground" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">
@@ -47,7 +47,7 @@ export function CallBar({
           {call.code != null && ` · TG-${call.code}`}
           {!call.connected && " · ringing…"}
         </p>
-        <p className="text-xs text-white/80 tabular-nums">
+        <p className="text-xs text-primary-foreground/80 tabular-nums">
           {clock(elapsed)}
           {left <= 60 && ` · ends in ${Math.max(0, left)} s`}
         </p>
@@ -55,7 +55,7 @@ export function CallBar({
       <Button
         size="icon"
         variant="ghost"
-        className="text-white hover:bg-white/15 hover:text-white"
+        className="text-primary-foreground hover:bg-black/10 hover:text-primary-foreground"
         aria-label={call.muted ? "Unmute" : "Mute"}
         aria-pressed={call.muted}
         onClick={onMute}
@@ -64,7 +64,7 @@ export function CallBar({
       </Button>
       <Button
         size="icon"
-        className="bg-red-600 text-white hover:bg-red-600/90"
+        className="bg-gate-denied text-white hover:bg-gate-denied/90 dark:text-black"
         aria-label="Hang up"
         onClick={onHangUp}
       >

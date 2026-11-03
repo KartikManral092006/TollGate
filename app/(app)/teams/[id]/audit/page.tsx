@@ -5,7 +5,7 @@ import { verifySession } from "@/features/auth/server/session";
 import { AuditClient } from "@/features/audit/components/audit-client";
 import { listTeamGates } from "@/features/gates/server/gates";
 import { toGateView } from "@/features/gates/shared/view";
-import { SubpageHeader } from "@/features/teams/components/subpage-header";
+import { TeamHeader } from "@/features/teams/components/team-header";
 import { getMembership } from "@/features/teams/server/teams";
 import { ID_RE } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
@@ -28,7 +28,7 @@ export default async function AuditPage({ params }: PageProps<"/teams/[id]/audit
   const gates = await listTeamGates(db, id, { take: 500 });
   return (
     <div className="flex min-h-dvh flex-col">
-      <SubpageHeader teamId={id} teamName={membership.team.name} title="Audit log" />
+      <TeamHeader teamId={id} name={membership.team.name} />
       <AuditClient teamId={id} teamName={membership.team.name} gates={gates.map(toGateView)} />
     </div>
   );

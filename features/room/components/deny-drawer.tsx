@@ -92,7 +92,7 @@ export function DenyDrawer({
             </Button>
             <Button
               type="submit"
-              className="h-11 bg-red-600 text-white hover:bg-red-600/90 dark:bg-red-400 dark:text-black"
+              className="h-11 bg-gate-denied text-white hover:bg-gate-denied/90 dark:text-black"
               disabled={busy || !reason.trim()}
             >
               {busy && <Loader2 className="animate-spin" aria-hidden />}

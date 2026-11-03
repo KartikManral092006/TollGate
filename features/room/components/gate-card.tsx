@@ -338,11 +338,7 @@ export function GateCard({
               <ThumbsDown aria-hidden />
               Deny…
             </Button>
-            <Button
-              className="h-11 bg-emerald-700 text-white hover:bg-emerald-700/90 dark:bg-emerald-500 dark:text-black dark:hover:bg-emerald-500/90"
-              onClick={approve}
-              disabled={busy}
-            >
+            <Button className="h-11" onClick={approve} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ThumbsUp aria-hidden />}
               Approve
             </Button>
