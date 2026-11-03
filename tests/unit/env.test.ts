@@ -96,6 +96,27 @@ describe("client IP settings", () => {
       /AUTH_IP_HEADER/,
     );
   });
+  it("uses Vercel's production domain when the app URL is missing or localhost", () => {
+    const production = {
+      VERCEL_ENV: "production",
+      VERCEL_PROJECT_PRODUCTION_URL: "toll-gate-mo7d.vercel.app",
+    };
+    expect(parseServerEnv({ ...valid, ...production }).NEXT_PUBLIC_APP_URL).toBe(
+      "https://toll-gate-mo7d.vercel.app",
+    );
+    const { NEXT_PUBLIC_APP_URL: _drop, ...withoutUrl } = valid;
+    expect(parseServerEnv({ ...withoutUrl, ...production }).NEXT_PUBLIC_APP_URL).toBe(
+      "https://toll-gate-mo7d.vercel.app",
+    );
+    // A real URL that someone set on purpose (e.g. a custom domain) is kept.
+    expect(
+      parseServerEnv({ ...valid, ...production, NEXT_PUBLIC_APP_URL: "https://tollgate.dev" })
+        .NEXT_PUBLIC_APP_URL,
+    ).toBe("https://tollgate.dev");
+    // Locally nothing changes.
+    expect(parseServerEnv(valid).NEXT_PUBLIC_APP_URL).toBe(valid.NEXT_PUBLIC_APP_URL);
+  });
+
   it("rejects a localhost app URL in a Vercel production build only", () => {
     expect(() => parseServerEnv({ ...valid, VERCEL_ENV: "production" })).toThrow(
       /NEXT_PUBLIC_APP_URL: points to localhost/,

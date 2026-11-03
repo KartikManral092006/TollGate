@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveAppUrl } from "@/lib/app-url";
 
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
@@ -75,7 +76,14 @@ export const serverEnvSchema = serverEnvObject.superRefine((env, ctx) => {
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 export function parseServerEnv(source: Record<string, string | undefined>): ServerEnv {
-  const result = serverEnvSchema.safeParse(source);
+  const result = serverEnvSchema.safeParse({
+    ...source,
+    NEXT_PUBLIC_APP_URL: resolveAppUrl({
+      appUrl: source.NEXT_PUBLIC_APP_URL,
+      vercelEnv: source.VERCEL_ENV,
+      productionHost: source.VERCEL_PROJECT_PRODUCTION_URL,
+    }),
+  });
   if (!result.success) {
     const problems = result.error.issues
       .map((issue) => `  ${issue.path.join(".")}: ${issue.message}`)
