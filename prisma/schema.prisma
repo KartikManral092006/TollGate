@@ -1,0 +1,305 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../lib/generated/prisma"
+  // Preview since 7.4.0: lets @@unique take `where`. Re-test on any Prisma upgrade.
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Auth tables follow Better Auth 1.7.15's core schema. The Prisma adapter reaches them as
+// prisma.user, prisma.session, ... and checks them at runtime, so keep these models and the
+// additionalFields in features/auth/server/auth.ts in step.
+
+model User {
+  id            String    @id // set in the user.create.before hook: 32 letters and digits
+  name          String // "" for magic-link sign-ups until a profile step exists
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  nexconnUserId String?   @unique // equals id; written in the same INSERT
+  language      String    @default("en")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  teamsCreated     Team[]
+  memberships      Membership[]
+  invitesCreated   Invite[]
+  hookTokens       HookToken[]
+  gatesRequested   Gate[]
+  votes            Vote[]
+  callsStarted     CallSession[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+enum TeamRole {
+  owner
+  approver
+  requester
+  guest
+}
+
+enum GateMode {
+  guard
+  delegate
+}
+
+enum GateStatus {
+  pending
+  approved
+  denied
+  parked
+  expired
+}
+
+enum VoteDecision {
+  approve
+  deny
+}
+
+enum CallKind {
+  huddle
+  ring
+}
+
+enum CallStatus {
+  permitted
+  live
+  ended
+  failed
+}
+
+// A group of people with one Nexconn group channel (the thread space).
+model Team {
+  id                  String       @id // 32 letters and digits (lib/ids)
+  name                String
+  nexconnChannelId    String       @unique // "tg" + id
+  nexconnGroupReadyAt DateTime? // set once the Nexconn group exists
+  nextGateCode        Int          @default(1) // TG-n; taken in the gate-create transaction
+  createdById         String?
+  createdBy           User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  memberships         Membership[]
+  invites             Invite[]
+  repos               RepoLink[]
+  gates               Gate[]
+  calls               CallSession[]
+
+  @@map("teams")
+}
+
+model Membership {
+  teamId          String
+  userId          String
+  role            TeamRole  @default(approver)
+  joinedAt        DateTime  @default(now())
+  nexconnJoinedAt DateTime? // set once the user is in the team's Nexconn group
+  team            Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@index([userId, joinedAt(sort: Desc)])
+  @@map("memberships")
+}
+
+// Invite links. Only the sha256 of the token is stored; the link is shown once.
+model Invite {
+  id          String    @id
+  teamId      String
+  tokenHash   String    @unique
+  role        TeamRole  @default(approver) // approver | guest
+  createdById String?
+  maxUses     Int       @default(10)
+  uses        Int       @default(0) // changed only in the accept transaction
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@map("invites")
+}
+
+model RepoLink {
+  id        String      @id
+  teamId    String
+  name      String // e.g. "acme/billing"
+  mode      GateMode    @default(guard)
+  presets   Json // server-authoritative presets, including quorum (features/gates/shared/presets)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  team      Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tokens    HookToken[]
+  gates     Gate[]
+
+  @@unique([teamId, name])
+  @@map("repo_links")
+}
+
+// A hook token can create gates and read its own repo's gates. It can never vote.
+model HookToken {
+  id          String    @id
+  repoId      String
+  tokenHash   String    @unique // sha256; the plaintext is shown once at init
+  prefix      String // first characters, so people can tell tokens apart
+  createdById String // the requester for gates raised with this token
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  repo        RepoLink  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([repoId])
+  @@map("hook_tokens")
+}
+
+// One proposed risky command. Postgres is the truth; Nexconn metadata mirrors it.
+model Gate {
+  id          String        @id
+  code        Int // TG-17 (per-team sequence)
+  teamId      String
+  repoId      String
+  requesterId String
+  preset      String
+  env         String // prod | staging | other
+  command     String // redacted
+  cwd         String // redacted
+  branch      String?
+  context     String        @db.VarChar(2048) // redacted, truncated
+  redactions  Int
+  cmdHash     String // sha256(command + cwd + repo), from the hook; binds the grant
+  quorum      Int
+  status      GateStatus    @default(pending)
+  decidedAt   DateTime?
+  decidedById String?
+  denyReason  String?
+  parkedAt    DateTime?
+  messageId   String? // Nexconn message for metadata updates
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  team        Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  repo        RepoLink      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  requester   User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  votes       Vote[]
+  grant       Grant?
+  calls       CallSession[]
+
+  @@unique([teamId, code])
+  @@index([teamId, createdAt(sort: Desc)])
+  @@index([repoId, cmdHash])
+  @@map("gates")
+}
+
+// One decision per person per gate, written in the same transaction as the quorum check.
+model Vote {
+  gateId    String
+  userId    String
+  decision  VoteDecision
+  reason    String?
+  createdAt DateTime     @default(now())
+  gate      Gate         @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([gateId, userId])
+  @@index([userId])
+  @@map("votes")
+}
+
+// A parked gate approved later. Single use, bound to cmdHash, expires after 24 h.
+model Grant {
+  id        String    @id
+  gateId    String    @unique
+  repoId    String
+  cmdHash   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  gate      Gate      @relation(fields: [gateId], references: [id], onDelete: Cascade)
+
+  @@index([repoId, cmdHash])
+  @@map("grants")
+}
+
+// A Call SDK call (huddle or ring). The row exists from the permit; callId arrives once the
+// browser's startCall succeeds. At most one open huddle per gate: permits are issued in a
+// transaction that holds the gate's row lock (features/call/server/permits.ts).
+model CallSession {
+  id           String     @id // permit id
+  callId       String?    @unique // Nexconn callId (= room id)
+  teamId       String
+  gateId       String?
+  kind         CallKind
+  startedById  String
+  calleeIds    String[]
+  status       CallStatus @default(permitted)
+  maxSec       Int        @default(900)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  durationSec  Int?
+  participants String[]   @default([])
+  messageId    String? // TG:Huddle card
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  gate         Gate?      @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  startedBy    User       @relation(fields: [startedById], references: [id], onDelete: Cascade)
+
+  @@index([gateId, status])
+  @@index([teamId, createdAt(sort: Desc)])
+  @@index([status, updatedAt])
+  @@map("call_sessions")
+}
