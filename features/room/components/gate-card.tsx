@@ -13,6 +13,8 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Dot } from "@/components/dot";
+import { RouteShield } from "@/components/road/route-shield";
+import { TrafficLight, type Light } from "@/components/road/traffic-light";
 import { Button } from "@/components/ui/button";
 import {
   CodeBlock,
@@ -29,6 +31,14 @@ import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
 
 export type Viewer = { id: string; canVote: boolean };
+
+const LIGHT: Record<GateView["status"], Light> = {
+  pending: "amber",
+  approved: "green",
+  denied: "red",
+  parked: "off",
+  expired: "off",
+};
 
 function QuorumDots({ approvals, quorum }: { approvals: number; quorum: number }) {
   return (
@@ -134,29 +144,30 @@ export function GateCard({
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
       aria-label={`Gate TG-${gate.code}, ${meta.label}`}
       className={cn(
-        "relative overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs",
+        "relative overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm",
         highlighted && "ring-2 ring-brand/60",
       )}
     >
       <motion.span
         aria-hidden
         layout
-        className={cn("absolute inset-y-0 start-0 w-1", meta.stripe)}
+        className={cn("absolute inset-y-0 start-0 w-1.5", meta.stripe)}
       />
       <div className="flex flex-col gap-3 p-3 ps-4 sm:p-4 sm:ps-5">
-        <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-mono text-sm font-semibold">TG-{gate.code}</span>
+        <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <RouteShield code={gate.code} />
           <EnvBadge env={gate.env} />
           <span className="text-xs text-muted-foreground">{gate.preset}</span>
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span
               key={gate.status}
-              className="ms-auto"
+              className="ms-auto flex items-center gap-2"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.18 }}
             >
+              <TrafficLight lit={LIGHT[gate.status]} />
               <StatusChip status={gate.status} />
             </motion.span>
           </AnimatePresence>
@@ -191,12 +202,22 @@ export function GateCard({
           </div>
         </div>
 
-        <CodeBlock size="sm" className="bg-muted/60">
+        {/* The command on the road, as the agent typed it. */}
+        <CodeBlock size="sm" className="border-0 bg-asphalt text-white dark:bg-asphalt">
           <CodeBlockContent wrap className="pe-11! text-[13px] break-all">
-            {gate.command}
+            {/* One span: the code element is a grid, so siblings would stack. */}
+            <span>
+              <span aria-hidden className="text-white/45 select-none">
+                ❯{" "}
+              </span>
+              {gate.command}
+            </span>
           </CodeBlockContent>
           <CodeBlockActions>
-            <CodeBlockCopyButton value={gate.command} />
+            <CodeBlockCopyButton
+              value={gate.command}
+              className="bg-white/10! text-white/80 ring-white/20! hover:bg-white/20! hover:text-white"
+            />
           </CodeBlockActions>
         </CodeBlock>
 

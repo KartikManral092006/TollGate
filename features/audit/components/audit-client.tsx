@@ -17,6 +17,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dot } from "@/components/dot";
 import { NumberTicker } from "@/components/motion/number-ticker";
+import { RouteShield } from "@/components/road/route-shield";
+import { SignPanel } from "@/components/road/sign-panel";
 import { gateMetrics, gatesToCsv } from "@/features/gates/shared/metrics";
 import type { GateStatusView, GateView } from "@/features/gates/shared/view";
 import { EnvBadge, StatusChip } from "@/features/room/components/gate-status";
@@ -54,11 +56,12 @@ function Stat({
   hint: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-3" title={hint}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums">
+    <div className="flex flex-col">
+      <p className="text-sm font-semibold text-white/85">{label}</p>
+      <p className="text-3xl leading-tight font-extrabold tabular-nums sm:text-4xl">
         {value === null ? "–" : <NumberTicker value={value} format={format} />}
       </p>
+      <p className="mt-0.5 text-xs leading-snug text-white/65">{hint}</p>
     </div>
   );
 }
@@ -122,32 +125,33 @@ export function AuditClient({
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-3 py-5 sm:px-4">
-      <section aria-label="Team metrics" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {/* The team's numbers on one highway sign. */}
+      <SignPanel innerClassName="grid grid-cols-2 gap-x-5 gap-y-5 px-4 py-4 sm:grid-cols-4 sm:px-6 sm:py-5">
         <Stat
           label="Gates"
           value={metrics.total}
           format={asCount}
-          hint="Every risky command raised by this team's agents"
+          hint="Risky commands your agents raised"
         />
         <Stat
           label="Median decision"
           value={metrics.medianDecisionSec}
           format={asDuration}
-          hint="Time from the gate appearing to its approval or denial"
+          hint="From gate to yes or no"
         />
         <Stat
           label="Denied"
           value={metrics.denyRate}
           format={asPercent}
-          hint="Share of decided gates the team denied"
+          hint="Of the gates your team decided"
         />
         <Stat
           label="Rubber-stamped"
           value={metrics.rubberStampRate}
           format={asPercent}
-          hint="Approvals given within 3 seconds of the gate appearing"
+          hint="Approved in under 3 seconds"
         />
-      </section>
+      </SignPanel>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <ToggleGroup
@@ -176,7 +180,7 @@ export function AuditClient({
           />
         </InputGroup>
         <Button variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
-          <Download /> CSV
+          <Download /> Export CSV
         </Button>
       </div>
 
@@ -200,10 +204,10 @@ export function AuditClient({
               <li key={gate.id}>
                 <Link
                   href={`/teams/${teamId}?gate=${gate.id}`}
-                  className="flex flex-col gap-1.5 rounded-xl border bg-card p-3 hover:bg-muted/50"
+                  className="flex flex-col gap-2 rounded-2xl border bg-card p-3 hover:bg-muted/50"
                 >
                   <span className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-semibold">TG-{gate.code}</span>
+                    <RouteShield code={gate.code} />
                     <EnvBadge env={gate.env} />
                     <StatusChip status={gate.status} className="ms-auto" />
                   </span>
@@ -244,9 +248,9 @@ export function AuditClient({
                     <TableCell className="align-top">
                       <Link
                         href={`/teams/${teamId}?gate=${gate.id}`}
-                        className="font-mono font-semibold underline-offset-4 hover:underline"
+                        className="inline-block rounded-[0.6rem_0.6rem_1rem_1rem] transition-transform outline-none hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        TG-{gate.code}
+                        <RouteShield code={gate.code} />
                       </Link>
                       <div className="mt-1">
                         <EnvBadge env={gate.env} />

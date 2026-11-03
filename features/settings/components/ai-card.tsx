@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SignIcon } from "@/components/road/sign-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -149,10 +150,13 @@ export function AiCard({
   }
 
   return (
-    <Card>
+    <Card id="ai" className="scroll-mt-32">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="size-4" /> AI explanations
+        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
+          <SignIcon>
+            <Sparkles />
+          </SignIcon>
+          AI explanations
         </CardTitle>
         <CardDescription>
           What the &ldquo;Why?&rdquo; button on gate cards uses. Bring your own provider (paid, free
