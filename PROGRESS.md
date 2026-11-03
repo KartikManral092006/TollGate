@@ -127,6 +127,17 @@ Free stack: **Vercel Hobby** (app, functions in `sin1`) + **Neon** (Postgres, Si
   - The GitHub button appears when `AUTH_GITHUB_*` is set.
   - Home asks email sign-ups for a name and shows waiting gates per team.
 
+## Bring your own AI for "Why?" (Nov 3)
+
+- Each team owner picks a provider in **Settings › AI explanations**:
+  - **Built-in** (default): rule-based, free, nothing leaves the server. It reads migration SQL for DROP, TRUNCATE and unbounded DELETE.
+  - **Anthropic:** Claude, through the official SDK.
+  - **OpenAI-compatible:** OpenAI, NVIDIA NIM, Groq, OpenRouter, Gemini, Ollama, vLLM and others, set by base URL and model.
+- **Order:** the team's provider, then the server default (`AI_API_KEY`), then built-in. A failing provider falls back to built-in, and the card says so.
+- **Keys:** encrypted with AES-256-GCM using `AI_KEYS_SECRET` and never returned to the browser; only the last 4 characters are shown. A key is never carried over when the provider changes. Owners only.
+- **SSRF:** provider URLs must be https and resolve only to public addresses, and requests don't follow redirects. Ollama therefore needs a public https endpoint (reverse proxy or tunnel).
+- **Test** runs unsaved settings against a sample migration. Changing provider clears cached explanations.
+
 ## Decisions
 
 - **One deny vetoes.** Anyone who knows why it's dangerous can stop it; approvals need quorum.

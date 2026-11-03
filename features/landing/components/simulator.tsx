@@ -287,9 +287,11 @@ export function Simulator() {
                 onDeny={setDenying}
                 onWhy={async (target) => {
                   await new Promise((done) => setTimeout(done, 700));
-                  return target.code === 17
-                    ? "This applies a database migration to the shared staging database. The migration deletes the legacy_total column from invoices, along with every value stored in it. Anything that still reads that column (reports, exports, other services) will break, and the data can't be recovered unless a backup exists. Staging is shared, so teammates are affected too."
-                    : "This applies the revised migration: it first copies the invoices table to invoices_backup, then renames legacy_total to legacy_total_archived instead of deleting it. No data is removed and the rename can be reversed, though code still reading the old column name will need updating.";
+                  const text =
+                    target.code === 17
+                      ? "This applies a database migration to the shared staging database. The migration deletes the legacy_total column from invoices, along with every value stored in it. Anything that still reads that column (reports, exports, other services) will break, and the data can't be recovered unless a backup exists. Staging is shared, so teammates are affected too."
+                      : "This applies the revised migration: it first copies the invoices table to invoices_backup, then renames legacy_total to legacy_total_archived instead of deleting it. No data is removed and the rename can be reversed, though code still reading the old column name will need updating.";
+                  return { text, source: "ai", model: null, fallback: false };
                 }}
               />
             ))

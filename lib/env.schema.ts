@@ -31,6 +31,8 @@ const serverEnvObject = z.object({
   CALLS_ENABLED: optional(z.enum(["0", "1"])),
   CALL_MINUTES_PER_TEAM_DAY: z.coerce.number().int().min(0).max(10_000).default(60),
   AI_API_KEY: optional(z.string().min(1)),
+  // Encrypts teams' AI provider keys at rest. Any long random string (openssl rand -base64 32).
+  AI_KEYS_SECRET: optional(z.string().min(32)),
   // Set by Vercel: "production" | "preview" | "development".
   VERCEL_ENV: optional(z.string()),
 });

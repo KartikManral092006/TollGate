@@ -28,6 +28,7 @@ import { GateCallMenu } from "@/features/call/components/gate-call-menu";
 import { IncomingCallSheet } from "@/features/call/components/incoming-call";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { useAlerts } from "@/features/notify/client/use-alerts";
+import type { WhyResult } from "@/features/why/shared/providers";
 import { ChatLineView } from "@/features/room/components/chat-line";
 import { Composer } from "@/features/room/components/composer";
 import { DenyDrawer } from "@/features/room/components/deny-drawer";
@@ -56,7 +57,6 @@ export function RoomClient({
   initialGates,
   highlightGateId,
   callsEnabled,
-  whyEnabled,
 }: {
   team: { id: string; name: string; channelId: string };
   viewer: Viewer;
@@ -64,7 +64,6 @@ export function RoomClient({
   initialGates: GateView[];
   highlightGateId: string | null;
   callsEnabled: boolean;
-  whyEnabled: boolean;
 }) {
   const { gates, lines, live, refresh, send } = useRoomLive({
     teamId: team.id,
@@ -140,14 +139,14 @@ export function RoomClient({
     return true;
   }
 
-  async function explain(gate: GateView): Promise<string | null> {
+  async function explain(gate: GateView): Promise<WhyResult | null> {
     const response = await fetch(`/api/gates/${gate.id}/why`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
     });
     if (!response.ok) return null;
-    return ((await response.json()) as { text?: string }).text ?? null;
+    return (await response.json()) as WhyResult;
   }
 
   let lastDay = "";
@@ -214,7 +213,7 @@ export function RoomClient({
                               await vote(gate, "approve");
                             }}
                             onDeny={setDenying}
-                            onWhy={whyEnabled ? explain : undefined}
+                            onWhy={explain}
                             footer={
                               callsEnabled && live === "live" && isOpenStatus(item.gate.status) ? (
                                 <GateCallMenu

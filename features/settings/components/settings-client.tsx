@@ -29,9 +29,11 @@ import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { timeAgo } from "@/features/room/shared/format";
+import { AiCard } from "@/features/settings/components/ai-card";
 import { CopyField } from "@/features/settings/components/copy-field";
 import type { InviteRow, RepoRow } from "@/features/teams/server/settings";
 import { REPO_NAME_RE } from "@/features/teams/shared/schemas";
+import type { AiConfigView } from "@/features/why/shared/providers";
 
 type Member = { id: string; name: string; role: string };
 
@@ -410,8 +412,10 @@ export function SettingsClient({
   members,
   repos,
   invites,
+  ai,
 }: {
   teamId: string;
+  ai: AiConfigView;
   viewer: { id: string; role: string };
   members: Member[];
   repos: RepoRow[];
@@ -424,6 +428,7 @@ export function SettingsClient({
       {canLink && <LinkRepoCard teamId={teamId} isOwner={isOwner} />}
       <ReposCard teamId={teamId} repos={repos} isOwner={isOwner} />
       {isOwner && <InvitesCard teamId={teamId} invites={invites} />}
+      <AiCard teamId={teamId} isOwner={isOwner} initial={ai} />
       <MembersCard members={members} viewerId={viewer.id} />
     </main>
   );

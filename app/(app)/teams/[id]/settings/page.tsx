@@ -8,6 +8,7 @@ import { SubpageHeader } from "@/features/teams/components/subpage-header";
 import { loadSettings } from "@/features/teams/server/settings";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { ID_RE } from "@/features/teams/shared/schemas";
+import { loadAiConfig, toAiConfigView } from "@/features/why/server/config";
 import { db } from "@/lib/db";
 
 export const instant = false;
@@ -25,9 +26,10 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
   const membership = await getMembership(db, id, user.id);
   if (!membership) notFound();
 
-  const [members, settings] = await Promise.all([
+  const [members, settings, ai] = await Promise.all([
     listMembers(db, id),
     loadSettings(db, id, user.id),
+    loadAiConfig(db, id),
   ]);
   return (
     <div className="flex min-h-dvh flex-col">
@@ -42,6 +44,7 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
         }))}
         repos={settings.repos}
         invites={settings.invites}
+        ai={toAiConfigView(ai)}
       />
     </div>
   );

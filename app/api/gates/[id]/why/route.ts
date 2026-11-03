@@ -1,16 +1,20 @@
 import { connection } from "next/server";
 import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
 import { requireMember, requireWriter } from "@/features/teams/server/http";
-import { explainCommand, WhyUnavailableError } from "@/features/why/server/explain";
+import { loadAiConfig, resolveProvider } from "@/features/why/server/config";
+import { explainWith, WhyUnavailableError } from "@/features/why/server/explain";
+import { builtinExplanation } from "@/features/why/shared/builtin";
+import type { WhyResult } from "@/features/why/shared/providers";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
 import { json } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
 
 const CACHE_SECONDS = 7 * 86_400;
 
-// One explanation per gate, cached: a whole team asking "Why?" costs a single model call.
+// The team's own AI provider if it set one, else the server default, else the built-in
+// rule-based explanation. A failing provider falls back to built-in instead of an error.
+// AI answers are cached per gate and provider, so a team asking costs one call.
 export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/why">) {
   await connection();
   const auth = await requireWriter(request, { name: "why", rule: { window: 600, max: 20 } });
@@ -25,28 +29,41 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
   if (!gate) return json({ error: "not_found" }, 404);
   const member = await requireMember(gate.teamId, auth.user.id);
   if (!member.ok) return member.response;
-  if (!env.AI_API_KEY) return json({ error: "why_unavailable" }, 503);
 
-  const key = `why:v1:${gate.id}`;
+  const input = {
+    command: gate.command,
+    context: gate.context,
+    preset: gate.preset,
+    env: gate.env,
+    repo: gate.repo.name,
+  };
+  const builtin = (fallback: boolean): WhyResult => ({
+    text: builtinExplanation(input),
+    source: "builtin",
+    model: null,
+    fallback,
+  });
+
+  const provider = resolveProvider(await loadAiConfig(db, gate.teamId));
+  if (!provider) return json(builtin(false));
+
+  const generation = (await redis.get(`why:gen:${gate.teamId}`).catch(() => null)) ?? "0";
+  const key = `why:v2:${gate.id}:${generation}:${provider.provider}:${provider.model}`;
   const cached = await redis.get(key).catch(() => null);
-  if (cached) return json({ text: cached, cached: true });
+  if (cached) return json({ text: cached, source: "ai", model: provider.model, fallback: false });
 
   try {
-    const text = await explainCommand(env.AI_API_KEY, {
-      command: gate.command,
-      context: gate.context,
-      preset: gate.preset,
-      env: gate.env,
-      repo: gate.repo.name,
-    });
-    if (!text) return json({ error: "no_explanation" }, 422);
+    const text = await explainWith(provider, input);
+    if (!text) return json(builtin(true));
     await redis.set(key, text, "EX", CACHE_SECONDS).catch(() => undefined);
-    return json({ text, cached: false });
+    const result: WhyResult = { text, source: "ai", model: provider.model, fallback: false };
+    return json(result);
   } catch (error) {
     if (error instanceof WhyUnavailableError) {
-      logger.warn({ reason: error.reason, gateId: id }, "why failed");
-      return json({ error: error.reason }, error.reason === "rate_limited" ? 429 : 502);
+      logger.warn({ reason: error.reason, gateId: id, provider: provider.provider }, "why failed");
+      return json(builtin(true));
     }
-    throw error;
+    logger.warn({ err: error, gateId: id }, "why provider error");
+    return json(builtin(true));
   }
 }

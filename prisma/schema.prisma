@@ -26,13 +26,13 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  teamsCreated     Team[]
-  memberships      Membership[]
-  invitesCreated   Invite[]
-  hookTokens       HookToken[]
-  gatesRequested   Gate[]
-  votes            Vote[]
-  callsStarted     CallSession[]
+  teamsCreated   Team[]
+  memberships    Membership[]
+  invitesCreated Invite[]
+  hookTokens     HookToken[]
+  gatesRequested Gate[]
+  votes          Vote[]
+  callsStarted   CallSession[]
 
   @@map("users")
 }
@@ -114,6 +114,12 @@ enum CallKind {
   ring
 }
 
+enum AiProvider {
+  builtin
+  anthropic
+  openai_compatible
+}
+
 enum CallStatus {
   permitted
   live
@@ -123,20 +129,21 @@ enum CallStatus {
 
 // A group of people with one Nexconn group channel (the thread space).
 model Team {
-  id                  String       @id // 32 letters and digits (lib/ids)
+  id                  String        @id // 32 letters and digits (lib/ids)
   name                String
-  nexconnChannelId    String       @unique // "tg" + id
+  nexconnChannelId    String        @unique // "tg" + id
   nexconnGroupReadyAt DateTime? // set once the Nexconn group exists
-  nextGateCode        Int          @default(1) // TG-n; taken in the gate-create transaction
+  nextGateCode        Int           @default(1) // TG-n; taken in the gate-create transaction
   createdById         String?
-  createdBy           User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  createdBy           User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
   memberships         Membership[]
   invites             Invite[]
   repos               RepoLink[]
   gates               Gate[]
   calls               CallSession[]
+  aiConfig            TeamAiConfig?
 
   @@map("teams")
 }
@@ -302,4 +309,22 @@ model CallSession {
   @@index([teamId, createdAt(sort: Desc)])
   @@index([status, updatedAt])
   @@map("call_sessions")
+}
+
+// The AI provider a team uses for "Why?" explanations. The API key is encrypted with
+// AI_KEYS_SECRET (lib/crypto-box.ts) and never leaves the server; only its last 4 characters
+// are shown. No row (or provider "builtin") means rule-based explanations.
+model TeamAiConfig {
+  teamId       String     @id
+  provider     AiProvider @default(builtin)
+  label        String? // the preset the owner picked, e.g. "NVIDIA NIM"
+  baseUrl      String? // https, public (lib/safe-url.ts)
+  model        String?
+  apiKeySealed String?
+  apiKeyLast4  String?
+  updatedById  String?
+  updatedAt    DateTime   @updatedAt
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("team_ai_configs")
 }
