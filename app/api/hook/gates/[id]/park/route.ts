@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { parkGate } from "@/features/gates/server/gates";
-import { mirrorGate } from "@/features/gates/server";
+import { announceParked, mirrorGate } from "@/features/gates/server";
 import { requireHook } from "@/features/gates/server/hook-http";
 import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
 import { db } from "@/lib/db";
@@ -15,8 +15,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/hook/gates/
 
   const { id } = await ctx.params;
   if (!GATE_ID_RE.test(id)) return json({ error: "not_found" }, 404);
-  const status = await parkGate(db, { gateId: id, repoId: auth.principal.repoId });
-  if (!status) return json({ error: "not_found" }, 404);
-  if (status === "parked") mirrorGate(id);
-  return json({ status });
+  const result = await parkGate(db, { gateId: id, repoId: auth.principal.repoId });
+  if (!result) return json({ error: "not_found" }, 404);
+  if (result.status === "parked") mirrorGate(id);
+  if (result.parkedNow) announceParked(id);
+  return json({ status: result.status });
 }

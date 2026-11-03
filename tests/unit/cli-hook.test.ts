@@ -164,6 +164,29 @@ describe("decide", () => {
     expect(body.cmdHash).toMatch(/^[a-f0-9]{64}$/);
     expect(body.quorum).toBe(1);
   });
+
+  it("sends the agent's own description of the command, redacted", async () => {
+    const { deps, api } = setup({ statuses: [gate({ status: "approved" })] });
+    await decide(
+      {
+        ...bash("npm publish"),
+        tool_input: {
+          command: "npm publish",
+          description: "  Publish v2 using token supersecretvalue  ",
+        },
+      },
+      deps,
+    );
+    const body = vi.mocked(api.createGate).mock.calls[0]![0];
+    expect(body.intent).toBe("Publish v2 using token [REDACTED]");
+    expect(body.redactions).toBe(1);
+  });
+
+  it("sends no intent when Claude Code gave no description", async () => {
+    const { deps, api } = setup({ statuses: [gate({ status: "approved" })] });
+    await decide(bash("npm publish"), deps);
+    expect(vi.mocked(api.createGate).mock.calls[0]![0].intent).toBeNull();
+  });
 });
 
 describe("renderDecision", () => {

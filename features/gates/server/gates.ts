@@ -36,6 +36,7 @@ export async function createGate(
   const command = redact(input.command);
   const cwd = redact(input.cwd);
   const context = redact(input.context);
+  const intent = input.intent ? redact(input.intent) : null;
   const serverMatch = matchPreset(repoPresets(principal.presets), {
     command: command.text,
     cwd: cwd.text,
@@ -65,7 +66,9 @@ export async function createGate(
         cwd: truncate(cwd.text, 500),
         branch: input.branch ? truncate(redact(input.branch).text, 200) : null,
         context: truncate(context.text, 2048),
-        redactions: input.redactions + command.count + cwd.count + context.count,
+        intent: intent ? truncate(intent.text, 300) : null,
+        redactions:
+          input.redactions + command.count + cwd.count + context.count + (intent?.count ?? 0),
         cmdHash: input.cmdHash,
         quorum,
       },
@@ -93,11 +96,13 @@ export async function getGateForRepo(db: PrismaClient, gateId: string, repoId: s
 }
 
 // Only a pending gate can be parked; parking twice (a retried hook) is not an error.
+// `parkedNow` is true only for the call that moved the gate to parked, so a retried hook
+// doesn't send the reminder twice.
 export async function parkGate(
   db: PrismaClient,
   input: { gateId: string; repoId: string; now?: Date },
-): Promise<GateStatus | null> {
-  await db.gate.updateMany({
+): Promise<{ status: GateStatus; parkedNow: boolean } | null> {
+  const { count } = await db.gate.updateMany({
     where: { id: input.gateId, repoId: input.repoId, status: "pending" },
     data: { status: "parked", parkedAt: input.now ?? new Date() },
   });
@@ -105,7 +110,7 @@ export async function parkGate(
     where: { id: input.gateId, repoId: input.repoId },
     select: { status: true },
   });
-  return gate?.status ?? null;
+  return gate ? { status: gate.status, parkedNow: count === 1 } : null;
 }
 
 export class VoteRejectedError extends Error {
@@ -268,6 +273,27 @@ export async function expireParkedGates(db: PrismaClient, olderThan: Date): Prom
     data: { status: "expired" },
   });
   return count;
+}
+
+// Claims gates parked between `notBefore` and `parkedBefore` that haven't had their follow-up
+// reminder, marking them so each gate is reminded once even with concurrent sweeps.
+export async function claimLateReminders(
+  db: PrismaClient,
+  window: { parkedBefore: Date; notBefore: Date },
+  limit = 20,
+): Promise<string[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    UPDATE gates SET "remindedAt" = now()
+    WHERE id IN (
+      SELECT id FROM gates
+      WHERE status = 'parked' AND "remindedAt" IS NULL
+        AND "parkedAt" < ${window.parkedBefore} AND "parkedAt" > ${window.notBefore}
+      ORDER BY "parkedAt"
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id`;
+  return rows.map((row) => row.id);
 }
 
 export function listTeamGates(

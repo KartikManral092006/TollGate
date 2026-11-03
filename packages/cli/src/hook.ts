@@ -10,7 +10,7 @@ import { redact, truncate } from "../../../features/gates/shared/redact";
 export type HookInput = {
   hook_event_name?: string;
   tool_name?: string;
-  tool_input?: { command?: unknown };
+  tool_input?: { command?: unknown; description?: unknown };
   cwd?: string;
   session_id?: string;
 };
@@ -121,6 +121,12 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
     const redactedCwd = redact(cwd, secrets);
     const context = redact(deps.context(command, config.repoRoot), secrets);
     const branch = deps.gitBranch(config.repoRoot);
+    // The agent's own reason, shown to approvers as its claim (it can be wrong).
+    const description = input.tool_input?.description;
+    const intent =
+      typeof description === "string" && description.trim()
+        ? redact(description.trim(), secrets)
+        : null;
 
     let gate = await api.createGate({
       preset: match.preset.name,
@@ -130,7 +136,8 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
       cwd: truncate(redactedCwd.text, 500),
       branch: branch ? truncate(redact(branch, secrets).text, 200) : null,
       context: truncate(context.text, 2048),
-      redactions: redactedCommand.count + redactedCwd.count + context.count,
+      intent: intent ? truncate(intent.text, 300) : null,
+      redactions: redactedCommand.count + redactedCwd.count + context.count + (intent?.count ?? 0),
       cmdHash,
       sessionId: input.session_id,
     });

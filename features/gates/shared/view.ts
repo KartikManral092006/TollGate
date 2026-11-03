@@ -32,6 +32,8 @@ export type GateView = {
   branch: string | null;
   command: string;
   context: string;
+  // The agent's own description of the command: its claim, not a fact.
+  intent: string | null;
   redactions: number;
   quorum: number;
   approvals: number;
@@ -60,6 +62,7 @@ export type GateRow = {
   branch: string | null;
   command: string;
   context: string;
+  intent?: string | null;
   redactions: number;
   quorum: number;
   denyReason: string | null;
@@ -104,6 +107,7 @@ export function toGateView(row: GateRow): GateView {
     branch: row.branch,
     command: row.command,
     context: row.context,
+    intent: row.intent ?? null,
     redactions: row.redactions,
     quorum: row.quorum,
     approvals: row.votes.filter((vote) => vote.decision === "approve").length,

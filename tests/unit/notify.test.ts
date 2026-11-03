@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  notifyGateParked,
   notifyGateWaiting,
   notifyParkedDecision,
   type NotifyDeps,
 } from "@/features/notify/server/notify";
 import {
   escapeHtml,
+  gateParkedNotice,
   gateWaitingNotice,
   parkedDecisionNotice,
 } from "@/features/notify/shared/messages";
@@ -30,6 +32,30 @@ describe("notice copy", () => {
     expect(notice.chat).toContain("Kartik's agent wants to run db-migrate on PROD");
     expect(notice.text).toContain("Approve or deny: https://t.example/teams/T?gate=G");
     expect(notice.push.length).toBeLessThanOrEqual(120);
+  });
+
+  it("quotes the agent's reason as its claim, escaped in HTML", () => {
+    const notice = gateWaitingNotice({ ...base, intent: "Apply <b>pending</b> migrations" });
+    expect(notice.text).toContain('The agent says: "Apply <b>pending</b> migrations"');
+    expect(notice.html).toContain("Apply &lt;b&gt;pending&lt;/b&gt; migrations");
+    expect(gateWaitingNotice(base).text).not.toContain("The agent says");
+  });
+
+  it("reminds about a parked gate, and again an hour later", () => {
+    const input = {
+      code: 17,
+      repo: "acme/billing",
+      command: "npm publish",
+      requester: "Kartik",
+      url: "u",
+    };
+    const parked = gateParkedNotice({ ...input, late: false });
+    expect(parked.subject).toBe("TG-17 is parked and still needs a decision (acme/billing)");
+    expect(parked.text).toContain("retry passes once within 24 h");
+    expect(gateParkedNotice({ ...input, late: true }).subject).toBe(
+      "Reminder: TG-17 still needs a decision (acme/billing)",
+    );
+    expect(parked.push.length).toBeLessThanOrEqual(120);
   });
 
   it("escapes the command in HTML email", () => {
@@ -158,5 +184,30 @@ describe("notifyParkedDecision", () => {
     await notifyParkedDecision(live.deps, "G");
     expect(live.sent).toHaveLength(0);
     expect(live.emails).toHaveLength(0);
+  });
+});
+
+describe("notifyGateParked", () => {
+  it("reminds voters who haven't voted, never the requester, on the reminder throttle", async () => {
+    const parked = { ...gate, status: "parked", votes: [{ userId: "A" }] };
+    const { deps: d, sent, emails, db } = deps(parked, [{ id: "B", nexconn: "B" }]);
+    await notifyGateParked(d, "G");
+    expect(vi.mocked(db.membership.findMany).mock.calls[0]![0]).toMatchObject({
+      where: { userId: { notIn: ["K", "A"] } },
+    });
+    expect(sent[0]!.toUserIds).toEqual(["B"]);
+    expect(emails).toEqual(["B@x.test"]);
+    expect(vi.mocked(d.email).mock.calls[0]![2]).toEqual({ kind: "reminder" });
+  });
+
+  it("stays quiet once the gate is decided", async () => {
+    const {
+      deps: d,
+      sent,
+      emails,
+    } = deps({ ...gate, status: "approved", votes: [] }, [{ id: "B", nexconn: "B" }]);
+    await notifyGateParked(d, "G", true);
+    expect(sent).toHaveLength(0);
+    expect(emails).toHaveLength(0);
   });
 });

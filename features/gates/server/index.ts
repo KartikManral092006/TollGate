@@ -11,6 +11,7 @@ import {
 import { sendEmail } from "@/features/email/server/resend";
 import { getNexconn, NexconnNotConfiguredError } from "@/features/nexconn/server";
 import {
+  notifyGateParked,
   notifyGateWaiting,
   notifyParkedDecision,
   type NotifyDeps,
@@ -55,10 +56,10 @@ function notifyDeps(): NotifyDeps {
     db,
     nexconn,
     gateUrl,
-    email: async (to, notice) => {
+    email: async (to, notice, options) => {
       if (!env.EMAIL_API_KEY || !env.EMAIL_FROM) return false;
       const fresh = await redis
-        .set(`notify:email:${to.userId}`, "1", "EX", EMAIL_GAP_SECONDS, "NX")
+        .set(`notify:${options?.kind ?? "email"}:${to.userId}`, "1", "EX", EMAIL_GAP_SECONDS, "NX")
         .catch(() => null);
       if (fresh !== "OK") return false;
       if (!(await consumeRate("ml:daily", EMAILS_PER_DAY)).allowed) return false;
@@ -78,6 +79,23 @@ function notifyDeps(): NotifyDeps {
 export function announceGate(gateId: string) {
   inBackground("gate card", { gateId }, () => postGateCard(cardDeps(), gateId));
   inBackground("gate notice", { gateId }, () => notifyGateWaiting(notifyDeps(), gateId));
+}
+
+// The agent stopped waiting and nobody had decided: nudge the voters who haven't voted.
+export function announceParked(gateId: string) {
+  inBackground("parked reminder", { gateId }, () => notifyGateParked(notifyDeps(), gateId));
+}
+
+// The sweep's follow-up for gates still parked an hour later. Already inside after(), so it
+// awaits directly instead of scheduling more background work.
+export async function sendLateReminders(gateIds: string[]): Promise<void> {
+  for (const gateId of gateIds) {
+    try {
+      await notifyGateParked(notifyDeps(), gateId, true);
+    } catch (error) {
+      logger.warn({ err: error, gateId }, "late reminder failed");
+    }
+  }
 }
 
 export function announceParkedDecision(gateId: string) {
