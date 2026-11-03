@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20.19"
@@ -24,5 +25,10 @@
     "hooks",
     "approval",
     "ai-agents"
-  ]
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
+  },
+  "homepage": "https://toll-gate-mo7d.vercel.app"
 }
