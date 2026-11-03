@@ -5,6 +5,7 @@ import { verifySession } from "@/features/auth/server/session";
 import { listTeamGates } from "@/features/gates/server/gates";
 import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
 import { displayName, toGateView } from "@/features/gates/shared/view";
+import { withInsights } from "@/features/insights/server/insights";
 import { loadSetupState } from "@/features/onboarding/server/setup";
 import { RoomClient } from "@/features/room/components/room-client";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
@@ -34,6 +35,7 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
     listTeamGates(db, id),
     loadSetupState(db, id, user.id),
   ]);
+  const views = await withInsights(db, id, gates.map(toGateView));
   const highlight =
     typeof query.gate === "string" && GATE_ID_RE.test(query.gate) ? query.gate : null;
 
@@ -50,7 +52,7 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
         name: displayName(member.user.name, member.user.id),
         role: member.role,
       }))}
-      initialGates={gates.map(toGateView)}
+      initialGates={views}
       highlightGateId={highlight}
       callsEnabled={env.CALLS_ENABLED === "1"}
       setup={setup}
