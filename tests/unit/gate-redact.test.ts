@@ -40,6 +40,12 @@ describe("redact", () => {
     expect(result.count).toBe(2);
   });
 
+  it("hides bare secret names too, not only prefixed ones", () => {
+    const result = redact("PASSWORD=hunter2 token=abc123 ./deploy.sh");
+    expect(result.text).toBe(`PASSWORD=${REDACTED} token=${REDACTED} ./deploy.sh`);
+    expect(result.count).toBe(2);
+  });
+
   it("keeps the database host visible but hides its password", () => {
     expect(
       redact("DATABASE_URL=postgres://u:pw@db.prod:5432/app npx prisma migrate deploy").text,
