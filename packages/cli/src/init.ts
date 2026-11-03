@@ -1,0 +1,94 @@
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { DEFAULT_PRESETS } from "../../../features/gates/shared/presets";
+import { CONFIG_FILE, DEFAULT_HOOK_TIMEOUT_SEC, type ConfigFile, readConfigFile } from "./config";
+
+// settings.local.json is per developer (Claude Code keeps it out of git): each person links
+// the repo with their own token, so each person registers their own hook.
+export const SETTINGS_FILE = join(".claude", "settings.local.json");
+
+type HookEntry = { type: string; command: string; timeout?: number };
+type Matcher = { matcher?: string; hooks?: HookEntry[] };
+type Settings = { hooks?: Record<string, Matcher[] | undefined> } & Record<string, unknown>;
+
+export function isTollgateHook(command: string): boolean {
+  return /tollgate/.test(command) && /\bhook\b/.test(command);
+}
+
+// Idempotent: removes any earlier Tollgate hook, keeps every other hook untouched.
+export function mergeHookSettings(
+  existing: Settings,
+  hookCommand: string,
+  timeoutSec: number,
+): Settings {
+  const hooks = { ...(existing.hooks ?? {}) };
+  const kept = (hooks.PreToolUse ?? [])
+    .map((matcher) => ({
+      ...matcher,
+      hooks: (matcher.hooks ?? []).filter((hook) => !isTollgateHook(hook.command)),
+    }))
+    .filter((matcher) => matcher.hooks.length > 0);
+  hooks.PreToolUse = [
+    ...kept,
+    { matcher: "Bash", hooks: [{ type: "command", command: hookCommand, timeout: timeoutSec }] },
+  ];
+  return { ...existing, hooks };
+}
+
+function readJson(path: string): Settings {
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as Settings;
+  } catch {
+    return {};
+  }
+}
+
+// The hook runs on every Bash call, so it must start fast: a local copy of this bundle
+// run by node, not `npx` (which adds about a second per command).
+export function installBundle(bundlePath: string, home: string): string {
+  const binDir = join(home, "bin");
+  mkdirSync(binDir, { recursive: true });
+  const target = join(binDir, "tollgate.mjs");
+  if (bundlePath !== target) copyFileSync(bundlePath, target);
+  return target;
+}
+
+export function hookCommandFor(bundle: string): string {
+  return `node ${JSON.stringify(bundle)} hook`;
+}
+
+export function writeRepoFiles(input: {
+  repoRoot: string;
+  server: string;
+  repo: string;
+  hookCommand: string;
+}): { configPath: string; settingsPath: string; timeoutSec: number } {
+  const configPath = join(input.repoRoot, CONFIG_FILE);
+  let config: ConfigFile = { server: input.server, repo: input.repo, presets: DEFAULT_PRESETS };
+  if (existsSync(configPath)) {
+    try {
+      config = { ...readConfigFile(input.repoRoot), server: input.server, repo: input.repo };
+    } catch {
+      // Unreadable: rewrite it with defaults rather than keep a file the hook can't parse.
+    }
+  }
+  const timeoutSec = config.hookTimeoutSec ?? DEFAULT_HOOK_TIMEOUT_SEC;
+  writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
+
+  const settingsPath = join(input.repoRoot, SETTINGS_FILE);
+  mkdirSync(join(input.repoRoot, ".claude"), { recursive: true });
+  const merged = mergeHookSettings(readJson(settingsPath), input.hookCommand, timeoutSec);
+  writeFileSync(settingsPath, `${JSON.stringify(merged, null, 2)}\n`);
+
+  const gitignore = join(input.repoRoot, ".gitignore");
+  if (existsSync(gitignore)) {
+    const text = readFileSync(gitignore, "utf8");
+    if (!text.split(/\r?\n/).includes(".claude/settings.local.json")) {
+      writeFileSync(
+        gitignore,
+        `${text}${text.endsWith("\n") ? "" : "\n"}.claude/settings.local.json\n`,
+      );
+    }
+  }
+  return { configPath, settingsPath, timeoutSec };
+}

@@ -1,0 +1,28 @@
+{
+  "name": "tollgate-cli",
+  "version": "0.1.0",
+  "description": "Your team approves risky Claude Code commands before they run.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "tollgate": "dist/tollgate.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KartikManral092006/TollGate.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "claude-code",
+    "hooks",
+    "approval",
+    "ai-agents"
+  ]
+}

@@ -17,7 +17,7 @@ export default function LandingPage() {
         </p>
       </div>
       <pre className="overflow-x-auto rounded-lg border bg-muted px-4 py-3 font-mono text-sm">
-        npx tollgate init
+        npx tollgate-cli init
       </pre>
       <p className="text-sm text-muted-foreground">
         Commands are redacted on your machine before anything is sent.{" "}

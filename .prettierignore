@@ -7,3 +7,4 @@ pnpm-lock.yaml
 .claude
 .windsurf
 PLAN.md
+packages/cli/dist
