@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { csvCell, gateMetrics, gatesToCsv, median } from "@/features/gates/shared/metrics";
+import {
+  csvCell,
+  dailySeries,
+  gateMetrics,
+  gatesToCsv,
+  median,
+} from "@/features/gates/shared/metrics";
 import type { GateView } from "@/features/gates/shared/view";
 
 const at = (sec: number) => new Date(Date.UTC(2026, 10, 3, 9, 0, sec)).toISOString();
@@ -109,5 +115,25 @@ describe("csv", () => {
     expect(header).toContain("code,status,env");
     expect(row).toContain("TG-17,denied,prod");
     expect(row).toContain("back up first");
+  });
+});
+
+describe("dailySeries", () => {
+  it("buckets the last days by local date, with nulls where nothing was decided", () => {
+    const now = new Date(2026, 10, 4, 15).getTime();
+    const local = (day: number, hour: number) => new Date(2026, 10, day, hour).toISOString();
+    const series = dailySeries(
+      [
+        gate({ status: "approved", createdAt: local(4, 9), decidedAt: local(4, 9), votes: [] }),
+        gate({ status: "denied", createdAt: local(4, 10), decidedAt: local(4, 10) }),
+        gate({ status: "pending", createdAt: local(2, 9) }),
+        gate({ status: "approved", createdAt: local(1, 9) }), // older than 3 days: left out
+      ],
+      now,
+      3,
+    );
+    expect(series.days).toEqual(["2026-11-02", "2026-11-03", "2026-11-04"]);
+    expect(series.gates).toEqual([1, 0, 2]);
+    expect(series.denyRate).toEqual([null, null, 0.5]);
   });
 });
