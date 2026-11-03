@@ -21,6 +21,9 @@ import { redact, truncate } from "@/features/gates/shared/redact";
 import { applyRule } from "@/features/insights/shared/policy";
 import { canVote, type TeamRoleValue } from "@/features/teams/shared/schemas";
 
+// What a hook that doesn't report its wait uses: 300 s timeout minus the 15 s park margin.
+export const DEFAULT_WAIT_SEC = 285;
+
 // How long after a question the requester's next gate in the same repo counts as the answer.
 export const FOLLOW_UP_WINDOW_MS = 30 * 60 * 1000;
 
@@ -122,6 +125,10 @@ export async function createGate(
           ? truncate(via.map((line) => `${line.from.text} → ${line.runs.text}`).join("\n"), 1400)
           : null,
         sessionId: input.sessionId ? truncate(input.sessionId, 200) : null,
+        // Older hooks don't say how long they wait: the default timeout minus the park margin.
+        parksAt: policy.autoApprove
+          ? null
+          : new Date(now.getTime() + (input.waitSec ?? DEFAULT_WAIT_SEC) * 1000),
         redactions:
           input.redactions +
           command.count +

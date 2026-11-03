@@ -33,6 +33,7 @@ import { RiskSignals } from "@/features/insights/components/risk-signals";
 import { SuggestedApprovers } from "@/features/insights/components/suggested-approvers";
 import type { WhyResult } from "@/features/why/shared/providers";
 import { EnvBadge, STATUS } from "@/features/room/components/gate-status";
+import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
@@ -251,6 +252,13 @@ export function GateCard({
             <time dateTime={gate.createdAt} title={clockTime(gate.createdAt)}>
               {timeAgo(gate.createdAt)}
             </time>
+            {gate.status === "pending" && gate.parksAt && (
+              <ParkCountdown
+                createdAt={gate.createdAt}
+                parksAt={gate.parksAt}
+                className="ms-auto"
+              />
+            )}
           </p>
         </header>
 

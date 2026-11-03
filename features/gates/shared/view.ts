@@ -58,6 +58,8 @@ export type GateView = {
     by: string | null;
   } | null;
   decidedAt: string | null;
+  // When the waiting agent will give up and park this gate, if it's still pending.
+  parksAt: string | null;
   parkedAt: string | null;
   grant: { expiresAt: string; usedAt: string | null } | null;
   calls: GateCallView[];
@@ -100,6 +102,7 @@ export type GateRow = {
     createdBy: { name: string } | null;
   } | null;
   decidedAt: DateLike | null;
+  parksAt?: DateLike | null;
   parkedAt: DateLike | null;
   createdAt: DateLike;
   requester: { id: string; name: string };
@@ -176,6 +179,7 @@ export function toGateView(row: GateRow): GateView {
         }
       : null,
     decidedAt: isoOrNull(row.decidedAt),
+    parksAt: isoOrNull(row.parksAt),
     parkedAt: isoOrNull(row.parkedAt),
     grant: row.grant
       ? { expiresAt: iso(row.grant.expiresAt), usedAt: isoOrNull(row.grant.usedAt) }

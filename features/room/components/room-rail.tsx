@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { EnvBadge } from "@/features/room/components/gate-status";
+import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import type { Member } from "@/features/room/components/room-header";
 import { timeAgo } from "@/features/room/shared/format";
@@ -72,6 +73,14 @@ export function RoomRail({ gates, members }: { gates: GateView[]; members: Membe
                       <span className="flex items-center gap-2">
                         <span className="font-mono text-sm font-bold">TG-{gate.code}</span>
                         <EnvBadge env={gate.env} />
+                        {gate.status === "pending" && gate.parksAt && (
+                          <ParkCountdown
+                            createdAt={gate.createdAt}
+                            parksAt={gate.parksAt}
+                            compact
+                            className="ms-auto"
+                          />
+                        )}
                       </span>
                       <span className="block truncate font-mono text-xs text-muted-foreground">
                         {gate.command}

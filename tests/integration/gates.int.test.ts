@@ -333,6 +333,8 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
       { newId },
     );
     expect(gate.intent).toBe("Publish with password=[REDACTED]");
+    // No waitSec from an older hook: the default 285 s wait.
+    expect(gate.parksAt!.getTime() - gate.createdAt.getTime()).toBeGreaterThanOrEqual(284_000);
     expect(gate.redactions).toBeGreaterThanOrEqual(1);
   });
 

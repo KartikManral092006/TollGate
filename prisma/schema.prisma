@@ -247,6 +247,7 @@ model Gate {
   decidedAt    DateTime?
   decidedById  String?
   denyReason   String?
+  parksAt      DateTime? // when the waiting hook gives up and parks it (countdown on the card)
   parkedAt     DateTime?
   remindedAt   DateTime? // the one "still parked" reminder went out
   question     String?       @db.VarChar(500) // set when an approver asked instead of deciding
