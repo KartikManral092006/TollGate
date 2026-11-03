@@ -26,11 +26,13 @@ function describeError(error: ClientError, via: "email" | "google", google: bool
 export function SignInForm(props: {
   callbackURL: string;
   googleEnabled: boolean;
+  githubEnabled: boolean;
   devEmailLog: boolean;
   initialError: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
+  const [provider, setProvider] = useState<"google" | "github">("google");
   const [error, setError] = useState<string | null>(props.initialError);
   const busy = status === "sending" || status === "redirecting";
 
@@ -75,12 +77,13 @@ export function SignInForm(props: {
     }
   }
 
-  async function signInWithGoogle() {
+  async function signInWithSocial(next: "google" | "github") {
     setError(null);
+    setProvider(next);
     setStatus("redirecting");
     try {
       const result = await authClient.signIn.social({
-        provider: "google",
+        provider: next,
         callbackURL: props.callbackURL,
         errorCallbackURL: SIGN_IN_PATH,
       });
@@ -150,22 +153,39 @@ export function SignInForm(props: {
           </form>
         )}
 
-        {props.googleEnabled && status !== "sent" && (
+        {(props.googleEnabled || props.githubEnabled) && status !== "sent" && (
           <>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />
               or
               <span className="h-px flex-1 bg-border" />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full"
-              disabled={busy}
-              onClick={signInWithGoogle}
-            >
-              {status === "redirecting" ? "Opening Google…" : "Continue with Google"}
-            </Button>
+            {props.githubEnabled && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full"
+                disabled={busy}
+                onClick={() => void signInWithSocial("github")}
+              >
+                {status === "redirecting" && provider === "github"
+                  ? "Opening GitHub…"
+                  : "Continue with GitHub"}
+              </Button>
+            )}
+            {props.googleEnabled && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full"
+                disabled={busy}
+                onClick={() => void signInWithSocial("google")}
+              >
+                {status === "redirecting" && provider === "google"
+                  ? "Opening Google…"
+                  : "Continue with Google"}
+              </Button>
+            )}
           </>
         )}
 
