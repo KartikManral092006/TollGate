@@ -17,7 +17,9 @@ export function ChatLineView({ line, name }: { line: ChatLine; name: string }) {
               <AlertCircle className="size-3" aria-hidden /> Not sent
             </span>
           ) : (
-            <span className="text-xs text-muted-foreground">{clockTime(line.sentTime)}</span>
+            <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+              {clockTime(line.sentTime)}
+            </span>
           )}
         </p>
         <p

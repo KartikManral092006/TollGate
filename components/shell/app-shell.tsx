@@ -2,11 +2,13 @@
 
 import {
   LayoutGrid,
+  ListChecks,
   LogOut,
   Menu,
   MessagesSquare,
   Plus,
   ScrollText,
+  Search,
   Settings2,
   type LucideIcon,
 } from "lucide-react";
@@ -15,6 +17,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandMenu } from "@/components/shell/command-menu";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { signOutAction } from "@/features/auth/server/actions";
@@ -75,10 +78,12 @@ function SidebarBody({
   user,
   teams,
   currentTeamId,
+  onSearch,
 }: {
   user: ShellUser;
   teams: ShellTeam[];
   currentTeamId: string | null;
+  onSearch: () => void;
 }) {
   const pathname = usePathname();
   const current = teams.find((team) => team.id === currentTeamId) ?? null;
@@ -90,6 +95,7 @@ function SidebarBody({
           icon: MessagesSquare,
           count: current.waiting,
         },
+        { href: `/teams/${current.id}/review`, label: "Review", icon: ListChecks },
         { href: `/teams/${current.id}/audit`, label: "Audit log", icon: ScrollText },
         { href: `/teams/${current.id}/settings`, label: "Settings", icon: Settings2 },
       ]
@@ -114,6 +120,15 @@ function SidebarBody({
         aria-label="Main"
         className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-3 py-3"
       >
+        <button
+          type="button"
+          onClick={onSearch}
+          className="flex h-9 items-center gap-2.5 rounded-md bg-white/5 px-3 text-sm text-white/55 ring-1 ring-white/10 transition-colors outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-signal"
+        >
+          <Search className="size-4" aria-hidden />
+          <span className="flex-1 text-start">Search…</span>
+          <kbd className="rounded bg-white/10 px-1.5 text-[11px] text-white/60">⌘K</kbd>
+        </button>
         <NavItem
           link={{ href: "/home", label: "All teams", icon: LayoutGrid }}
           active={pathname === "/home"}
@@ -213,6 +228,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const current = teams.find((team) => team.id === currentTeamId) ?? null;
 
   // Close the phone menu after navigating.
@@ -221,7 +237,17 @@ export function AppShell({
     return () => clearTimeout(timer);
   }, [pathname]);
 
-  const body = <SidebarBody user={user} teams={teams} currentTeamId={currentTeamId} />;
+  const body = (
+    <SidebarBody
+      user={user}
+      teams={teams}
+      currentTeamId={currentTeamId}
+      onSearch={() => {
+        setMenuOpen(false);
+        setSearchOpen(true);
+      }}
+    />
+  );
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -266,6 +292,12 @@ export function AppShell({
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <CommandMenu
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        teams={teams}
+        currentTeamId={currentTeamId}
+      />
     </div>
   );
 }

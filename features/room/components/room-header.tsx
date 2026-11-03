@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, ListChecks } from "lucide-react";
+import Link from "next/link";
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import type { LiveState } from "@/features/room/client/use-room-live";
 import { cn } from "@/lib/utils";
@@ -18,12 +19,14 @@ const LIVE_LABEL: Record<LiveState, string> = {
 // The room's own bar: the team, whether the thread is live, what's waiting, who's in it.
 // Navigation lives in the sidebar.
 export function RoomHeader({
+  teamId,
   name,
   members,
   live,
   openCount,
   onEnableAlerts,
 }: {
+  teamId: string;
   name: string;
   members: Member[];
   live: LiveState;
@@ -63,6 +66,11 @@ export function RoomHeader({
         ))}
         {members.length > 5 && <AvatarGroupCount>+{members.length - 5}</AvatarGroupCount>}
       </AvatarGroup>
+      {openCount > 0 && (
+        <Link href={`/teams/${teamId}/review`} className={buttonVariants({ size: "sm" })}>
+          <ListChecks /> Review
+        </Link>
+      )}
       {onEnableAlerts && (
         <Button variant="outline" size="sm" onClick={onEnableAlerts} className="gap-1.5">
           <Bell /> <span className="hidden sm:inline">Turn on alerts</span>

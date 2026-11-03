@@ -97,7 +97,10 @@ export function RoomRail({
                       <span className="block truncate font-mono text-xs text-muted-foreground">
                         {gate.command}
                       </span>
-                      <span className="block text-xs text-muted-foreground">
+                      <span
+                        className="block text-xs text-muted-foreground"
+                        suppressHydrationWarning
+                      >
                         {gate.status === "parked" ? "Parked, " : ""}
                         {gate.requester.name}, {timeAgo(gate.createdAt)}
                       </span>
