@@ -43,6 +43,9 @@ function gate(
     requester: { id: "demo-kartik", name: "Kartik" },
     votes: [],
     denyReason: null,
+    question: null,
+    followUp: null,
+    answeredIn: null,
     decidedAt: null,
     parkedAt: null,
     grant: null,
@@ -67,6 +70,7 @@ export function Simulator() {
   const [lines, setLines] = useState<Line[]>([]);
   const [cards, setCards] = useState<GateView[]>([]);
   const [denying, setDenying] = useState<GateView | null>(null);
+  const [asking, setAsking] = useState<GateView | null>(null);
   const [running, setRunning] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const nextId = useRef(0);
@@ -107,6 +111,7 @@ export function Simulator() {
     setLines([]);
     setCards([]);
     setDenying(null);
+    setAsking(null);
     setRunning(false);
   }, []);
 
@@ -185,12 +190,12 @@ export function Simulator() {
       say("Understood. I'll follow that instead of dropping the column:", "agent", 900);
       say("  1. Back up invoices  2. Rename legacy_total → legacy_total_archived", "dim", 1500);
       say("● Bash(npx prisma migrate deploy)  # revised migration", "cmd", 2300);
-      say("  ⏸  Tollgate: waiting on your team · TG-18 (0/1)", "warn", 2900);
+      say(`  ⏸  Tollgate: waiting on your team · TG-${target.code + 1} (0/1)`, "warn", 2900);
       later(3100, () =>
         setCards((current) => [
           ...current,
           gate(
-            18,
+            target.code + 1,
             {
               context: `Newest migration 20261103_archive_legacy_total:\nCREATE TABLE invoices_backup AS TABLE invoices;\nALTER TABLE "invoices" RENAME COLUMN "legacy_total" TO "legacy_total_archived";`,
             },
@@ -207,6 +212,49 @@ export function Simulator() {
               tally: { approved: 0, denied: 1 },
             },
           ),
+        ]),
+      );
+      return true;
+    },
+    [later, say],
+  );
+
+  const ask = useCallback(
+    async (target: GateView, question: string) => {
+      setCards((current) =>
+        current.map((g) =>
+          g.id === target.id
+            ? {
+                ...g,
+                status: "denied",
+                question,
+                denyReason: question,
+                decidedAt: new Date().toISOString(),
+                votes: [
+                  {
+                    userId: "demo-you",
+                    name: "You",
+                    decision: "deny",
+                    reason: question,
+                    at: new Date().toISOString(),
+                  },
+                ],
+              }
+            : g,
+        ),
+      );
+      say(`  ? You asked in TG-${target.code}: ${question}`, "warn");
+      say("Fair question. Answering it and asking again:", "agent", 900);
+      say("● Bash(npx prisma migrate deploy)", "cmd", 1700);
+      say(`  ⏸  Tollgate: waiting on your team · TG-${target.code + 1} (0/1)`, "warn", 2300);
+      later(2500, () =>
+        setCards((current) => [
+          ...current.map((g) => (g.id === target.id ? { ...g, answeredIn: target.code + 1 } : g)),
+          gate(target.code + 1, {
+            followUp: { code: target.code, question, askedBy: "You" },
+            intent:
+              "It drops invoices.legacy_total on staging, about 48,000 values. Nothing reads it since the minor-units change. There's no backup yet; I can take one first.",
+          }),
         ]),
       );
       return true;
@@ -313,12 +361,12 @@ export function Simulator() {
                 viewer={{ id: "demo-you", canVote: true }}
                 onApprove={approve}
                 onDeny={setDenying}
+                onAsk={setAsking}
                 onWhy={async (target) => {
                   await new Promise((done) => setTimeout(done, 700));
-                  const text =
-                    target.code === 17
-                      ? "This applies a database migration to the shared staging database. The migration deletes the legacy_total column from invoices, along with every value stored in it. Anything that still reads that column (reports, exports, other services) will break, and the data can't be recovered unless a backup exists. Staging is shared, so teammates are affected too."
-                      : "This applies the revised migration: it first copies the invoices table to invoices_backup, then renames legacy_total to legacy_total_archived instead of deleting it. No data is removed and the rename can be reversed, though code still reading the old column name will need updating.";
+                  const text = target.context.includes("DROP COLUMN")
+                    ? "This applies a database migration to the shared staging database. The migration deletes the legacy_total column from invoices, along with every value stored in it. Anything that still reads that column (reports, exports, other services) will break, and the data can't be recovered unless a backup exists. Staging is shared, so teammates are affected too."
+                    : "This applies the revised migration: it first copies the invoices table to invoices_backup, then renames legacy_total to legacy_total_archived instead of deleting it. No data is removed and the rename can be reversed, though code still reading the old column name will need updating.";
                   return { text, source: "ai", model: null, fallback: false };
                 }}
               />
@@ -328,6 +376,7 @@ export function Simulator() {
       </div>
 
       <DenyDrawer gate={denying} onClose={() => setDenying(null)} onSubmit={deny} />
+      <DenyDrawer gate={asking} mode="ask" onClose={() => setAsking(null)} onSubmit={ask} />
     </div>
   );
 }

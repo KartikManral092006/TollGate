@@ -402,4 +402,77 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     const ended = await db.callSession.findUniqueOrThrow({ where: { id: overran.id } });
     expect(ended).toMatchObject({ status: "ended", durationSec: 900 });
   });
+
+  // Last on purpose: an open question links the requester's next gate in this repo.
+  it("closes a gate with a question and links the agent's retry as the answer", async () => {
+    const parked = await createGate(db, principal, gateInput("vercel --prod # parked ask"), {
+      newId,
+    });
+    await parkGate(db, { gateId: parked.id, repoId: principal.repoId });
+    await expect(
+      castVote(db, {
+        gateId: parked.id,
+        userId: approvers[0]!,
+        decision: "deny",
+        question: "Why now?",
+        newId,
+      }),
+    ).rejects.toMatchObject({ reason: "not_waiting" });
+
+    const asked = await createGate(db, principal, gateInput("npx prisma migrate deploy # ask"), {
+      newId,
+    });
+    const outcome = await castVote(db, {
+      gateId: asked.id,
+      userId: approvers[0]!,
+      decision: "approve",
+      question: "  Which tables does this change?  ",
+      newId,
+    });
+    expect(outcome.evaluation.status).toBe("denied");
+    const stored = await db.gate.findUniqueOrThrow({
+      where: { id: asked.id },
+      include: { votes: true },
+    });
+    expect(stored.question).toBe("Which tables does this change?");
+    expect(stored.denyReason).toContain(
+      'Question before deciding: "Which tables does this change?"',
+    );
+    expect(stored.votes).toMatchObject([
+      { decision: "deny", reason: "Which tables does this change?" },
+    ]);
+
+    // Another repo's gate isn't the answer; the next gate here is, and only that one.
+    const elsewhere = await createGate(db, otherPrincipal, gateInput("npm publish # other"), {
+      newId,
+    });
+    const answer = await createGate(
+      db,
+      principal,
+      gateInput("npx prisma migrate deploy # ask", { intent: "Changes invoices only" }),
+      { newId },
+    );
+    const later = await createGate(db, principal, gateInput("npx prisma migrate deploy # ask"), {
+      newId,
+    });
+    expect(elsewhere.followUpOfId).toBeNull();
+    expect(answer.followUpOfId).toBe(asked.id);
+    expect(later.followUpOfId).toBeNull();
+
+    // A question older than the window isn't answered by a new gate.
+    const old = await createGate(db, principal, gateInput("vercel --prod # old ask"), { newId });
+    await castVote(db, {
+      gateId: old.id,
+      userId: approvers[1]!,
+      decision: "deny",
+      question: "Is staging green?",
+      newId,
+    });
+    await db.gate.update({
+      where: { id: old.id },
+      data: { decidedAt: new Date(Date.now() - 31 * 60_000) },
+    });
+    const stale = await createGate(db, principal, gateInput("vercel --prod # old ask"), { newId });
+    expect(stale.followUpOfId).toBeNull();
+  });
 });

@@ -10,6 +10,8 @@ export type GateMetrics = {
   open: number;
   approved: number;
   denied: number;
+  // Closed with a question to the agent: not a decision, so not in the deny rate.
+  asked: number;
   parked: number;
   expired: number;
   // Denied ÷ decided (approved + denied); null until something is decided.
@@ -33,10 +35,11 @@ const ratio = (part: number, whole: number) => (whole === 0 ? null : part / whol
 export function gateMetrics(gates: GateView[]): GateMetrics {
   const count = (status: GateView["status"]) => gates.filter((g) => g.status === status).length;
   const approved = count("approved");
-  const denied = count("denied");
+  const asked = gates.filter((g) => g.status === "denied" && g.question).length;
+  const denied = count("denied") - asked;
 
   const decisionSecs = gates
-    .filter((g) => (g.status === "approved" || g.status === "denied") && g.decidedAt)
+    .filter((g) => (g.status === "approved" || g.status === "denied") && !g.question && g.decidedAt)
     .map((g) => (Date.parse(g.decidedAt!) - Date.parse(g.createdAt)) / 1000)
     .filter((sec) => sec >= 0);
 
@@ -56,6 +59,7 @@ export function gateMetrics(gates: GateView[]): GateMetrics {
     open: count("pending") + count("parked"),
     approved,
     denied,
+    asked,
     parked: count("parked"),
     expired: count("expired"),
     denyRate: ratio(denied, approved + denied),
@@ -79,6 +83,7 @@ const CSV_COLUMNS = [
   "approvals",
   "votes",
   "deny_reason",
+  "question",
   "created_at",
   "decided_at",
   "redactions",
@@ -107,7 +112,8 @@ export function gatesToCsv(gates: GateView[]): string {
       g.quorum,
       g.approvals,
       g.votes.map((v) => `${v.name}: ${v.decision}${v.reason ? ` (${v.reason})` : ""}`).join("; "),
-      g.denyReason,
+      g.question ? null : g.denyReason,
+      g.question,
       g.createdAt,
       g.decidedAt,
       g.redactions,

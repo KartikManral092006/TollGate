@@ -59,7 +59,9 @@ export const PARK_MARGIN_SEC = 15;
 export function denyMessages(gate: HookGateStatus) {
   const who = gate.decidedBy || "a teammate";
   return {
-    denied: `Denied by ${who} in TG-${gate.code}: ${gate.denyReason ?? "no reason given"}. Do not retry this command as is. Change your plan to address the reason, then propose the new command.`,
+    denied: gate.question
+      ? `${who} asked a question in TG-${gate.code} before deciding: "${gate.question}" Answer it specifically and honestly in the description of your next Bash call, then run the same command again so the team can decide. If the answer changes your plan, change the command too.`
+      : `Denied by ${who} in TG-${gate.code}: ${gate.denyReason ?? "no reason given"}. Do not retry this command as is. Change your plan to address the reason, then propose the new command.`,
     parked: `Parked as TG-${gate.code}: nobody on the team decided in time. Continue with other work that doesn't need this command. Retry the exact same command later; once the team approves TG-${gate.code} it passes immediately (${gate.url}).`,
     expired: `TG-${gate.code} expired without approval. Ask the user whether to raise it again.`,
   };

@@ -13,24 +13,53 @@ import {
 } from "@/components/ui/drawer";
 import { Textarea } from "@/components/ui/textarea";
 import type { GateView } from "@/features/gates/shared/view";
+import { cn } from "@/lib/utils";
 
-const QUICK_REASONS = [
-  "Back up the data first.",
-  "Wrong environment: use staging.",
-  "Not now: wait until after the release.",
-  "Do a dry run and show me the output.",
-];
+const COPY = {
+  deny: {
+    title: (code: number) => `Deny TG-${code}`,
+    description:
+      "Your reason goes to the agent as its next instruction, so say what it should do instead.",
+    placeholder: "e.g. Rename the column instead of dropping it, and back up first.",
+    label: "Reason",
+    submit: "Deny",
+    quick: [
+      "Back up the data first.",
+      "Wrong environment: use staging.",
+      "Not now: wait until after the release.",
+      "Do a dry run and show me the output.",
+    ],
+  },
+  ask: {
+    title: (code: number) => `Ask the agent about TG-${code}`,
+    description:
+      "The gate closes and the agent gets your question. It answers when it runs the command again, and the team decides then.",
+    placeholder: "e.g. Which tables and rows does this change?",
+    label: "Question",
+    submit: "Send question",
+    quick: [
+      "Which tables and rows does this change?",
+      "Is there a backup? Where is it?",
+      "Why does this need to run now?",
+      "How do we roll this back if it goes wrong?",
+    ],
+  },
+} as const;
 
-// The reason is the point: it reaches the agent verbatim as its next instruction.
+// The text is the point: a deny reason reaches the agent verbatim as its next instruction, and
+// a question reaches it as something to answer before the team decides.
 export function DenyDrawer({
   gate,
+  mode = "deny",
   onClose,
   onSubmit,
 }: {
   gate: GateView | null;
+  mode?: keyof typeof COPY;
   onClose: () => void;
-  onSubmit: (gate: GateView, reason: string) => Promise<boolean>;
+  onSubmit: (gate: GateView, text: string) => Promise<boolean>;
 }) {
+  const copy = COPY[mode];
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -55,26 +84,23 @@ export function DenyDrawer({
       <DrawerContent className="mx-auto w-full max-w-lg">
         <form onSubmit={submit} className="flex flex-col">
           <DrawerHeader>
-            <DrawerTitle>Deny TG-{gate?.code}</DrawerTitle>
-            <DrawerDescription>
-              Your reason goes to the agent as its next instruction, so say what it should do
-              instead.
-            </DrawerDescription>
+            <DrawerTitle>{gate ? copy.title(gate.code) : null}</DrawerTitle>
+            <DrawerDescription>{copy.description}</DrawerDescription>
           </DrawerHeader>
           <div className="flex flex-col gap-3 px-4">
             <Textarea
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="e.g. Rename the column instead of dropping it, and back up first."
+              placeholder={copy.placeholder}
               rows={3}
-              maxLength={1000}
+              maxLength={mode === "ask" ? 500 : 1000}
               autoFocus
               required
-              aria-label="Reason"
+              aria-label={copy.label}
               className="text-base sm:text-sm"
             />
             <div className="flex flex-wrap gap-2">
-              {QUICK_REASONS.map((quick) => (
+              {copy.quick.map((quick) => (
                 <button
                   key={quick}
                   type="button"
@@ -92,11 +118,15 @@ export function DenyDrawer({
             </Button>
             <Button
               type="submit"
-              className="h-11 bg-gate-denied text-white hover:bg-gate-denied/90 dark:text-black"
+              className={cn(
+                "h-11",
+                mode === "deny" &&
+                  "bg-gate-denied text-white hover:bg-gate-denied/90 dark:text-black",
+              )}
               disabled={busy || !reason.trim()}
             >
               {busy && <Loader2 className="animate-spin" aria-hidden />}
-              Deny
+              {copy.submit}
             </Button>
           </DrawerFooter>
         </form>

@@ -23,6 +23,9 @@ function gate(patch: Partial<GateView>): GateView {
     requester: { id: "r", name: "Kartik" },
     votes: [],
     denyReason: null,
+    question: null,
+    followUp: null,
+    answeredIn: null,
     decidedAt: null,
     parkedAt: null,
     grant: null,
@@ -73,6 +76,15 @@ describe("gateMetrics", () => {
     expect(metrics.medianDecisionSec).toBe(40);
     expect(metrics.rubberStampRate).toBeCloseTo(1 / 3);
     expect(metrics.parkedResolvedRate).toBe(0.5);
+  });
+
+  it("counts a question as neither a deny nor a decision", () => {
+    const metrics = gateMetrics([
+      gate({ status: "approved", decidedAt: at(10), votes: [approve(10)] }),
+      gate({ status: "denied", decidedAt: at(20), question: "Which tables?" }),
+    ]);
+    expect(metrics).toMatchObject({ approved: 1, denied: 0, asked: 1, denyRate: 0 });
+    expect(metrics.medianDecisionSec).toBe(10);
   });
 });
 

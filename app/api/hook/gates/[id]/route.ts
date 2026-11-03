@@ -27,6 +27,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/hook/gates/[
     quorum: gate.quorum,
     approvals: found.approvals,
     denyReason: gate.denyReason,
+    question: gate.question,
     decidedBy: found.decidedByName,
     mode: auth.principal.mode,
     url: gateUrl(gate.teamId, gate.id),
