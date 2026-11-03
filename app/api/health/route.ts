@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { db } from "@/lib/db";
+import { HealthTimeout, reasonOf } from "@/lib/health";
 import { logger } from "@/lib/logger";
 import { lastRedisError, redis } from "@/lib/redis";
 
@@ -9,21 +10,6 @@ type CheckResult = { status: CheckStatus; reason?: string };
 // Generous: on a cold serverless start Neon wakes from scale-to-zero and Redis needs a fresh
 // TLS connection.
 const TIMEOUT_MS = 5000;
-
-class HealthTimeout extends Error {}
-
-// A short, non-secret code (timeout, ENOTFOUND, P1001, …) so a failed deploy can be
-// diagnosed from the public endpoint without exposing hosts or credentials.
-function reasonOf(error: unknown): string {
-  if (error instanceof HealthTimeout) return "timeout";
-  const code =
-    (error as { code?: unknown; errorCode?: unknown } | null)?.code ??
-    (error as { errorCode?: unknown } | null)?.errorCode;
-  if (typeof code === "string" && /^[A-Za-z0-9_]{1,32}$/.test(code)) return code;
-  const name = error instanceof Error ? error.name : "";
-  // Production bundles shorten class names (MaxRetriesPerRequestError becomes "r").
-  return /^[A-Za-z]{6,40}$/.test(name) ? name : "error";
-}
 
 async function check(name: string, probe: () => Promise<unknown>): Promise<CheckResult> {
   let timer: NodeJS.Timeout | undefined;
