@@ -39,3 +39,24 @@ export function ExitTab({
     </span>
   );
 }
+
+// A small guide sign that carries a section's icon, so long pages read like a route.
+export function SignIcon({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "grid size-8 shrink-0 place-items-center rounded-lg border-2 border-white bg-[#00704a] text-white shadow-sm ring-1 ring-[#00704a] [&>svg]:size-4",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}

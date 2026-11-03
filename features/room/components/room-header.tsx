@@ -54,14 +54,14 @@ export function RoomHeader({
           {openCount > 0 && (
             <>
               <Dot />
-              <span className="font-semibold text-gate-pending-fg">{openCount} waiting</span>
+              <span className="font-semibold text-signal">{openCount} waiting</span>
             </>
           )}
         </span>
       }
       actions={
         <>
-          <AvatarGroup className="hidden sm:flex">
+          <AvatarGroup className="hidden *:data-[slot=avatar]:ring-asphalt sm:flex">
             {members.slice(0, 4).map((member) => (
               <PersonAvatar key={member.id} id={member.id} name={member.name} size="sm" />
             ))}
@@ -72,7 +72,7 @@ export function RoomHeader({
               variant="ghost"
               size="sm"
               onClick={onEnableAlerts}
-              className="gap-1.5 text-gate-pending-fg"
+              className="gap-1.5 text-signal hover:bg-white/10 hover:text-signal dark:hover:bg-white/10"
             >
               <Bell /> <span className="hidden sm:inline">Turn on alerts</span>
             </Button>

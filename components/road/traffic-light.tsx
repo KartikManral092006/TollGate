@@ -7,7 +7,7 @@ export function TrafficLight({ lit, className }: { lit: Light; className?: strin
   const lamp = (color: Exclude<Light, "off">, on: string) =>
     cn(
       "size-2.5 rounded-full transition-[background-color,box-shadow] duration-300",
-      lit === color ? on : "bg-foreground/15",
+      lit === color ? on : "bg-white/15",
     );
   return (
     <span

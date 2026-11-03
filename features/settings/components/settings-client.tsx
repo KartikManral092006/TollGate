@@ -1,6 +1,16 @@
 "use client";
 
-import { KeyRound, Link2, Loader2, ShieldCheck, Terminal, UserPlus, Zap } from "lucide-react";
+import {
+  FolderGit2,
+  KeyRound,
+  Link2,
+  Loader2,
+  ShieldCheck,
+  Terminal,
+  UserPlus,
+  Users,
+  Zap,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,6 +25,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
+import { ExitTab, SignIcon } from "@/components/road/sign-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -136,10 +148,13 @@ function LinkRepoCard({ teamId, isOwner }: { teamId: string; isOwner: boolean })
   }
 
   return (
-    <Card>
+    <Card id="link" className="scroll-mt-32">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Terminal className="size-4" /> Link a repo
+        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
+          <SignIcon>
+            <Terminal />
+          </SignIcon>
+          Link a repo
         </CardTitle>
         <CardDescription>
           Each developer links the repo on their own machine. The token can raise gates for this
@@ -245,9 +260,14 @@ function ReposCard({
   }
 
   return (
-    <Card>
+    <Card id="repos" className="scroll-mt-32">
       <CardHeader>
-        <CardTitle>Linked repos</CardTitle>
+        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
+          <SignIcon>
+            <FolderGit2 />
+          </SignIcon>
+          Linked repos
+        </CardTitle>
         <CardDescription>Revoke a token if a laptop is lost or someone leaves.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -322,10 +342,13 @@ function InvitesCard({ teamId, invites }: { teamId: string; invites: InviteRow[]
   }
 
   return (
-    <Card>
+    <Card id="invite" className="scroll-mt-32">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <UserPlus className="size-4" /> Invite people
+        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
+          <SignIcon>
+            <UserPlus />
+          </SignIcon>
+          Invite people
         </CardTitle>
         <CardDescription>
           Approvers are teammates. Clients approve from a link on their phone: no install, no Slack
@@ -381,9 +404,14 @@ function InvitesCard({ teamId, invites }: { teamId: string; invites: InviteRow[]
 
 function MembersCard({ members, viewerId }: { members: Member[]; viewerId: string }) {
   return (
-    <Card>
+    <Card id="members" className="scroll-mt-32">
       <CardHeader>
-        <CardTitle>Members</CardTitle>
+        <CardTitle className="flex items-center gap-2.5 text-lg font-bold">
+          <SignIcon>
+            <Users />
+          </SignIcon>
+          Members
+        </CardTitle>
         <CardDescription>
           Owners, approvers and clients can vote. Nobody can approve their own agent&apos;s command.
         </CardDescription>
@@ -423,13 +451,50 @@ export function SettingsClient({
 }) {
   const isOwner = viewer.role === "owner";
   const canLink = viewer.role !== "guest";
+  const sections = [
+    ...(canLink ? [{ id: "link", label: "Link a repo" }] : []),
+    { id: "repos", label: "Linked repos" },
+    ...(isOwner ? [{ id: "invite", label: "Invite" }] : []),
+    { id: "ai", label: "AI" },
+    { id: "members", label: "Members" },
+  ];
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-3 py-5 sm:px-4">
-      {canLink && <LinkRepoCard teamId={teamId} isOwner={isOwner} />}
-      <ReposCard teamId={teamId} repos={repos} isOwner={isOwner} />
-      {isOwner && <InvitesCard teamId={teamId} invites={invites} />}
-      <AiCard teamId={teamId} isOwner={isOwner} initial={ai} />
-      <MembersCard members={members} viewerId={viewer.id} />
+    <main className="mx-auto w-full max-w-2xl px-3 py-5 sm:px-4">
+      <Stagger className="flex flex-col gap-4">
+        {/* Exits to each section: the page is long on a phone. */}
+        <StaggerItem>
+          <nav aria-label="Jump to" className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1">
+            {sections.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                className="shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ExitTab className="text-xs">{section.label}</ExitTab>
+              </a>
+            ))}
+          </nav>
+        </StaggerItem>
+        {canLink && (
+          <StaggerItem>
+            <LinkRepoCard teamId={teamId} isOwner={isOwner} />
+          </StaggerItem>
+        )}
+        <StaggerItem>
+          <ReposCard teamId={teamId} repos={repos} isOwner={isOwner} />
+        </StaggerItem>
+        {isOwner && (
+          <StaggerItem>
+            <InvitesCard teamId={teamId} invites={invites} />
+          </StaggerItem>
+        )}
+        <StaggerItem>
+          <AiCard teamId={teamId} isOwner={isOwner} initial={ai} />
+        </StaggerItem>
+        <StaggerItem>
+          <MembersCard members={members} viewerId={viewer.id} />
+        </StaggerItem>
+      </Stagger>
     </main>
   );
 }
