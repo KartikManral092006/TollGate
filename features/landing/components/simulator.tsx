@@ -46,11 +46,11 @@ function gate(code: number, patch: Partial<GateView> = {}): GateView {
 }
 
 const TONE: Record<NonNullable<Line["tone"]>, string> = {
-  dim: "text-zinc-500",
-  ok: "text-emerald-400",
-  bad: "text-red-400",
+  dim: "text-white/50",
+  ok: "text-[#4fd199]",
+  bad: "text-[#ff8796]",
   warn: "text-amber-300",
-  agent: "text-zinc-100",
+  agent: "text-white",
   cmd: "text-sky-300",
 };
 
@@ -211,12 +211,12 @@ export function Simulator() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.05fr_1fr]">
-      <div className="flex min-h-80 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl">
-        <div className="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-2.5">
+      <div className="flex min-h-80 flex-col overflow-hidden rounded-2xl bg-asphalt shadow-xl">
+        <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-2.5">
           <span className="size-2.5 rounded-full bg-red-500/80" />
           <span className="size-2.5 rounded-full bg-amber-400/80" />
-          <span className="size-2.5 rounded-full bg-emerald-500/80" />
-          <span className="ms-2 font-mono text-xs text-zinc-500">claude · ~/acme/billing</span>
+          <span className="size-2.5 rounded-full bg-[#2eb67d]/80" />
+          <span className="ms-2 font-mono text-xs text-white/50">claude · ~/acme/billing</span>
         </div>
         <div
           ref={termRef}
@@ -225,11 +225,15 @@ export function Simulator() {
         >
           {lines.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <p className="max-w-xs font-sans text-sm text-zinc-400">
+              <p className="max-w-xs font-sans text-sm text-white/70">
                 Play the teammate. A coding agent is about to change a shared database, and it has
                 to ask you first.
               </p>
-              <Button onClick={start} className="bg-white font-sans text-black hover:bg-white/90">
+              <Button
+                onClick={start}
+                size="lg"
+                className="h-11 bg-signal font-sans text-base text-signal-foreground hover:bg-signal/90"
+              >
                 <Play /> Run the agent
               </Button>
             </div>
