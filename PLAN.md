@@ -819,3 +819,407 @@ These targets are my own estimates, not benchmarks. Instrument them in Postgres 
 8. What does Call cost on the Tollgate app? Are the challenge's free minutes a one-off allowance or monthly, and is there a plan fee? (T7)
 9. Does Nexconn have a server-side Call API (call logs, force end)? If not, the time cap relies on the client plus the sweeper.
 10. Does PreToolUse's `timeout` (§8.1 b) leave enough time for a Ring → talk → vote cycle on a prod gate, or does that gate usually end up parked?
+
+---
+
+## 19. Next-level roadmap
+
+Written Mon Nov 3, 2026. Feature freeze is Wed Nov 19. Submission is due Sat Nov 22, 23:59 AoE.
+
+The plan rests on these assumptions:
+
+- About **10 build days** between Nov 4 and Nov 18. Interviews (Nov 4–7) and launch posts (Nov 17–18) take the rest.
+- Tollgate has **zero users and zero interviews** so far. Every target below is a hypothesis to test, not evidence. Small samples will be reported as raw counts with n.
+
+**Decision (Nov 3):** build **Now and all of Next** (S0, A1, B1, C1, N1–N7) by Nov 16, in the order in 19.3, one commit per feature, with a CLI release where a feature touches the hook. The day estimates below assume an unassisted solo developer; with AI-assisted implementation the binding limits are live testing on real phones and agents, alpha feedback, and time for interviews and launch, not typing. The cut list in 19.8 still applies if anything slips, and the Nov 19 freeze does not move.
+
+How this roadmap was made: six planners proposed features from different angles after reading the code (collaboration, the human–agent loop, coverage, insights, onboarding and growth, business), a merge pass removed duplicates and anything already built, and three independent judges (hackathon rubric, skeptical engineer, user demand) scored all 36 distinct ideas. The scores are judgments, not user evidence.
+
+### 19.1 Budget rules
+
+| Item | Days |
+| --- | --- |
+| Build days, Nov 4–18 | 10.0 |
+| Slack kept free (20%): Nexconn production fixes, real-phone bugs, alpha feedback (Nov 12–16), npm publish problems | 2.0 |
+| **Committed "Now" work, at worst-case effort** | **8.0** |
+
+How the numbers work:
+
+- **Worst case** means the highest judge estimate for the full design.
+- When this plan narrows a feature, the **scoped worst case** starts from that number and subtracts the named parts, which are listed under each feature. These subtractions are my own estimates, not judge numbers.
+- Anything outside "Now" starts only from slack that is still unspent. **Never start an item when the days left before Nov 18 are fewer than its worst case.**
+- Correction: the "about an hour" estimate for the `bash -c` / `eval` / `curl | sh` fix was wrong. The judged scope is days, not an hour. See 19.4 A1.
+
+### 19.2 What was selected
+
+R, E and U are the rubric, engineer and user judges. "Cuts" is how many judges voted cut.
+
+| Tier | Feature | Theme | Avg | R / E / U | Cuts | Full worst | Scoped worst | Ships as |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Now | S0. Production and Nexconn spike | — | — | — | — | — | 0.5 | — |
+| Now | A1. See-through matching, narrow | A. Trust the gate | 8.0 | 6 should / 9 must / 9 must | 0 | 4.5 | 3.0 | CLI 0.2.2 |
+| Now | B1. Invite-to-decide, core | B. A second person decides | 8.3 | 9 must / 8 must / 8 must | 0 | 3.5 | 2.5 | web |
+| Now | C1. Gate threads, lite | C. Decide together | 7.7 | 9 must / 8 must / 6 should | 0 | 5.0 | 2.0 | web |
+| | **Now total** | | | | | | **8.0** | |
+| Next | N1. Guard: agent can't edit Tollgate's own settings | A | 6.7 | 6 / 6 / 8 | 0 | 7.0 | 2.0 | CLI 0.2.3 |
+| Next | N2. Bypass reported to the room | A | 6.7 | (same feature) | 0 | — | 1.5 | CLI 0.2.3 |
+| Next | N3. Manage members | B | 6.7 | 6 / 7 / 7 | 0 | 3.0 | 2.5 | web |
+| Next | N4. "Seen by" and "I'm on it" | C | 6.3 | 8 / 6 / 5 | 0 | 4.0 | 2.0 | web |
+| Next | N5. Approval pinned to migrations | A | 6.0 | 4 / 7 / 7 | 0 | 2.5 | 2.5 | CLI 0.2.3 |
+| Next | N6. Uncommitted or unpushed code signal | C | 6.7 | 5 / 7 / 8 | 0 | 4.0 | 1.5 | CLI 0.2.3 |
+| Next | N7. Thread upgrades: Postgres mirror, then reference messages | C | 7.7 | (C1) | 0 | — | 0.5 + 1.0 | web |
+
+Next adds up to about 13.5 days, so realistically **at most one or two Next items will ship**, and only if the slack is not needed.
+
+### 19.3 Order and calendar
+
+The order follows dependencies, with the riskiest work first.
+
+The largest external risk is Nexconn on production, which is not yet confirmed. S0 retires that risk on day one, before any feature depends on it. After S0:
+
+- **A1** goes first. It has the most open-ended scope (shell parsing never really ends), and it ships as a CLI release that alpha users must install before Nov 12.
+- **B1** goes next, because the alpha on Nov 12 needs a working path for a second person.
+- **C1** goes last. It is the smallest once scoped down, and its demo beat falls back to the existing deny-with-reason flow, so it is the safest item to slip.
+
+| When (approx.) | Work | Done when | Tripwire |
+| --- | --- | --- | --- |
+| Tue Nov 4 (half day) | **S0.** (1) Read the result of Kartik's live test: header shows **Live**, and the Ask round trip works on production. (2) Check that a client `RC:TxtMsg` with `extra: {gateId}` survives `createMessagesQuery` history on production. (3) 1-hour check: can a client reference message point at a server-sent `TG:Gate`? This only decides N7 | Results recorded in PROGRESS.md | If Nexconn does not connect on production, stop feature work and fix it. Then C1 drops out of Now |
+| Nov 4–9 | **A1**, then publish `tollgate-cli@0.2.2` | 60+ bypass corpus green in CI, false-positive corpus green, 0.2.2 on npm | If the corpus is not green by the end of Nov 9, ship the green subset and move the rest to the cut list |
+| Nov 10–12 | **B1** | A phone joins via QR and approves TG-1 on production | If it is not live by Nov 12, alpha uses the existing invite links and cut-list items 3 and 6 apply |
+| Nov 13–14 | **C1** | Deny by picking a reply works end to end on two devices | — |
+| Nov 15–16 | Slack: alpha fixes. Pull a Next item only if slack is unspent | — | — |
+| Nov 17–18 | Launch posts. Security pass (§13) | — | — |
+| Nov 19 | Feature freeze. Traction SQL snapshot (19.8) | — | — |
+| Nov 20–22 | Video, write-up, buffer | — | — |
+
+**Groundwork that goes into A1's Prisma migration (about 1 hour, inside A1's 3.0 days):**
+
+- **`Gate.sessionId`.** The hook already sends it and the server drops it. All three agent-sessions-recap judges called storing it a cheap must, because outcome-loop and runaway-pause will need it later.
+- **`Gate.signals` (with a rules version).** risk-trends was cut by all three judges. I am taking only this one column, because all three judges said separately that storing signals is "worth doing now so history exists later". The Insights tab stays out.
+
+### 19.4 Theme A: Trust the gate
+
+#### A1. See-through command matching, narrow (Now, 3.0 days)
+
+**Why it made it**
+
+- E 9 must: this repo's own `vercel.json` build runs `pnpm db:deploy` (`prisma migrate deploy`), and nothing gates it. Also, `npm publish && echo --dry-run` counts as a dry run.
+- U 9 must: "the first thing a skeptical developer tries", and it fails the evaluation in five minutes.
+- R 6: a credibility fix. Judges see little of it, so ship the narrow version.
+
+**In scope**
+
+- A quote-aware tokenizer that splits on `; && || |` and newlines.
+- Prefix stripping: `VAR=x`, `env`, `sudo`, `time`, `nohup`, `npx`, `pnpm exec/dlx`, `bunx`, `dotenv -e f --`.
+- Recursive unwrapping of literal `bash|sh|zsh -c '…'` and `eval '…'`.
+- Resolution of `npm run X`, `pnpm X`, `yarn X` and `bun run X` from the nearest `package.json`, depth 4, with cycle detection.
+- Matching on every segment, with `unless` checked per segment and matches only at command position.
+- Widened patterns: `terraform -chdir=…`, and npm flags before `publish`.
+- A **narrow** `opaque` preset, quorum 1, for `curl|wget … | sh`, `base64 -d | sh`, `eval "$VAR"` and `sh -c "$(…)"`. It does not cover scripts outside the repo, because that would gate everyday setup and become noise.
+- `buildContext` runs on the expanded command, so `pnpm db:deploy` attaches the migration SQL.
+- `Gate.via` (VarChar 500, redacted). The server re-matches both the command and the `via` lines.
+- A "Runs" line on the card and a "hidden behind a script" signal.
+- README section: "Tollgate is not a shell parser".
+
+**Out of scope** (deducted from the 4.5 full worst case)
+
+- Makefile recipe reading.
+- Reading repo-local `.sh` files.
+- Lifecycle scripts (`prepublishOnly`, `prepack`).
+- `--filter` workspaces.
+
+The README must say plainly that `make deploy` and `./deploy.sh` are **not inspected in 0.2.2**.
+
+| Field | Detail |
+| --- | --- |
+| Effort | 4.5 full worst case (E) minus the four parts above = **3.0**. R estimated this narrow scope at 2.5 |
+| Nexconn | `TG:Gate` content gains `via`, within the 10 KB `encodeContent` limit. No new API |
+| Success metric | ≥60 known bypass strings gated, 0 misses. A false-positive corpus (`pnpm test`, `npm run dev`, `curl -o file`, …) with 0 gated. Expansion p95 under 50 ms on this repo, measured in a test. After alpha: share of gates with a non-empty `via`. If more than 80% of `opaque` gates are approved in under 3 s, narrow the preset |
+| Demo moment | The agent runs `pnpm db:deploy`. The card reads "Runs: pnpm db:deploy → prisma migrate deploy" with the `DROP COLUMN` SQL underneath |
+| Main risk | Open-ended parsing that turns into scope creep and false positives |
+| Mitigation | Two-direction corpus. Nov 9 tripwire: ship whatever is green. Latency budget enforced in a test. The README states the limits |
+
+#### N1. The agent can't edit Tollgate's own settings (Next, 2.0 days)
+
+**Why:** U 8 must and R 6 both name "what stops the agent turning you off?" as the first objection. E 6 asks for exactly this slice.
+
+**Scope**
+
+- `init` adds a `Write|Edit|MultiEdit|NotebookEdit` matcher. Any `file_path` under `.claude/settings*.json`, `.tollgate.json` or `~/.config/tollgate` gets an immediate deny: "only a person can change this". There is no gate and no room message. All edits are denied rather than diff-checked, which avoids the fiddly "only adds rules" JSON check.
+- `loadConfig` fails closed when `tokens.json` covers the cwd but `.tollgate.json` is missing.
+- A `guard-config` Bash preset catches `rm`/`mv`/`sed -i`/`tee`/redirects on those paths, and `tollgate-cli unlink|init` run by the agent.
+
+**Out of scope:** heartbeats, drift detection, the Guards popover, and a new `GateStatus`.
+
+| Field | Detail |
+| --- | --- |
+| Nexconn | None |
+| Success metric | Corpus test: every listed write path denied. Edit-hook overhead under 100 ms |
+| Demo or write-up beat | After a deny, the agent tries to edit `.tollgate.json` and gets "only a person can change this" |
+| Main risk | Claude Code may snapshot hooks at session start. Every Edit spawns a node process |
+| Mitigation | 1-hour spike before claiming anything. UI and README say "not a sandbox: an agent with a shell can still defeat a same-machine hook" |
+
+#### N2. Bypass reported to the room (Next, 1.5 days)
+
+**Scope**
+
+- `TOLLGATE_BYPASS=1` posts `/api/hook/bypass` with the redacted command, preset, env, branch and intent. It has a 3 s timeout, and when offline it queues in `~/.config/tollgate/outbox.jsonl`. It never blocks the bypass.
+- The server stores a `GuardEvent` row, not a new `GateStatus`, so no existing status switch has to change.
+- The bot posts a notice and pushes to owners.
+
+| Field | Detail |
+| --- | --- |
+| Nexconn | Bot group message plus a system message with push to owners |
+| Success metric | In tests, server events match the local `audit.log` |
+| Main risk | A person can block the network |
+| Mitigation | Claim only "bypasses through Tollgate's escape hatch are reported" |
+
+#### N5. Approval pinned to migrations (Next, 2.5 days)
+
+**Why:** E 7 and U 7 must. The park message tells the agent to keep working, so it can edit the migration and still redeem the morning approval for the unchanged command string. R 4 is lower because judges will not reach that path.
+
+**Scope**
+
+- The hook hashes the migrations folder (line endings normalised, capped for large folders).
+- `Gate.subjectHash` and `Grant.subjectHash` are added, and `consumeGrant` checks both.
+- If the subject changed, a new gate is raised: "Changed since TG-17 was approved", with both contexts shown side by side. There is no LCS diff.
+- CLI 0.2.1 sends no hash and shows "approval not pinned (update the CLI)".
+
+**Out of scope:** commit pinning (over-invalidates) and script pinning (needs A1's resolution to be stable first).
+
+| Field | Detail |
+| --- | --- |
+| Nexconn | `TG:Gate` content gains `changedFrom`. System push to the original approvers |
+| Success metric | An integration test proves a grant is refused after the migration changes |
+| Main risk | Re-approval friction |
+| Mitigation | Pin migrations only |
+
+If N5 does not ship, the write-up must say: "a parked approval is bound to the command text, not the migration contents".
+
+### 19.5 Theme B: A second person decides
+
+#### B1. Invite-to-decide, core (Now, 2.5 days)
+
+**Why it made it:** the highest average score (8.3), and all three judges said must.
+
+- R 9: a solo founder "never sees the product's core moment", because `voteRejection` blocks the requester on TG-1. It is also the only feature aimed at the 48 h second-person target.
+- E 8: "the main traction lever while the user count is zero".
+- U 8: "the activation number".
+
+**In scope**
+
+- `Invite.gateId`. Gate-attached invites are single use with a **48 h expiry** instead of 7 days, which matches the activation window and limits exposure if a link is forwarded. They are revocable.
+- When a gate is pending and `memberCount` is 1, the setup guide merges "gate" and "invite" into one card: "you can't approve your own agent", with a client-side SVG QR code and the link.
+- `/invite/[token]` shows a preview before sign-in that names the team, inviter and role. A read-only card appears only for the `tollgate-test` preset. Other presets show category, repo and env only.
+- Sign-in keeps `returnTo`, with Google and GitHub offered first.
+- After accepting, the invitee lands on `/teams/[id]?gate=<id>` (existing `highlightGateId`) with a one-time Approve hint.
+- `loadSetupState` completes only on a real cross-person vote.
+- Settings › Members shows "joined via Kartik's invite". This is the security requirement E asked for, without a new message type.
+
+**Out of scope** (deducted from E's 3.5)
+
+- Email invites. They would share the Resend cap of 100/day with magic links.
+- The `TG:Join` bot message.
+
+| Field | Detail |
+| --- | --- |
+| Effort | 3.5 (E) minus email invites (~0.75) and `TG:Join` (~0.5), rounded up = **2.5** |
+| Nexconn | On accept, the invitee joins the team group through server `group-channel/join` and connects as a real user on the App Key. Their approval flips TG-1 live on the requester's screen through the existing metadata path (polling fallback) |
+| Success metric | Share of teams whose first gate gets an outside vote within 48 h (PLAN §12 target 40%, a hypothesis). Median time from first gate to first outside vote. Funnel as raw counts: invite opened → preview → signed in → voted |
+| Demo moment | `npx tollgate-cli test` waits in the terminal while TG-1 shows a QR. A phone scans, sees "Kartik invited you to approve for acme-api", signs in with Google and taps Approve. The terminal prints approved |
+| Main risk | A forwarded link makes anyone an approver. OAuth `returnTo` behaviour on iOS Safari is unverified |
+| Mitigation | Single use, 48 h, revocable, origin visible in Members. Test on a real iPhone on Nov 12, with magic link as the fallback |
+
+#### N3. Manage members (Next, 2.5 days)
+
+**Why:** R 6 says "a judge who opens Settings and finds a read-only member list marks completeness down". E 7 and U 7: a removed contractor keeps their vote, the room history and working hook tokens.
+
+**Scope**
+
+- `PATCH` and `DELETE /api/teams/[id]/members/[userId]`, owner only.
+- At least one owner always remains.
+- Removal deletes the membership and revokes that user's hook tokens in one transaction.
+- Best-effort Nexconn group quit and token expiry.
+- The "Requester" role becomes selectable in invites.
+- Rule for votes from someone demoted while a gate is pending: decide it and test it in `castVote`.
+
+**Out of scope:** `MembershipEvent` audit wiring (E: not until there is an evidence report).
+
+| Field | Detail |
+| --- | --- |
+| Nexconn | Group quit (the endpoint name is unverified, likely `/v4/group-channel/quit`), access-token expiry, and a bot notice |
+| Success metric | An integration test proves 0 votes are accepted from removed users |
+| Main risk | Group quit fails |
+| Mitigation | Postgres checks still block votes and history reads |
+
+### 19.6 Theme C: Decide together in the thread
+
+#### C1. Gate threads, lite (Now, 2.0 days)
+
+**Why it made it**
+
+- R 9: "the track's own phrase ('team project threads')", and every reply is client-sent, so it counts as SDK usage.
+- E 8: "the strongest answer to the hard requirement". Build the plain `RC:TxtMsg+extra` fallback first.
+- U 6: "ship the approve note plus reply-to-card".
+
+**In scope**
+
+- **Approve with an optional one-line note**, stored in `Vote.reason` (the column already exists) and shown on the card to the second approver.
+- **Reply** on every card opens the composer prefilled with `TG-17 · `. It sends a client `RC:TxtMsg` with `extra: {gateId}`.
+- `chatLineFromMessage` parses the extra, or the code prefix if the extra is missing, and renders a TG chip that jumps to the card. The card shows a reply count.
+- The deny drawer gains **"Use a reply as the reason"**, listing that gate's replies. The chosen text and `messageId` go through the existing `quotedMessageId`.
+- Only the chosen text reaches the agent, shown verbatim before sending. It is redacted on the client and again on the server, with a 500-character cap.
+
+**Out of scope** (deducted from E's 5.0)
+
+- Reference messages, and merging history for people who join later (−1.0, moved to N7).
+- Collapsed grouping and the mobile drawer (−1.0).
+- Huddle summary (−0.5; calls are untested live).
+- Thread export in audit and CSV (−0.5).
+- The `GateComment` Postgres mirror (−0.5, moved to N7).
+
+| Field | Detail |
+| --- | --- |
+| Effort | 5.0 (E) minus the parts above = **2.0** |
+| Nexconn | Client-sent text messages with `extra` from real connected users (Console message and MAU counts). Existing `createMessagesQuery` history to list a gate's replies after reload. Existing `TG:Gate` metadata |
+| Success metric | Share of prod and db-migrate gates with at least one reply or approve note (target over 30%, a hypothesis). Count of deny reasons taken from a reply. Client-sent messages per week in the Console, with devalice, devbob and the bot subtracted |
+| Demo moment | On a phone, Ana replies under TG-17: "does billing still read legacy_total?". Ben replies "yes, nightly" on the laptop. Ana taps Deny and picks Ben's reply. The terminal shows it and the agent rewrites the migration |
+| Main risk | `extra` may not survive history on production |
+| Mitigation | S0 checks it on day one. The `TG-17 · ` text prefix works even with no extra at all |
+
+#### N4. "Seen by" and "I'm on it" (Next, 2.0 days)
+
+**Why:** R 8 must. E 6 says ship the claim first. U 5 says "Seen by" answers the requester's anxiety.
+
+**Scope**
+
+- The claim: `Gate.claimedById`, metadata `lk`, expiry after 5 minutes checked lazily on reads, and it never blocks voting.
+- "Seen by" through the server-side `seen` metadata key that PLAN §8.3 already reserves. The client reports when a card is visible, and the endpoint is debounced.
+- Native read receipts (`needReadReceipt`, `sendReadReceiptResponse`) and presence (`subscribeEvent ONLINE_STATUS`) only after a spike of at most 2 hours each passes.
+
+| Field | Detail |
+| --- | --- |
+| Nexconn | Metadata `lk` and `seen`. If the spike passes, read receipts and presence |
+| Success metric | Share of parked gates nobody saw before parking. Time from first seen to decision |
+| Demo moment | "Seen by Ana"; Ana taps "I'm on it"; Ben's card says "Ana is looking" |
+| Main risk | Receipts may not work on server-sent custom messages |
+| Mitigation | Build the metadata fallback first, so the demo never depends on receipts |
+
+#### N6. Uncommitted or unpushed code signal (Next, 1.5 days)
+
+**Why:** E says "the uncommitted/unpushed signal alone is about a day and the best value per hour". U 8 must. R 5 could.
+
+**Scope**
+
+- For deploy and publish presets only, the CLI runs `git status --porcelain` and an upstream check with a 2 s bound.
+- Two new signals: "Deploys N uncommitted files" (high) and "Ships commits not pushed to the remote" (medium).
+
+**Out of scope:** the baseline endpoint and the full change list.
+
+| Field | Detail |
+| --- | --- |
+| Nexconn | Signals render on the existing `TG:Gate` card |
+| Success metric | Signals fired, and the deny rate on them (raw counts) |
+| Main risk | Adds latency to gated commands |
+| Mitigation | Bounded calls. On timeout the signal is skipped, never the gate. The card never says "nothing changed = safe" |
+
+#### N7. Thread upgrades (Next, 0.5 + 1.0 days)
+
+- **0.5 days:** a `GateComment` mirror (`POST /api/gates/:id/comments`, re-redacted, labelled "as posted") so audit rows show the thread.
+- **1.0 days, only if S0's reference-message check passed:** send replies as reference messages pointing at the `TG:Gate` card.
+
+### 19.7 Decision points that can reorder this plan
+
+| Trigger | Change |
+| --- | --- |
+| S0: Nexconn does not connect on production | All work goes to fixing it. C1 leaves Now. The write-up claims only what was verified |
+| Kartik's push test: Nexconn system push does **not** reach a locked phone | pwa-web-push (avg 6.3, worst case 3.5) replaces Next items N3 to N7. The write-up states that lock-screen push is Web Push, not Nexconn |
+| Nov 7 interviews: freelancer and client pairs exist | Per-member preset scope (U: "the valuable 1-day piece" of team-templates-client-view) enters Next after N1 |
+| Interviews: teams use database MCP servers (Supabase, Neon) | A narrow `mcp-sql` preset goes to the top of Later |
+| Interviews: wrangler, supabase or kubectl users | Catalogue entries go into `DEFAULT_PRESETS` (E's "cheap 80%" of team-rules-sync), as a CLI 0.2.x ride-along of about 0.5 days |
+| Nov 7 kill rule (§14) | Unchanged. If it fires, this roadmap is void |
+
+### 19.8 Cut list (drop first when behind)
+
+1. Any Next item that has not started.
+2. A1: `yarn` and `bun` script resolution. npm and pnpm cover this repo and most targets.
+3. B1: the read-only gate card in the preview before sign-in. Keep the team, inviter and role naming.
+4. A1: the `opaque` preset. The README then says `curl | sh` is not inspected.
+5. C1: the Reply button. Keep the approve note, and let the deny drawer pick from any recent chat line.
+6. B1: the QR code. Keep the link and Copy.
+7. C1: everything except the approve note.
+
+**Never cut:**
+
+- A1's package-script resolution and per-segment `unless`. These close the bypass confirmed in this repo.
+- B1's single-use, short-expiry semantics.
+
+**Not a feature but required:** the traction snapshot on Nov 19–20. It is a saved SQL script in `scripts/` plus Console screenshots, about 0.25 days, per traction-funnel (all three judges: "SQL plus screenshots, not an admin page"). It excludes devalice, devbob, the bot and test accounts, and records the date. Token issuance is not Nexconn MAU, and the write-up says so.
+
+### 19.9 Later, after judging
+
+| Feature | Avg | Cuts | Why not now | Revisit when |
+| --- | --- | --- | --- | --- |
+| live-sandbox | 6.7 | 0 | R 9 must ("judges will not install a CLI"), but E's worst case is 7 days. It needs anonymous auth plus account linking and depends on B1. Its MAU could not count as traction. **This is the biggest open risk for judging:** judges get the video, the live URL, the landing simulator and B1's invite preview, not a two-device try-out | First item after Nov 22 |
+| outcome-loop | 6.7 | 0 | Blocked on a PostToolUse payload spike, and every user must re-run `init` (CLI 0.3). E and R: unsafe to commit before the spike | After the spike. Uses the `Gate.sessionId` groundwork |
+| guard health (heartbeat, drift, Guards popover) | 6.7 | 0 | E: a new `GateStatus` touches every switch, and it is mostly invisible plumbing | After N1 and N2 |
+| change-set, full baseline | 6.7 | 0 | An extra network round trip and baseline edge cases | After N6 |
+| pwa-web-push | 6.3 | 0 | R: duplicates Nexconn push if that works | See 19.7 |
+| mcp-and-edit-gates | 5.7 | 0 | MCP naming and matcher behaviour unverified. Edit gates disrupt mid-task | Interview signal, then narrow `mcp-sql` only |
+| environment-targets | 5.7 | 0 | The skip path is a local decision the server can't verify (E). R 4 | Label only (`DATABASE_URL` host), with no skip |
+| team-rules-sync | 5.3 | 0 | ReDoS guard plus sync is 4–6 days | Catalogue in defaults first (19.7) |
+| runaway-session-pause | 5.3 | 0 | Mostly a demo story at current volume | After `Gate.sessionId` has data |
+| cli-join-device-login | 5.3 | 0 | There is no developer #2 yet (E) | Repos with 2+ developers |
+| team-templates-client-view | 5.0 | 0 | Depends on the segment existing | See 19.7 |
+| show-me-first | 4.7 | 0 | Largest secret-exposure surface proposed (E). Ask already covers "run plan first" | As a preset Ask, about 0.5 days |
+| weekly-digest | 4.3 | 0 | Ships empty with fewer than 3 gates a week | Real weekly volume |
+| decision-receipts | 4.3 | 0 | Public leak surface, unproven growth effect | After launch |
+| agent-sessions-recap | 4.3 | 0 | Prompt sharing is the most sensitive data in the product | Only the sessionId groundwork is taken now |
+| dms-team-notes | 4.7 | 1 (U) | R 8 must, but the T6 ChatUI risk is open and team-only notes could leak to the client. Chat SDK usage already meets the requirement | 1-day ChatUI DM spike, desktop only |
+| agent-inbox | 4.7 | 1 (E) | E: an idle session doesn't wake. The premise fails | Re-scope around SessionStart only |
+| slack-discord-forward | 4.7 | 1 (R) | R: sends attention to a competing platform in a Nexconn challenge | Team tier, after judging |
+| routing-escalation | 4.3 | 1 (E) | Optimises notification fatigue with zero users | @mentions fold into threads later |
+| morning-handoff, change-freeze, change-evidence-report, plans-usage-meter, incident-marks | 3.3–3.7 | 1 each | Low judge visibility, and the value needs volume or validation. Willingness-to-pay goes into the interviews instead (no build) | After traction exists |
+
+**Excluded because two or more judges cut them:** agent-adapters (2), runbook-approval (2), github-actions-gate (3), risk-trends (3; only the `Gate.signals` column is taken, see 19.3), approver-coverage (3).
+
+### 19.10 Demo script changes (§15)
+
+The current §15 script has beats that are **not built or not verified**:
+
+- "seen by filling in": not built.
+- "Why?" streams: G4 is untested.
+- Ring: `CALLS_ENABLED` is untested live.
+
+Those beats stay only if they are verified by Nov 19. The new script uses only Now features plus existing, verified ones:
+
+| Time | Shot | Feature |
+| --- | --- | --- |
+| 0–5 s | Title: "Your agent is about to touch production. Who decides?" Three panes: terminal, laptop, phone | — |
+| 5–20 s | `npx tollgate-cli test` waits. TG-1 shows "you can't approve your own agent" and a QR. The phone scans and sees "Kartik invited you to approve for acme-api", signs in with Google and approves. The terminal prints approved | B1 |
+| 20–32 s | The agent runs `pnpm db:deploy`. The card on both screens reads "Runs: pnpm db:deploy → prisma migrate deploy" with `DROP COLUMN invoices.legacy_total` and a data-loss signal | A1 |
+| 32–50 s | On the phone, Ana replies under TG-2: "does billing still read legacy_total?". Ben replies "yes, nightly". Ana taps Deny and picks Ben's reply. The terminal shows the reason and the agent rewrites the migration as a rename | C1 |
+| 50–60 s | Retry TG-3: Ben approves with the note "rename + backfill looks right". Ana sees the note and approves (quorum 2). The terminal continues | C1 |
+| 60–72 s | Labelled time skip: a parked gate is approved next morning and the retry passes on the grant. Use Ring here instead only if T6/T7 passed | existing |
+| 72–90 s | Audit row showing the approve note and quoted deny reason. Caption listing only the verified Nexconn features. Traction as dated raw numbers with n, sandbox and test users excluded | existing |
+
+If N1 ships, a 5 s beat replaces part of 60–72 s: the agent tries to edit `.tollgate.json` and gets "only a person can change this".
+
+### 19.11 Write-up changes
+
+**New or changed rows in the Nexconn feature table (§8.4).** A row is marked Verified only after a production test:
+
+| Feature | Moment | Comes from |
+| --- | --- | --- |
+| Client-sent text messages with `extra` | Replies attached to a gate card. A teammate's reply becomes the deny reason the agent follows | C1 |
+| Server group join for invitees | A phone scan turns a stranger into a connected approver in the team's group | B1 |
+| Message metadata (extended moment) | An invitee's first approval flips TG-1 live on the requester's laptop | B1 |
+| Custom message content (`via`) | The card shows what a package script really runs | A1 |
+| Quote/reference reply | Stays "Untested". Fallback "plain reply carrying the gate code" is now the shipped path, unless N7 passes | C1, N7 |
+| Read receipts and presence, metadata `lk` | "Seen by", "I'm on it" | N4, only if shipped |
+
+**Other write-up changes**
+
+- **Security model (§16 item 5):** what see-through matching covers and what it does not (Makefiles, shell files, a determined adversary). If N5 does not ship, the parked-approval limitation. If N1 ships, the honest "not a sandbox" line.
+- **Traction (§16 item 7):** the B1 funnel as raw counts with dates, client-sent message counts with test accounts subtracted, and Console screenshots. No sandbox users exist to separate, because live-sandbox is not built.
+- **Roadmap (§16 item 10):** replace the current line with 19.9's top rows: live-sandbox, outcome-loop, guard health, MCP gates.
