@@ -1,5 +1,6 @@
-import { connection, type NextRequest } from "next/server";
+import { after, connection, type NextRequest } from "next/server";
 import { listTeamGates } from "@/features/gates/server/gates";
+import { maybeSweep } from "@/features/gates/server/sweep";
 import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
 import { toGateView } from "@/features/gates/shared/view";
 import { requireMember } from "@/features/teams/server/http";
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/teams/[i
   const { id } = await ctx.params;
   const member = await requireMember(id, auth.user.id);
   if (!member.ok) return member.response;
+  after(() => maybeSweep());
 
   const cursor = request.nextUrl.searchParams.get("cursor");
   const gates = await listTeamGates(db, id, {
