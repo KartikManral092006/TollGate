@@ -30,6 +30,8 @@ const serverEnvObject = z.object({
   CALLS_ENABLED: optional(z.enum(["0", "1"])),
   CALL_MINUTES_PER_TEAM_DAY: z.coerce.number().int().min(0).max(10_000).default(60),
   AI_API_KEY: optional(z.string().min(1)),
+  // Set by Vercel: "production" | "preview" | "development".
+  VERCEL_ENV: optional(z.string()),
 });
 
 // Keys stay optional (CI builds without them); only half-configured pairs are rejected.
@@ -46,6 +48,19 @@ export const serverEnvSchema = serverEnvObject.superRefine((env, ctx) => {
       code: "custom",
       path: ["AUTH_GITHUB_SECRET"],
       message: "AUTH_GITHUB_ID and AUTH_GITHUB_SECRET must be set together",
+    });
+  }
+  // A production deploy built with the local .env value signs nobody in: Better Auth rejects
+  // every other origin, and magic links would point at localhost.
+  if (
+    env.VERCEL_ENV === "production" &&
+    /^https?:\/\/(localhost|127\.0\.0\.1)\b/.test(env.NEXT_PUBLIC_APP_URL)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["NEXT_PUBLIC_APP_URL"],
+      message:
+        "points to localhost in a Vercel production build; set it to the production URL (https://<project>.vercel.app) and redeploy",
     });
   }
   if (env.EMAIL_API_KEY && !env.EMAIL_FROM) {

@@ -96,4 +96,17 @@ describe("client IP settings", () => {
       /AUTH_IP_HEADER/,
     );
   });
+  it("rejects a localhost app URL in a Vercel production build only", () => {
+    expect(() => parseServerEnv({ ...valid, VERCEL_ENV: "production" })).toThrow(
+      /NEXT_PUBLIC_APP_URL: points to localhost/,
+    );
+    expect(() => parseServerEnv({ ...valid, VERCEL_ENV: "preview" })).not.toThrow();
+    expect(() =>
+      parseServerEnv({
+        ...valid,
+        VERCEL_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "https://toll-gate-mo7d.vercel.app",
+      }),
+    ).not.toThrow();
+  });
 });
