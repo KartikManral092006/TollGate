@@ -296,7 +296,15 @@ export function listTeamGates(
       grant: { select: { expiresAt: true, usedAt: true } },
       calls: {
         orderBy: { createdAt: "asc" },
-        select: { kind: true, status: true, durationSec: true, participants: true },
+        select: {
+          id: true,
+          callId: true,
+          kind: true,
+          status: true,
+          durationSec: true,
+          participants: true,
+          startedById: true,
+        },
       },
     },
   });

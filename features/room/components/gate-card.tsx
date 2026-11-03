@@ -72,10 +72,12 @@ export function GateCard({
   highlighted = false,
   onApprove,
   onDeny,
+  footer,
 }: {
   gate: GateView;
   viewer: Viewer;
   highlighted?: boolean;
+  footer?: React.ReactNode;
   onApprove: (gate: GateView) => Promise<void>;
   onDeny: (gate: GateView) => void;
 }) {
@@ -286,6 +288,7 @@ export function GateCard({
             You voted. Waiting for the rest of the quorum.
           </p>
         )}
+        {footer}
       </div>
     </motion.article>
   );

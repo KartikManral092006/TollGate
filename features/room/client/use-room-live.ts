@@ -26,8 +26,9 @@ export function useRoomLive(input: {
   teamId: string;
   channelId: string;
   initialGates: GateView[];
+  callsEnabled: boolean;
 }) {
-  const { teamId, channelId } = input;
+  const { teamId, channelId, callsEnabled } = input;
   const [gates, setGates] = useState(input.initialGates);
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [live, setLive] = useState<LiveState>("connecting");
@@ -90,7 +91,7 @@ export function useRoomLive(input: {
           body: "{}",
         });
         if (!joined.ok) throw new Error(`chat ${joined.status}`);
-        const session = await startNexconn({ withChatUI: false, withCall: false });
+        const session = await startNexconn({ withChatUI: false, withCall: callsEnabled });
         if (cancelled) return;
         selfRef.current = session.userId;
         setSelfNexconnId(session.userId);
@@ -116,7 +117,7 @@ export function useRoomLive(input: {
       cancelled = true;
       unsubscribe();
     };
-  }, [teamId, channelId, scheduleRefresh]);
+  }, [teamId, channelId, callsEnabled, scheduleRefresh]);
 
   useEffect(() => {
     const every = live === "live" ? POLL_LIVE_MS : POLL_OFFLINE_MS;
@@ -146,7 +147,7 @@ export function useRoomLive(input: {
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
-        const { chat } = await startNexconn({ withChatUI: false, withCall: false });
+        const { chat } = await startNexconn({ withChatUI: false, withCall: callsEnabled });
         const channel = new chat.GroupChannel(channelId);
         const result = await channel.sendMessage(new chat.SendTextMessageParams({ text }));
         if (!result.isOk || !result.data) throw new Error(`send failed: ${result.code}`);
@@ -165,7 +166,7 @@ export function useRoomLive(input: {
         return false;
       }
     },
-    [channelId],
+    [channelId, callsEnabled],
   );
 
   return { gates, lines, live, selfNexconnId, refresh, send, setGates };

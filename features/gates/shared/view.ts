@@ -12,6 +12,9 @@ export type GateVoteView = {
 };
 
 export type GateCallView = {
+  id: string; // permit id, for /api/calls/:id/*
+  callId: string | null; // Nexconn call id, set once the call is live
+  startedById: string;
   kind: "huddle" | "ring";
   status: "permitted" | "live" | "ended" | "failed";
   durationSec: number | null;
@@ -74,6 +77,9 @@ export type GateRow = {
   }[];
   grant: { expiresAt: DateLike; usedAt: DateLike | null } | null;
   calls: {
+    id: string;
+    callId: string | null;
+    startedById: string;
     kind: "huddle" | "ring";
     status: "permitted" | "live" | "ended" | "failed";
     durationSec: number | null;
@@ -118,6 +124,9 @@ export function toGateView(row: GateRow): GateView {
     calls: row.calls
       .filter((call) => call.status !== "failed")
       .map((call) => ({
+        id: call.id,
+        callId: call.callId,
+        startedById: call.startedById,
         kind: call.kind,
         status: call.status,
         durationSec: call.durationSec,
