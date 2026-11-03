@@ -183,6 +183,20 @@ export function Simulator() {
           ...current,
           gate(18, {
             context: `Newest migration 20261103_archive_legacy_total:\nCREATE TABLE invoices_backup AS TABLE invoices;\nALTER TABLE "invoices" RENAME COLUMN "legacy_total" TO "legacy_total_archived";`,
+            insights: {
+              precedent: {
+                gateId: target.id,
+                code: target.code,
+                status: "denied",
+                by: ["You"],
+                reason,
+                decidedAt: new Date().toISOString(),
+                match: "same",
+                repo: target.repo,
+                sameRepo: true,
+                tally: { approved: 0, denied: 1 },
+              },
+            },
           }),
         ]),
       );

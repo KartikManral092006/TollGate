@@ -1,6 +1,8 @@
 // What the room and the audit log render for one gate. Built from a listTeamGates row on the
 // server; plain JSON, so it survives the trip to the browser unchanged.
 
+import type { GateInsights } from "@/features/insights/shared/types";
+
 export type GateStatusView = "pending" | "approved" | "denied" | "parked" | "expired";
 
 export type GateVoteView = {
@@ -45,6 +47,8 @@ export type GateView = {
   grant: { expiresAt: string; usedAt: string | null } | null;
   calls: GateCallView[];
   createdAt: string;
+  // Decision aids from the team's history; only on open gates (features/insights).
+  insights?: GateInsights | null;
 };
 
 type DateLike = Date | string;
