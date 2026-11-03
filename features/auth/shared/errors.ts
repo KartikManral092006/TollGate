@@ -19,12 +19,26 @@ const SUGGEST_GOOGLE = new Set([
 
 const GENERIC = "Something went wrong while signing in. Try again.";
 
+// The browser's address doesn't match NEXT_PUBLIC_APP_URL, so the auth server refuses the
+// request (Vercel deployment URLs, a www/no-www mix, or a stale build of the variable).
+const ORIGIN_CODES = new Set(["INVALID_ORIGIN", "MISSING_OR_NULL_ORIGIN", "INVALID_CALLBACK_URL"]);
+
 export function signInErrorMessage(
   code: string | null | undefined,
-  options: { google?: boolean } = {},
+  options: { google?: boolean; appUrl?: string } = {},
 ): string | null {
   if (!code) return null;
-  const message = MESSAGES[code] ?? GENERIC;
+  if (ORIGIN_CODES.has(code)) {
+    return options.appUrl
+      ? `Sign-in only works at ${options.appUrl}. Open that address and try again.`
+      : "Sign-in doesn't work at this address. Open the app's main URL and try again.";
+  }
+  // The code makes an unexpected failure diagnosable from a screenshot.
+  const message =
+    MESSAGES[code] ??
+    (code === "UNKNOWN" || !/^[A-Z0-9_]{1,40}$/.test(code)
+      ? GENERIC
+      : `Something went wrong while signing in (${code}). Try again.`);
   return options.google && SUGGEST_GOOGLE.has(code)
     ? `${message} Or continue with Google.`
     : message;
