@@ -55,3 +55,6 @@ next-env.d.ts
 /.claude/
 /.windsurf/
 /skills-lock.json
+
+# CLI bundle (built by pnpm cli:build)
+packages/cli/dist

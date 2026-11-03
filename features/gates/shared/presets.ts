@@ -11,6 +11,8 @@ export const presetSchema = z.object({
     .regex(/^[a-z0-9][a-z0-9-]{0,39}$/)
     .min(1),
   patterns: z.array(z.string().min(1).max(300)).min(1).max(20),
+  // A match is skipped when any of these also matches (e.g. --dry-run changes nothing).
+  unless: z.array(z.string().min(1).max(300)).max(20).optional(),
   // Fixed env for the preset; when absent it is read from the command (--prod, production, …).
   env: z.enum(["prod", "staging", "other"]).optional(),
   quorum: z.number().int().min(1).max(9),
@@ -23,6 +25,9 @@ export const presetSchema = z.object({
 export type Preset = z.infer<typeof presetSchema>;
 
 export const presetListSchema = z.array(presetSchema).min(1).max(30);
+
+// Found in the CLI end-to-end test: an agent told "dry-run first" got its dry run gated too.
+const DRY_RUN = "(^|\\s)--dry-?run(=(true|client|server))?(\\s|$)";
 
 // Order matters: the first matching preset wins, so narrower presets come first.
 export const DEFAULT_PRESETS: Preset[] = [
@@ -39,6 +44,7 @@ export const DEFAULT_PRESETS: Preset[] = [
       "\\brailway\\s+up\\b.*--environment[ =]staging\\b",
       "(^|[;&|]\\s*)vercel(\\s+deploy)?\\s*($|[;&|])",
     ],
+    unless: [DRY_RUN],
     env: "staging",
     quorum: 1,
   },
@@ -49,6 +55,7 @@ export const DEFAULT_PRESETS: Preset[] = [
       "\\bfly(ctl)?\\s+deploy\\b",
       "\\brailway\\s+up\\b.*--environment[ =]production\\b",
     ],
+    unless: [DRY_RUN],
     env: "prod",
     quorum: 2,
   },
@@ -70,6 +77,7 @@ export const DEFAULT_PRESETS: Preset[] = [
       "\\bcargo\\s+publish\\b",
       "\\btwine\\s+upload\\b",
     ],
+    unless: [DRY_RUN],
     env: "prod",
     quorum: 1,
   },
@@ -82,6 +90,7 @@ export const DEFAULT_PRESETS: Preset[] = [
       "\\baws\\s+s3\\s+(rm|rb)\\b",
       "\\bgcloud\\s+.*\\bdelete\\b",
     ],
+    unless: [DRY_RUN],
     quorum: 2,
   },
   {
@@ -158,6 +167,7 @@ export function matchPreset(
   for (const preset of presets) {
     const hit = preset.patterns.some((source) => compile(source)?.test(input.command) ?? false);
     if (!hit) continue;
+    if (preset.unless?.some((source) => compile(source)?.test(input.command) ?? false)) continue;
     if (preset.outsideRepoOnly && !rmTargetsOutsideRepo(input.command, input.cwd, input.repoRoot)) {
       continue;
     }

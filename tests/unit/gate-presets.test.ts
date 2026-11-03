@@ -53,6 +53,10 @@ describe("DEFAULT_PRESETS", () => {
     "terraform plan",
     "aws s3 ls",
     "echo tollgate-test && rm -rf build",
+    "npm publish --dry-run",
+    "npm publish --access public --dry-run",
+    "fly deploy --dry-run",
+    "aws ec2 delete-vpc --vpc-id v --dry-run",
     "rm -rf node_modules .next",
     "ls -la",
   ])("leaves %s alone", (command) => {
