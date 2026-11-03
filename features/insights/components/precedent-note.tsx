@@ -41,7 +41,7 @@ export function PrecedentNote({ precedent }: { precedent: Precedent }) {
           ? "Your team has decided this command before"
           : "Your team decided a similar command before"}
       </p>
-      <p className="mt-0.5">
+      <p className="mt-0.5" suppressHydrationWarning>
         <span className="font-semibold">TG-{precedent.code}</span>
         {precedent.sameRepo ? "" : ` in ${precedent.repo}`} was{" "}
         <span className={denied ? "text-gate-denied-fg" : "text-gate-approved-fg"}>

@@ -279,7 +279,12 @@ export function GateCard({
                 <span className="truncate font-mono">{gate.branch}</span>
               </span>
             )}
-            <time dateTime={gate.createdAt} title={clockTime(gate.createdAt)}>
+            {/* Relative times can tick between the server render and hydration. */}
+            <time
+              dateTime={gate.createdAt}
+              title={clockTime(gate.createdAt)}
+              suppressHydrationWarning
+            >
               {timeAgo(gate.createdAt)}
             </time>
             {gate.status === "pending" && gate.parksAt && (
