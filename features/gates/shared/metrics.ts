@@ -133,3 +133,34 @@ export function gatesToCsv(gates: GateView[]): string {
   );
   return [CSV_COLUMNS.join(","), ...rows].join("\r\n");
 }
+
+export type DailySeries = {
+  days: string[]; // local dates, oldest first, "2026-11-04"
+  gates: number[];
+  medianDecisionSec: (number | null)[];
+  denyRate: (number | null)[];
+  rubberStampRate: (number | null)[];
+};
+
+const localDay = (time: number) => {
+  const date = new Date(time);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+// The audit stats for each of the last `count` days (by when the gate was raised), for the
+// sparklines under them. A day with nothing to measure is null, drawn as a gap.
+export function dailySeries(gates: GateView[], now: number, count = 12): DailySeries {
+  const days = Array.from({ length: count }, (_, i) =>
+    localDay(now - (count - 1 - i) * 86_400_000),
+  );
+  const byDay = new Map<string, GateView[]>(days.map((day) => [day, []]));
+  for (const gate of gates) byDay.get(localDay(Date.parse(gate.createdAt)))?.push(gate);
+  const metrics = days.map((day) => gateMetrics(byDay.get(day)!));
+  return {
+    days,
+    gates: metrics.map((m) => m.total),
+    medianDecisionSec: metrics.map((m) => m.medianDecisionSec),
+    denyRate: metrics.map((m) => m.denyRate),
+    rubberStampRate: metrics.map((m) => m.rubberStampRate),
+  };
+}

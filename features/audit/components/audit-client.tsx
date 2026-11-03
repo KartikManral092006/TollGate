@@ -5,10 +5,11 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
 import { NumberTicker } from "@/components/motion/number-ticker";
+import { Sparkline } from "@/components/motion/sparkline";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { gateMetrics, gatesToCsv } from "@/features/gates/shared/metrics";
+import { dailySeries, gateMetrics, gatesToCsv } from "@/features/gates/shared/metrics";
 import {
   displayStatus,
   type GateDisplayStatus,
@@ -16,6 +17,7 @@ import {
   type GateView,
 } from "@/features/gates/shared/view";
 import { STATUS } from "@/features/room/components/gate-status";
+import { useNow } from "@/features/room/components/park-countdown";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
 
@@ -73,11 +75,13 @@ function Stat({
   value,
   format,
   hint,
+  trend,
 }: {
   label: string;
   value: number | null;
   format: (n: number) => string;
   hint: string;
+  trend: { values: (number | null)[]; days: string[] } | null;
 }) {
   return (
     <div className="flex flex-col gap-1 py-5 lg:px-8 lg:first:ps-0">
@@ -86,6 +90,12 @@ function Stat({
         {value === null ? "–" : <NumberTicker value={value} format={format} />}
       </p>
       <p className="text-xs text-muted-foreground">{hint}</p>
+      {/* Drawn after hydration: the days depend on the viewer's clock and timezone. */}
+      <div className="mt-2 h-8 max-w-48">
+        {trend && (
+          <Sparkline values={trend.values} days={trend.days} format={format} label={label} />
+        )}
+      </div>
     </div>
   );
 }
@@ -183,6 +193,10 @@ export function AuditClient({
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const metrics = useMemo(() => gateMetrics(gates), [gates]);
+  const now = useNow(60_000);
+  const series = useMemo(() => (now === null ? null : dailySeries(gates, now)), [gates, now]);
+  const trend = (values: (number | null)[] | undefined) =>
+    series && values ? { values, days: series.days } : null;
   const counts = useMemo(
     () =>
       Object.fromEntries(
@@ -239,24 +253,33 @@ export function AuditClient({
       />
 
       <div className="grid grid-cols-2 border-b px-4 sm:px-6 lg:grid-cols-4 lg:divide-x lg:px-10">
-        <Stat label="Gates" value={metrics.total} format={asCount} hint="Risky commands raised" />
+        <Stat
+          label="Gates"
+          value={metrics.total}
+          format={asCount}
+          hint="Risky commands raised"
+          trend={trend(series?.gates)}
+        />
         <Stat
           label="Median decision"
           value={metrics.medianDecisionSec}
           format={asDuration}
           hint="From gate to yes or no"
+          trend={trend(series?.medianDecisionSec)}
         />
         <Stat
           label="Denied"
           value={metrics.denyRate}
           format={asPercent}
           hint="Of the gates people decided"
+          trend={trend(series?.denyRate)}
         />
         <Stat
           label="Rubber-stamped"
           value={metrics.rubberStampRate}
           format={asPercent}
           hint="Approved in under 3 seconds"
+          trend={trend(series?.rubberStampRate)}
         />
       </div>
 
