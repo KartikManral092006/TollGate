@@ -1,6 +1,7 @@
 import { connection, type NextRequest } from "next/server";
 import { listTeamGates } from "@/features/gates/server/gates";
 import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
+import { toGateView } from "@/features/gates/shared/view";
 import { requireMember } from "@/features/teams/server/http";
 import { db } from "@/lib/db";
 import { json, requireUser } from "@/lib/http";
@@ -19,5 +20,8 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/teams/[i
     take: 50,
     cursor: cursor && GATE_ID_RE.test(cursor) ? cursor : undefined,
   });
-  return json({ gates, nextCursor: gates.length === 50 ? gates.at(-1)?.id : null });
+  return json({
+    gates: gates.map(toGateView),
+    nextCursor: gates.length === 50 ? gates.at(-1)?.id : null,
+  });
 }

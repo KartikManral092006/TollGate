@@ -45,6 +45,9 @@ export async function sendMagicLinkEmail(input: {
         { to: maskEmail(email), magicLinkUrl: url },
         "EMAIL_API_KEY is not set: magic link logged instead of sent (development only)",
       );
+      // pino's output from route handlers doesn't reach `next dev`'s terminal under
+      // Turbopack; console does.
+      console.warn(`[dev] magic link for ${maskEmail(email)}: ${url}`);
       return;
     }
     throw new APIError("SERVICE_UNAVAILABLE", {

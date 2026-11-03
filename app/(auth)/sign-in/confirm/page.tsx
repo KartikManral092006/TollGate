@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MAGIC_LINK_VERIFY_PATH } from "@/features/auth/shared/magic-link";
 import { SIGN_IN_PATH, safeCallbackPath } from "@/features/auth/shared/routes";
@@ -51,9 +51,12 @@ export default async function ConfirmSignInPage({ searchParams }: PageProps<"/si
               </Button>
             </form>
           ) : (
-            <Button asChild variant="outline" className="h-11 w-full">
-              <Link href={SIGN_IN_PATH}>Back to sign in</Link>
-            </Button>
+            <Link
+              href={SIGN_IN_PATH}
+              className={buttonVariants({ variant: "outline", className: "h-11 w-full" })}
+            >
+              Back to sign in
+            </Link>
           )}
         </CardContent>
       </Card>

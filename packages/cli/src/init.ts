@@ -7,7 +7,13 @@ import { CONFIG_FILE, DEFAULT_HOOK_TIMEOUT_SEC, type ConfigFile, readConfigFile 
 // the repo with their own token, so each person registers their own hook.
 export const SETTINGS_FILE = join(".claude", "settings.local.json");
 
-type HookEntry = { type: string; command: string; timeout?: number };
+type HookEntry = {
+  type: string;
+  command: string;
+  timeout?: number;
+  statusMessage?: string;
+  onFailure?: "block";
+};
 type Matcher = { matcher?: string; hooks?: HookEntry[] };
 type Settings = { hooks?: Record<string, Matcher[] | undefined> } & Record<string, unknown>;
 
@@ -30,7 +36,21 @@ export function mergeHookSettings(
     .filter((matcher) => matcher.hooks.length > 0);
   hooks.PreToolUse = [
     ...kept,
-    { matcher: "Bash", hooks: [{ type: "command", command: hookCommand, timeout: timeoutSec }] },
+    {
+      matcher: "Bash",
+      hooks: [
+        {
+          type: "command",
+          command: hookCommand,
+          timeout: timeoutSec,
+          // Spinner text while a gate waits for the team.
+          statusMessage: "Tollgate: checking with your team…",
+          // A crashed or timed-out hook blocks instead of letting the command run
+          // (Claude Code 2.1.295+). The hook's own watchdog is the second layer.
+          onFailure: "block",
+        },
+      ],
+    },
   ];
   return { ...existing, hooks };
 }
