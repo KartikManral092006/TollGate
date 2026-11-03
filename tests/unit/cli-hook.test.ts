@@ -101,6 +101,26 @@ describe("decide", () => {
     expect(decision.kind === "deny" && decision.reason).toContain("Do not retry");
   });
 
+  it("passes an approver's question on as something to answer, not a denial", async () => {
+    const { deps } = setup({
+      statuses: [
+        gate(),
+        gate({
+          status: "denied",
+          decidedBy: "Ana",
+          denyReason: 'Question before deciding: "Which tables?"',
+          question: "Which tables?",
+        }),
+      ],
+    });
+    const decision = await decide(bash("npx prisma migrate deploy"), deps);
+    expect(decision.kind).toBe("deny");
+    const reason = decision.kind === "deny" ? decision.reason : "";
+    expect(reason).toContain('Ana asked a question in TG-17 before deciding: "Which tables?"');
+    expect(reason).toContain("description of your next Bash call");
+    expect(reason).not.toContain("Do not retry");
+  });
+
   it("returns no decision on approval in guard mode, so Claude Code's own checks still run", async () => {
     const { deps } = setup({ statuses: [gate(), gate({ status: "approved" })] });
     expect(await decide(bash("npm publish"), deps)).toMatchObject({ kind: "none" });

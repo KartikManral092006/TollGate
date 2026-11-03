@@ -216,40 +216,45 @@ model HookToken {
 
 // One proposed risky command. Postgres is the truth; Nexconn metadata mirrors it.
 model Gate {
-  id          String        @id
-  code        Int // TG-17 (per-team sequence)
-  teamId      String
-  repoId      String
-  requesterId String
-  preset      String
-  env         String // prod | staging | other
-  command     String // redacted
-  cwd         String // redacted
-  branch      String?
-  context     String        @db.VarChar(2048) // redacted, truncated
-  intent      String?       @db.VarChar(300) // the agent's own description of the command; redacted
-  redactions  Int
-  cmdHash     String // sha256(command + cwd + repo), from the hook; binds the grant
-  quorum      Int
-  status      GateStatus    @default(pending)
-  decidedAt   DateTime?
-  decidedById String?
-  denyReason  String?
-  parkedAt    DateTime?
-  remindedAt  DateTime? // the one "still parked" reminder went out
-  messageId   String? // Nexconn message for metadata updates
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  team        Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  repo        RepoLink      @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  requester   User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
-  votes       Vote[]
-  grant       Grant?
-  calls       CallSession[]
+  id           String        @id
+  code         Int // TG-17 (per-team sequence)
+  teamId       String
+  repoId       String
+  requesterId  String
+  preset       String
+  env          String // prod | staging | other
+  command      String // redacted
+  cwd          String // redacted
+  branch       String?
+  context      String        @db.VarChar(2048) // redacted, truncated
+  intent       String?       @db.VarChar(300) // the agent's own description of the command; redacted
+  redactions   Int
+  cmdHash      String // sha256(command + cwd + repo), from the hook; binds the grant
+  quorum       Int
+  status       GateStatus    @default(pending)
+  decidedAt    DateTime?
+  decidedById  String?
+  denyReason   String?
+  parkedAt     DateTime?
+  remindedAt   DateTime? // the one "still parked" reminder went out
+  question     String?       @db.VarChar(500) // set when an approver asked instead of deciding
+  followUpOfId String? // the asked gate this retry answers
+  messageId    String? // Nexconn message for metadata updates
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  team         Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  repo         RepoLink      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  requester    User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  votes        Vote[]
+  grant        Grant?
+  calls        CallSession[]
+  followUpOf   Gate?         @relation("GateFollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)
+  followUps    Gate[]        @relation("GateFollowUp")
 
   @@unique([teamId, code])
   @@index([teamId, createdAt(sort: Desc)])
   @@index([repoId, cmdHash])
+  @@index([followUpOfId])
   @@map("gates")
 }
 

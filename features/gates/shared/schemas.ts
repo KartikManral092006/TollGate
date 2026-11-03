@@ -31,3 +31,6 @@ export const callEndedSchema = z
       .max(24 * 3600),
   })
   .strict();
+
+// Ask the agent instead of deciding. The question closes the gate and reaches the agent.
+export const askSchema = z.object({ question: z.string().trim().min(1).max(500) }).strict();

@@ -47,6 +47,8 @@ const VOTE_ERRORS: Record<string, string> = {
   closed: "This gate was already decided.",
   voted: "You already voted on this gate.",
   own_gate: "You can't approve your own agent's command.",
+  not_waiting:
+    "The agent has stopped waiting, so it can't hear a question now. Approve or deny instead.",
   not_allowed: "Your role can't vote in this team.",
   rate_limited: "Too many votes. Try again in a minute.",
 };
@@ -96,6 +98,7 @@ export function RoomClient({
     [members, viewer.id],
   );
   const [denying, setDenying] = useState<GateView | null>(null);
+  const [asking, setAsking] = useState<GateView | null>(null);
   const names = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
 
   const items = useMemo<ThreadItem[]>(
@@ -150,6 +153,22 @@ export function RoomClient({
     else if (result.status === "approved") toast.success(`TG-${gate.code} approved`);
     else toast.success(`Approved · ${result.approvals}/${result.quorum} so far`);
     void refresh();
+    return true;
+  }
+
+  async function ask(gate: GateView, question: string) {
+    const response = await fetch(`/api/gates/${gate.id}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    void refresh();
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      toast.error(VOTE_ERRORS[body.error ?? ""] ?? "Your question didn't go through. Try again.");
+      return false;
+    }
+    toast.success(`Question sent on TG-${gate.code}. The agent answers when it tries again.`);
     return true;
   }
 
@@ -233,6 +252,7 @@ export function RoomClient({
                               await vote(gate, "approve");
                             }}
                             onDeny={setDenying}
+                            onAsk={setAsking}
                             onWhy={explain}
                             footer={
                               callsEnabled && live === "live" && isOpenStatus(item.gate.status) ? (
@@ -295,6 +315,7 @@ export function RoomClient({
         onClose={() => setDenying(null)}
         onSubmit={(gate, reason) => vote(gate, "deny", reason)}
       />
+      <DenyDrawer gate={asking} mode="ask" onClose={() => setAsking(null)} onSubmit={ask} />
     </div>
   );
 }

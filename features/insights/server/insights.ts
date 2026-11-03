@@ -14,6 +14,8 @@ export async function loadHistory(db: PrismaClient, teamId: string): Promise<His
     where: {
       teamId,
       status: { in: ["approved", "denied"] },
+      // A question isn't a decision: it mustn't read as a denial in precedents or signals.
+      question: null,
       createdAt: { gte: new Date(Date.now() - HISTORY_DAYS * 86_400_000) },
     },
     orderBy: { createdAt: "desc" },

@@ -20,7 +20,7 @@ import { NumberTicker } from "@/components/motion/number-ticker";
 import { RouteShield } from "@/components/road/route-shield";
 import { SignPanel } from "@/components/road/sign-panel";
 import { gateMetrics, gatesToCsv } from "@/features/gates/shared/metrics";
-import type { GateStatusView, GateView } from "@/features/gates/shared/view";
+import { displayStatus, type GateStatusView, type GateView } from "@/features/gates/shared/view";
 import { EnvBadge, StatusChip } from "@/features/room/components/gate-status";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 
@@ -209,7 +209,7 @@ export function AuditClient({
                   <span className="flex items-center gap-2">
                     <RouteShield code={gate.code} />
                     <EnvBadge env={gate.env} />
-                    <StatusChip status={gate.status} className="ms-auto" />
+                    <StatusChip status={displayStatus(gate)} className="ms-auto" />
                   </span>
                   <code className="truncate font-mono text-xs">{gate.command}</code>
                   <span className="text-xs text-muted-foreground">
@@ -268,7 +268,7 @@ export function AuditClient({
                     </TableCell>
                     <TableCell className="align-top">{gate.requester.name}</TableCell>
                     <TableCell className="max-w-64 align-top whitespace-normal">
-                      <StatusChip status={gate.status} />
+                      <StatusChip status={displayStatus(gate)} />
                       {(gate.status === "approved" || gate.status === "denied") && (
                         <p className="mt-1 text-xs text-muted-foreground">by {decider(gate)}</p>
                       )}

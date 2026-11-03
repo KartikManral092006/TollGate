@@ -18,6 +18,15 @@ import {
 import { redact, truncate } from "@/features/gates/shared/redact";
 import { canVote, type TeamRoleValue } from "@/features/teams/shared/schemas";
 
+// How long after a question the requester's next gate in the same repo counts as the answer.
+export const FOLLOW_UP_WINDOW_MS = 30 * 60 * 1000;
+
+// What the agent receives when an approver asks instead of deciding. The hook (0.2+) words its
+// own message from `question`; older hooks only see this text.
+export function questionReason(question: string): string {
+  return `Question before deciding: "${question}" Answer it in the description of your next Bash call, then run the same command again.`;
+}
+
 export function repoPresets(raw: unknown): Preset[] {
   const parsed = presetListSchema.safeParse(raw);
   return parsed.success ? parsed.data : DEFAULT_PRESETS;
@@ -46,12 +55,29 @@ export async function createGate(
   const quorum = authoritativeQuorum(serverMatch, input.quorum);
   const env = serverMatch?.env === "prod" ? "prod" : (input.env ?? serverMatch?.env ?? "other");
 
+  const now = ids.now?.() ?? new Date();
+
   return db.$transaction(async (tx) => {
     const [row] = await tx.$queryRaw<{ code: number }[]>`
       UPDATE teams SET "nextGateCode" = "nextGateCode" + 1, "updatedAt" = now()
       WHERE id = ${principal.teamId}
       RETURNING "nextGateCode" - 1 AS code`;
     if (!row) throw new Error("Team not found for hook token");
+
+    // The agent's next gate after a question is its answer: same requester and repo, soon after,
+    // and only one answer per question.
+    const asked = await tx.gate.findFirst({
+      where: {
+        repoId: principal.repoId,
+        requesterId: principal.requesterId,
+        status: "denied",
+        question: { not: null },
+        decidedAt: { gte: new Date(now.getTime() - FOLLOW_UP_WINDOW_MS) },
+        followUps: { none: {} },
+      },
+      orderBy: { decidedAt: "desc" },
+      select: { id: true },
+    });
 
     return tx.gate.create({
       data: {
@@ -71,6 +97,7 @@ export async function createGate(
           input.redactions + command.count + cwd.count + context.count + (intent?.count ?? 0),
         cmdHash: input.cmdHash,
         quorum,
+        followUpOfId: asked?.id ?? null,
       },
     });
   });
@@ -116,7 +143,9 @@ export async function parkGate(
 export class VoteRejectedError extends Error {
   override readonly name = "VoteRejectedError";
 
-  constructor(readonly reason: "not_found" | "closed" | "own_gate" | "not_allowed" | "voted") {
+  constructor(
+    readonly reason: "not_found" | "closed" | "own_gate" | "not_allowed" | "voted" | "not_waiting",
+  ) {
     super(`Vote rejected: ${reason}`);
   }
 }
@@ -142,6 +171,8 @@ export async function castVote(
     userId: string;
     decision: VoteDecision;
     reason?: string | null;
+    // Ask instead of deciding: closes the gate like a deny, and the agent must answer.
+    question?: string | null;
     newId: () => string;
     now?: Date;
   },
@@ -177,14 +208,17 @@ export async function castVote(
       voterCanVote: canVote(membership.role as TeamRoleValue),
     });
     if (rejection) throw new VoteRejectedError(rejection);
+    const question = input.question?.trim() || null;
+    // Only a waiting hook passes the question on; a parked agent has stopped listening.
+    if (question && gate.status !== "pending") throw new VoteRejectedError("not_waiting");
 
     const { count } = await tx.vote.createMany({
       data: [
         {
           gateId: gate.id,
           userId: input.userId,
-          decision: input.decision,
-          reason: input.reason?.trim() || null,
+          decision: question ? "deny" : input.decision,
+          reason: question ?? (input.reason?.trim() || null),
         },
       ],
       skipDuplicates: true,
@@ -215,7 +249,12 @@ export async function castVote(
           status: evaluation.status,
           decidedAt: now,
           decidedById: evaluation.status === "denied" ? evaluation.deniedBy : input.userId,
-          denyReason: denial ? denial.reason || "Denied without a reason." : null,
+          denyReason: denial
+            ? question
+              ? questionReason(question)
+              : denial.reason || "Denied without a reason."
+            : null,
+          question: evaluation.status === "denied" ? question : null,
         },
       });
       if (needsGrant(gate.status, evaluation.status)) {
@@ -320,6 +359,17 @@ export function listTeamGates(
         },
       },
       grant: { select: { expiresAt: true, usedAt: true } },
+      followUpOf: {
+        select: {
+          code: true,
+          question: true,
+          votes: {
+            where: { decision: "deny" },
+            select: { userId: true, user: { select: { name: true } } },
+          },
+        },
+      },
+      followUps: { select: { code: true }, orderBy: { createdAt: "asc" }, take: 1 },
       calls: {
         orderBy: { createdAt: "asc" },
         select: {

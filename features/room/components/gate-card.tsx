@@ -4,6 +4,7 @@ import {
   Sparkles,
   ChevronDown,
   EyeOff,
+  MessageCircleQuestion,
   GitBranch,
   Loader2,
   ShieldCheck,
@@ -23,7 +24,12 @@ import {
   CodeBlockCopyButton,
 } from "@/components/ui/code-block";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
+import {
+  displayStatus,
+  isOpenStatus,
+  type GateDisplayStatus,
+  type GateView,
+} from "@/features/gates/shared/view";
 import { PrecedentNote } from "@/features/insights/components/precedent-note";
 import { RiskSignals } from "@/features/insights/components/risk-signals";
 import type { WhyResult } from "@/features/why/shared/providers";
@@ -34,8 +40,9 @@ import { cn } from "@/lib/utils";
 
 export type Viewer = { id: string; canVote: boolean };
 
-const LIGHT: Record<GateView["status"], Light> = {
+const LIGHT: Record<GateDisplayStatus, Light> = {
   pending: "amber",
+  asked: "amber",
   approved: "green",
   denied: "red",
   parked: "off",
@@ -87,6 +94,7 @@ export function GateCard({
   highlighted = false,
   onApprove,
   onDeny,
+  onAsk,
   onWhy,
   footer,
 }: {
@@ -98,6 +106,8 @@ export function GateCard({
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
   onApprove: (gate: GateView) => Promise<void>;
   onDeny: (gate: GateView) => void;
+  // Ask the agent a question instead of deciding; only while its hook is still waiting.
+  onAsk?: (gate: GateView) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [showContext, setShowContext] = useState(false);
@@ -120,11 +130,13 @@ export function GateCard({
       setWhy({ state: "error" });
     }
   }
-  const meta = STATUS[gate.status];
+  const shown = displayStatus(gate);
+  const meta = STATUS[shown];
   const open = isOpenStatus(gate.status);
   const mine = gate.requester.id === viewer.id;
   const voted = gate.votes.some((vote) => vote.userId === viewer.id);
   const canAct = open && viewer.canVote && !mine && !voted;
+  const canAsk = canAct && onAsk !== undefined && gate.status === "pending";
   const denial = gate.votes.find((vote) => vote.decision === "deny");
   const outcome = outcomeLine(gate);
 
@@ -162,15 +174,15 @@ export function GateCard({
           <span className="text-xs text-muted-foreground">{gate.preset}</span>
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span
-              key={gate.status}
+              key={shown}
               className="ms-auto flex items-center gap-2"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.18 }}
             >
-              <TrafficLight lit={LIGHT[gate.status]} />
-              <StatusChip status={gate.status} />
+              <TrafficLight lit={LIGHT[shown]} />
+              <StatusChip status={shown} />
             </motion.span>
           </AnimatePresence>
         </header>
@@ -204,13 +216,31 @@ export function GateCard({
           </div>
         </div>
 
-        {gate.intent && (
+        {gate.followUp && (
+          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <MessageCircleQuestion className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              Retry after {gate.followUp.askedBy}&apos;s question in TG-{gate.followUp.code}:{" "}
+              <span className="text-foreground italic">&ldquo;{gate.followUp.question}&rdquo;</span>
+            </span>
+          </p>
+        )}
+
+        {gate.intent ? (
           <p className="rounded-lg border-s-4 border-signal bg-muted/50 px-3 py-2 text-sm">
             <span className="block text-xs font-semibold text-muted-foreground">
-              The agent&apos;s reason, in its own words
+              {gate.followUp
+                ? "The agent's answer, in its own words"
+                : "The agent's reason, in its own words"}
             </span>
             &ldquo;{gate.intent}&rdquo;
           </p>
+        ) : (
+          gate.followUp && (
+            <p className="rounded-lg bg-gate-pending-bg px-3 py-2 text-sm text-gate-pending-fg">
+              The agent ran the command again without answering the question.
+            </p>
+          )
         )}
 
         {open && gate.insights && <RiskSignals signals={gate.insights.signals} />}
@@ -340,10 +370,18 @@ export function GateCard({
                   <span className="font-medium">{vote.name}</span>{" "}
                   <span
                     className={
-                      vote.decision === "approve" ? "text-gate-approved-fg" : "text-gate-denied-fg"
+                      vote.decision === "approve"
+                        ? "text-gate-approved-fg"
+                        : shown === "asked" && vote === denial
+                          ? "text-gate-pending-fg"
+                          : "text-gate-denied-fg"
                     }
                   >
-                    {vote.decision === "approve" ? "approved" : "denied"}
+                    {vote.decision === "approve"
+                      ? "approved"
+                      : shown === "asked" && vote === denial
+                        ? "asked a question"
+                        : "denied"}
                   </span>
                   {vote.reason && !(gate.status === "denied" && vote === denial) && (
                     <span className="text-muted-foreground">: {vote.reason}</span>
@@ -354,15 +392,36 @@ export function GateCard({
           </ul>
         )}
 
-        {gate.status === "denied" && denial?.reason && (
-          <p className="rounded-lg bg-gate-denied-bg px-3 py-2 text-sm text-gate-denied-fg">
-            Sent to the agent as its next instruction: “{denial.reason}”
+        {shown === "asked" && gate.question ? (
+          <p className="rounded-lg bg-gate-pending-bg px-3 py-2 text-sm text-gate-pending-fg">
+            Sent to the agent to answer: &ldquo;{gate.question}&rdquo;{" "}
+            {gate.answeredIn
+              ? `Its answer is in TG-${gate.answeredIn}.`
+              : "Its answer arrives with its next try."}
           </p>
+        ) : (
+          gate.status === "denied" &&
+          denial?.reason && (
+            <p className="rounded-lg bg-gate-denied-bg px-3 py-2 text-sm text-gate-denied-fg">
+              Sent to the agent as its next instruction: “{denial.reason}”
+            </p>
+          )
         )}
         {outcome && <p className="text-xs text-muted-foreground">{outcome}</p>}
 
         {canAct && (
-          <div className="grid grid-cols-2 gap-2 pt-1">
+          <div className={cn("grid gap-2 pt-1", canAsk ? "grid-cols-3" : "grid-cols-2")}>
+            {canAsk && (
+              <Button
+                variant="outline"
+                className="h-11"
+                onClick={() => onAsk?.(gate)}
+                disabled={busy}
+              >
+                <MessageCircleQuestion aria-hidden />
+                Ask…
+              </Button>
+            )}
             <Button
               variant="outline"
               className="h-11 border-gate-denied/40 text-gate-denied-fg hover:bg-gate-denied-bg hover:text-gate-denied-fg"

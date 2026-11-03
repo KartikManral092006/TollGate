@@ -42,6 +42,8 @@ export type HookGateStatus = {
   quorum: number;
   approvals: number;
   denyReason: string | null;
+  // Set when an approver asked a question instead of deciding (server 0.2+).
+  question?: string | null;
   decidedBy: string | null;
   mode: "guard" | "delegate";
   url: string;

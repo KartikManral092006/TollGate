@@ -6,6 +6,7 @@ Your team approves before your coding agent does something you can't undo.
 
 - **Approved:** the command continues, through Claude Code's normal permission check (Guard mode, the default).
 - **Denied with a reason:** the agent receives the reason as its next instruction and revises its plan.
+- **A teammate asks a question:** the agent receives it and answers in the description of its next try; the team sees that answer on the new card and decides then.
 - **Nobody answers in time:** the gate is **parked** and approvers who haven't voted get a reminder (and one more an hour later). The agent moves on, and once a teammate approves, the exact same command passes on retry (single use, 24 h).
 
 Every other command runs untouched; the hook adds about 50 ms.

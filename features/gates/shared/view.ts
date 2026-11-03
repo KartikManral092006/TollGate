@@ -42,6 +42,12 @@ export type GateView = {
   requester: { id: string; name: string };
   votes: GateVoteView[];
   denyReason: string | null;
+  // An approver asked instead of deciding; the gate closed and the agent got the question.
+  question: string | null;
+  // This gate is the agent's retry after a question: its intent is the answer.
+  followUp: { code: number; question: string; askedBy: string } | null;
+  // The asked gate's answer arrived as this gate.
+  answeredIn: number | null;
   decidedAt: string | null;
   parkedAt: string | null;
   grant: { expiresAt: string; usedAt: string | null } | null;
@@ -70,6 +76,13 @@ export type GateRow = {
   redactions: number;
   quorum: number;
   denyReason: string | null;
+  question?: string | null;
+  followUpOf?: {
+    code: number;
+    question: string | null;
+    votes: { userId: string; user: { name: string } }[];
+  } | null;
+  followUps?: { code: number }[];
   decidedAt: DateLike | null;
   parkedAt: DateLike | null;
   createdAt: DateLike;
@@ -99,6 +112,16 @@ export function displayName(name: string, id: string): string {
   return trimmed || `Member ${id.slice(-4).toUpperCase()}`;
 }
 
+function followUpView(asked: GateRow["followUpOf"]): GateView["followUp"] {
+  if (!asked?.question) return null;
+  const asker = asked.votes[0];
+  return {
+    code: asked.code,
+    question: asked.question,
+    askedBy: asker ? displayName(asker.user.name, asker.userId) : "A teammate",
+  };
+}
+
 export function toGateView(row: GateRow): GateView {
   return {
     id: row.id,
@@ -124,6 +147,9 @@ export function toGateView(row: GateRow): GateView {
       at: iso(vote.createdAt),
     })),
     denyReason: row.denyReason,
+    question: row.question ?? null,
+    followUp: followUpView(row.followUpOf),
+    answeredIn: row.followUps?.[0]?.code ?? null,
     decidedAt: isoOrNull(row.decidedAt),
     parkedAt: isoOrNull(row.parkedAt),
     grant: row.grant
@@ -151,6 +177,13 @@ export function mergeGates(current: GateView[], incoming: GateView[]): GateView[
   return [...byId.values()].sort(
     (a, b) => a.createdAt.localeCompare(b.createdAt) || a.code - b.code,
   );
+}
+
+// What a card shows: an asked gate is closed (denied for the hook) but reads as a question.
+export type GateDisplayStatus = GateStatusView | "asked";
+
+export function displayStatus(gate: Pick<GateView, "status" | "question">): GateDisplayStatus {
+  return gate.status === "denied" && gate.question ? "asked" : gate.status;
 }
 
 export function isOpenStatus(status: GateStatusView): boolean {

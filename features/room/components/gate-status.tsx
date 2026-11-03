@@ -1,5 +1,13 @@
-import { CircleCheck, CircleX, Clock3, PauseCircle, TimerOff, type LucideIcon } from "lucide-react";
-import type { GateStatusView } from "@/features/gates/shared/view";
+import {
+  CircleCheck,
+  CircleX,
+  Clock3,
+  MessageCircleQuestion,
+  PauseCircle,
+  TimerOff,
+  type LucideIcon,
+} from "lucide-react";
+import type { GateDisplayStatus } from "@/features/gates/shared/view";
 import { cn } from "@/lib/utils";
 
 type StatusMeta = {
@@ -10,7 +18,7 @@ type StatusMeta = {
 };
 
 // Every state pairs a colour with an icon and a word, so it never relies on colour alone.
-export const STATUS: Record<GateStatusView, StatusMeta> = {
+export const STATUS: Record<GateDisplayStatus, StatusMeta> = {
   pending: {
     label: "Waiting",
     icon: Clock3,
@@ -29,6 +37,12 @@ export const STATUS: Record<GateStatusView, StatusMeta> = {
     stripe: "bg-gate-denied",
     chip: "bg-gate-denied-bg text-gate-denied-fg",
   },
+  asked: {
+    label: "Question sent",
+    icon: MessageCircleQuestion,
+    stripe: "bg-gate-pending",
+    chip: "bg-gate-pending-bg text-gate-pending-fg",
+  },
   parked: {
     label: "Parked",
     icon: PauseCircle,
@@ -43,7 +57,13 @@ export const STATUS: Record<GateStatusView, StatusMeta> = {
   },
 };
 
-export function StatusChip({ status, className }: { status: GateStatusView; className?: string }) {
+export function StatusChip({
+  status,
+  className,
+}: {
+  status: GateDisplayStatus;
+  className?: string;
+}) {
   const meta = STATUS[status];
   const Icon = meta.icon;
   return (

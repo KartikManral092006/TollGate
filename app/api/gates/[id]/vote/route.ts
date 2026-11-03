@@ -12,6 +12,7 @@ const STATUS_FOR: Record<VoteRejectedError["reason"], number> = {
   not_found: 404,
   closed: 409,
   voted: 409,
+  not_waiting: 409,
   own_gate: 403,
   not_allowed: 403,
 };

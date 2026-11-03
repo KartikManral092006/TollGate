@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     quorum: gate.quorum,
     approvals: 0,
     denyReason: null,
+    question: null,
     decidedBy: null,
     mode: auth.principal.mode,
     url: gateUrl(gate.teamId, gate.id),
