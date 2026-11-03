@@ -10,10 +10,10 @@ const RETRY_WINDOW_MS = 60 * 60 * 1000;
 // "First time" only means something once a repo has some history.
 const FIRST_TIME_MIN_HISTORY = 5;
 
-type Rule = { id: string; pattern: RegExp; text: string };
+export type Rule = { id: string; pattern: RegExp; text: string };
 
 // Statements that destroy data, read from migration SQL and from the command itself.
-const DATA_LOSS: Rule[] = [
+export const DATA_LOSS: Rule[] = [
   { id: "drop-table", pattern: /\bDROP\s+TABLE\b/i, text: "Drops a table and every row in it" },
   {
     id: "drop-column",
