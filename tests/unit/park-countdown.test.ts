@@ -12,4 +12,8 @@ describe("parkLabel", () => {
     expect(parkLabel(0)).toBe("Parking…");
     expect(parkLabel(-3000)).toBe("Parking…");
   });
+
+  it("stops promising to park once the agent is clearly gone", () => {
+    expect(parkLabel(-60_000)).toBe("Agent stopped waiting");
+  });
 });

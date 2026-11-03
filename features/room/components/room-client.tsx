@@ -34,6 +34,9 @@ import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
 import { RoomRail } from "@/features/room/components/room-rail";
 import { StuckActions } from "@/features/room/components/stuck-actions";
+import { usePresence } from "@/features/presence/client/use-presence";
+import { useViewingGate } from "@/features/presence/client/use-viewing";
+import { presenceFor } from "@/features/presence/shared/presence";
 import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { useRoomLive } from "@/features/room/client/use-room-live";
 import type { ChatLine } from "@/features/room/shared/chat";
@@ -88,8 +91,18 @@ export function RoomClient({
         .map((m) => ({ id: m.id, name: m.name })),
     [members, viewer.id],
   );
-  const actions = useGateActions({ refresh });
   const names = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
+  const actions = useGateActions({ refresh });
+  const viewing = useViewingGate(gates);
+  const people = usePresence(team.id, { viewing, typing: actions.composing?.id ?? null });
+  const online = useMemo(() => new Set(people.map((p) => p.userId)), [people]);
+  const presenceOf = (gateId: string) => {
+    const ids = presenceFor(gateId, people, viewer.id);
+    return {
+      looking: ids.looking.map((id) => names.get(id) ?? "A teammate"),
+      typing: ids.typing.map((id) => names.get(id) ?? "A teammate"),
+    };
+  };
 
   const items = useMemo<ThreadItem[]>(
     () =>
@@ -214,6 +227,7 @@ export function RoomClient({
                                     : undefined
                                 }
                                 onWhy={actions.explain}
+                                presence={presenceOf(item.gate.id)}
                                 footer={
                                   callsEnabled &&
                                   live === "live" &&
@@ -278,7 +292,7 @@ export function RoomClient({
             </div>
           </div>
         </div>
-        <RoomRail gates={gates} members={members} />
+        <RoomRail gates={gates} members={members} online={online} viewerId={viewer.id} />
       </div>
 
       <IncomingCallSheet

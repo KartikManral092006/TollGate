@@ -7,7 +7,8 @@ import { GATE_ID_RE } from "@/features/gates/shared/hook-api";
 import { toGateView } from "@/features/gates/shared/view";
 import { withInsights } from "@/features/insights/server/insights";
 import { GatePageClient } from "@/features/room/components/gate-page-client";
-import { getMembership } from "@/features/teams/server/teams";
+import { displayName } from "@/features/gates/shared/view";
+import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { canVote, ID_RE } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
 
@@ -28,13 +29,17 @@ export default async function GatePage({ params }: PageProps<"/teams/[id]/gates/
   if (!membership) notFound();
   const gate = await getTeamGate(db, id, gateId);
   if (!gate) notFound();
-  const [view] = await withInsights(db, id, [toGateView(gate)]);
+  const [[view], members] = await Promise.all([
+    withInsights(db, id, [toGateView(gate)]),
+    listMembers(db, id),
+  ]);
 
   return (
     <GatePageClient
       teamId={id}
       viewer={{ id: user.id, canVote: canVote(membership.role) }}
       initial={view!}
+      members={members.map((m) => ({ id: m.user.id, name: displayName(m.user.name, m.user.id) }))}
     />
   );
 }

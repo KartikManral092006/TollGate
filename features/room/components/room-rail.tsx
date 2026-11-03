@@ -30,7 +30,18 @@ function jumpTo(gateId: string) {
 
 // Beside the thread on wide screens: what still needs a decision, oldest first, and who's
 // in the room. The thread stays the place to decide; this is the to-do list.
-export function RoomRail({ gates, members }: { gates: GateView[]; members: Member[] }) {
+export function RoomRail({
+  gates,
+  members,
+  online,
+  viewerId,
+}: {
+  gates: GateView[];
+  members: Member[];
+  // Members with an open room or gate page right now.
+  online: Set<string>;
+  viewerId: string;
+}) {
   const waiting = gates
     .filter((gate) => isOpenStatus(gate.status))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -104,7 +115,15 @@ export function RoomRail({ gates, members }: { gates: GateView[]; members: Membe
         <ul className="mt-3 flex flex-col gap-2.5">
           {members.map((member) => (
             <li key={member.id} className="flex items-center gap-2.5">
-              <PersonAvatar id={member.id} name={member.name} size="sm" />
+              <span className="relative">
+                <PersonAvatar id={member.id} name={member.name} size="sm" />
+                {(online.has(member.id) || member.id === viewerId) && (
+                  <span
+                    className="absolute -end-0.5 -bottom-0.5 size-2.5 rounded-full bg-gate-approved ring-2 ring-background"
+                    aria-label="Online"
+                  />
+                )}
+              </span>
               <span className="min-w-0 flex-1 truncate text-sm">{member.name}</span>
               <span className="text-xs text-muted-foreground">
                 {ROLE_LABEL[member.role] ?? member.role}
