@@ -33,6 +33,7 @@ import { PrecedentNote } from "@/features/insights/components/precedent-note";
 import { RiskSignals } from "@/features/insights/components/risk-signals";
 import { SuggestedApprovers } from "@/features/insights/components/suggested-approvers";
 import type { WhyResult } from "@/features/why/shared/providers";
+import { ContextView } from "@/features/room/components/context-view";
 import { EnvBadge, STATUS } from "@/features/room/components/gate-status";
 import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
@@ -387,14 +388,14 @@ export function GateCard({
 
         <AnimatePresence initial={false}>
           {showContext && (
-            <motion.pre
+            <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="max-h-60 overflow-auto rounded-md bg-muted px-3 py-2.5 font-mono text-xs whitespace-pre-wrap"
+              className="overflow-hidden"
             >
-              {gate.context}
-            </motion.pre>
+              <ContextView text={gate.context} />
+            </motion.div>
           )}
         </AnimatePresence>
 
