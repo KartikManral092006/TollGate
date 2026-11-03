@@ -56,6 +56,7 @@ export function RoomClient({
   initialGates,
   highlightGateId,
   callsEnabled,
+  whyEnabled,
 }: {
   team: { id: string; name: string; channelId: string };
   viewer: Viewer;
@@ -63,6 +64,7 @@ export function RoomClient({
   initialGates: GateView[];
   highlightGateId: string | null;
   callsEnabled: boolean;
+  whyEnabled: boolean;
 }) {
   const { gates, lines, live, refresh, send } = useRoomLive({
     teamId: team.id,
@@ -138,6 +140,16 @@ export function RoomClient({
     return true;
   }
 
+  async function explain(gate: GateView): Promise<string | null> {
+    const response = await fetch(`/api/gates/${gate.id}/why`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (!response.ok) return null;
+    return ((await response.json()) as { text?: string }).text ?? null;
+  }
+
   let lastDay = "";
 
   return (
@@ -202,6 +214,7 @@ export function RoomClient({
                               await vote(gate, "approve");
                             }}
                             onDeny={setDenying}
+                            onWhy={whyEnabled ? explain : undefined}
                             footer={
                               callsEnabled && live === "live" && isOpenStatus(item.gate.status) ? (
                                 <GateCallMenu
