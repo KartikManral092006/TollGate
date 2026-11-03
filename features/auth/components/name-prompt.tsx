@@ -33,7 +33,7 @@ export function NamePrompt() {
   return (
     <form
       onSubmit={save}
-      className="flex flex-col gap-3 rounded-2xl border border-brand/30 bg-brand/5 p-4"
+      className="flex flex-col gap-3 border-s-4 border-signal ps-4 lg:flex-row lg:items-center lg:gap-8"
     >
       <div>
         <p className="font-medium">What should your team call you?</p>
@@ -42,7 +42,7 @@ export function NamePrompt() {
           run…&rdquo;.
         </p>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row lg:w-96">
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}

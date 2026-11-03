@@ -5,7 +5,6 @@ import { verifySession } from "@/features/auth/server/session";
 import { displayName } from "@/features/gates/shared/view";
 import { loadPolicyState } from "@/features/insights/server/policy";
 import { SettingsClient } from "@/features/settings/components/settings-client";
-import { TeamHeader } from "@/features/teams/components/team-header";
 import { loadSettings } from "@/features/teams/server/settings";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { ID_RE } from "@/features/teams/shared/schemas";
@@ -34,21 +33,18 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
     loadPolicyState(db, id),
   ]);
   return (
-    <div className="flex min-h-dvh flex-col">
-      <TeamHeader teamId={id} name={membership.team.name} />
-      <SettingsClient
-        teamId={id}
-        viewer={{ id: user.id, role: membership.role }}
-        members={members.map((m) => ({
-          id: m.user.id,
-          name: displayName(m.user.name, m.user.id),
-          role: m.role,
-        }))}
-        repos={settings.repos}
-        invites={settings.invites}
-        ai={toAiConfigView(ai)}
-        policy={policy}
-      />
-    </div>
+    <SettingsClient
+      teamId={id}
+      viewer={{ id: user.id, role: membership.role }}
+      members={members.map((m) => ({
+        id: m.user.id,
+        name: displayName(m.user.name, m.user.id),
+        role: m.role,
+      }))}
+      repos={settings.repos}
+      invites={settings.invites}
+      ai={toAiConfigView(ai)}
+      policy={policy}
+    />
   );
 }

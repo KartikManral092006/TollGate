@@ -183,9 +183,9 @@ export function RoomClient({
   }
 
   return (
-    <div className="flex h-dvh flex-col">
+    // Fills the space beside the sidebar (under the phone top bar), so the thread scrolls alone.
+    <div className="flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh">
       <RoomHeader
-        teamId={team.id}
         name={team.name}
         members={members}
         live={live}
