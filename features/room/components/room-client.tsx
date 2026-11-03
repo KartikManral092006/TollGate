@@ -10,6 +10,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { AllClear } from "@/components/road/all-clear";
 import { Marker, MarkerContent } from "@/components/ui/marker";
 import {
   MessageScroller,
@@ -32,6 +33,7 @@ import { Composer } from "@/features/room/components/composer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
 import { RoomRail } from "@/features/room/components/room-rail";
+import { StuckActions } from "@/features/room/components/stuck-actions";
 import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { useRoomLive } from "@/features/room/client/use-room-live";
 import type { ChatLine } from "@/features/room/shared/chat";
@@ -244,6 +246,12 @@ export function RoomClient({
                         </Fragment>
                       );
                     })}
+                    {openCount === 0 && (
+                      // The side panel says it on wide screens; here it ends the thread.
+                      <MessageScrollerItem>
+                        <AllClear className="py-6 xl:hidden" />
+                      </MessageScrollerItem>
+                    )}
                   </MessageScrollerContent>
                 </MessageScrollerViewport>
                 <MessageScrollerButton />
@@ -252,6 +260,12 @@ export function RoomClient({
           )}
 
           <div className="border-t bg-background/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
+            <StuckActions
+              gates={gates}
+              onApprove={(gate) => void actions.approve(gate)}
+              onDeny={actions.deny}
+              onAsk={actions.ask}
+            />
             {calls.active && (
               <CallBar
                 call={calls.active}
