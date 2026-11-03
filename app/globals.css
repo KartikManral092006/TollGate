@@ -199,3 +199,31 @@
     }
   }
 }
+
+/* Landing effects (components/fx). The reduced-motion rule above stops them. */
+@keyframes fx-shimmer {
+  from {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  to {
+    transform: translateX(220%) skewX(-20deg);
+  }
+}
+@keyframes fx-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 0.5rem));
+  }
+}
+@keyframes fx-beam {
+  to {
+    offset-distance: 100%;
+  }
+}
+@keyframes fx-grid-pan {
+  to {
+    background-position: 0 48px;
+  }
+}
