@@ -18,6 +18,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandMenu } from "@/components/shell/command-menu";
+import { ActivityBell } from "@/features/activity/components/activity-bell";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { signOutAction } from "@/features/auth/server/actions";
@@ -103,7 +104,7 @@ function SidebarBody({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 shrink-0 items-center px-4">
+      <div className="flex h-14 shrink-0 items-center px-4 pe-2">
         <Link
           href="/home"
           className="flex items-center gap-2 rounded-md text-base font-extrabold tracking-tight text-white outline-none focus-visible:ring-2 focus-visible:ring-signal"
@@ -114,6 +115,7 @@ function SidebarBody({
           />
           Tollgate
         </Link>
+        <ActivityBell className="ms-auto text-white/70 hover:bg-white/10 hover:text-white dark:hover:bg-white/10" />
       </div>
 
       <nav
@@ -271,6 +273,7 @@ export function AppShell({
           <Menu />
         </Button>
         <p className="min-w-0 flex-1 truncate font-bold">{current?.name ?? "Tollgate"}</p>
+        <ActivityBell className="text-white hover:bg-white/10 hover:text-white dark:hover:bg-white/10" />
         {current && current.waiting > 0 && (
           <Link
             href={`/teams/${current.id}`}
