@@ -26,7 +26,13 @@ export type GateNoticeInput = {
   requester: string;
   quorum: number;
   url: string;
+  // The agent's own description of the command, when Claude Code sent one.
+  intent?: string | null;
 };
+
+function intentLine(intent: string | null | undefined): string | null {
+  return intent ? `The agent says: "${shorten(intent, 200)}"` : null;
+}
 
 // To approvers: a new gate needs a decision.
 export function gateWaitingNotice(input: GateNoticeInput) {
@@ -36,13 +42,14 @@ export function gateWaitingNotice(input: GateNoticeInput) {
   const push = shorten(`TG-${input.code} · ${input.requester}: ${command}`, 120);
   return {
     push,
-    chat: `${headline}\n${command}\n${input.url}`,
+    chat: [headline, intentLine(input.intent), command, input.url].filter(Boolean).join("\n"),
     subject: `TG-${input.code} is waiting on you (${input.repo})`,
     text: [
       headline,
       "",
       `  ${command}`,
       "",
+      ...(input.intent ? [intentLine(input.intent)!, ""] : []),
       `Repo: ${input.repo} · Approvals needed: ${input.quorum}`,
       "",
       `Approve or deny: ${input.url}`,
@@ -52,10 +59,13 @@ export function gateWaitingNotice(input: GateNoticeInput) {
     html: [
       `<p><strong>${escapeHtml(headline)}</strong></p>`,
       `<pre style="background:#f4f4f5;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-all">${escapeHtml(command)}</pre>`,
+      input.intent ? `<p>${escapeHtml(intentLine(input.intent)!)}</p>` : "",
       `<p>Repo: ${escapeHtml(input.repo)} · Approvals needed: ${input.quorum}</p>`,
       `<p><a href="${escapeHtml(input.url)}">Approve or deny TG-${input.code}</a></p>`,
       `<p style="color:#71717a">If nobody decides in a few minutes, the gate is parked and can still be approved later.</p>`,
-    ].join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n"),
   };
 }
 
@@ -79,5 +89,44 @@ export function parkedDecisionNotice(input: {
       `<p><strong>${escapeHtml(headline)}</strong></p>`,
       `<p><a href="${escapeHtml(input.url)}">Open TG-${input.code}</a></p>`,
     ].join("\n"),
+  };
+}
+
+// To approvers who haven't voted, when nobody decided in time: once when the gate parks, and
+// once more ("late") if it is still undecided an hour later.
+export function gateParkedNotice(
+  input: Omit<GateNoticeInput, "quorum" | "env" | "preset"> & { late: boolean },
+) {
+  const headline = input.late
+    ? `TG-${input.code} is still waiting after an hour: ${input.requester}'s agent can't run it until someone decides`
+    : `TG-${input.code} is parked: nobody decided in time, so ${input.requester}'s agent moved on`;
+  const next =
+    "Approve it and the agent's retry passes once within 24 h, or deny it with a reason.";
+  const command = shorten(input.command, 300);
+  return {
+    push: shorten(`${headline}`, 120),
+    chat: [headline, intentLine(input.intent), command, input.url].filter(Boolean).join("\n"),
+    subject: input.late
+      ? `Reminder: TG-${input.code} still needs a decision (${input.repo})`
+      : `TG-${input.code} is parked and still needs a decision (${input.repo})`,
+    text: [
+      headline,
+      "",
+      `  ${command}`,
+      "",
+      ...(input.intent ? [intentLine(input.intent)!, ""] : []),
+      next,
+      "",
+      `Decide: ${input.url}`,
+    ].join("\n"),
+    html: [
+      `<p><strong>${escapeHtml(headline)}</strong></p>`,
+      `<pre style="background:#f4f4f5;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-all">${escapeHtml(command)}</pre>`,
+      input.intent ? `<p>${escapeHtml(intentLine(input.intent)!)}</p>` : "",
+      `<p>${escapeHtml(next)}</p>`,
+      `<p><a href="${escapeHtml(input.url)}">Decide on TG-${input.code}</a></p>`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   };
 }

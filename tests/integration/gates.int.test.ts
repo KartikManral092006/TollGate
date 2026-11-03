@@ -5,6 +5,7 @@ import {
   castVote,
   consumeGrant,
   createGate,
+  claimLateReminders,
   expireParkedGates,
   getGateForRepo,
   parkGate,
@@ -179,9 +180,15 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     const command = "npm publish";
     const input = gateInput(command);
     const gate = await createGate(db, principal, input, { newId });
-    expect(await parkGate(db, { gateId: gate.id, repoId: principal.repoId })).toBe("parked");
-    // Parking again (a retried hook) is harmless.
-    expect(await parkGate(db, { gateId: gate.id, repoId: principal.repoId })).toBe("parked");
+    expect(await parkGate(db, { gateId: gate.id, repoId: principal.repoId })).toEqual({
+      status: "parked",
+      parkedNow: true,
+    });
+    // Parking again (a retried hook) is harmless and doesn't count as parking it again.
+    expect(await parkGate(db, { gateId: gate.id, repoId: principal.repoId })).toEqual({
+      status: "parked",
+      parkedNow: false,
+    });
 
     const outcome = await castVote(db, {
       gateId: gate.id,
@@ -315,6 +322,49 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     await expect(
       castVote(db, { gateId: gate.id, userId: approvers[4]!, decision: "approve", newId }),
     ).rejects.toMatchObject({ reason: "closed" });
+  });
+
+  it("stores the agent's reason redacted on the server too", async () => {
+    const gate = await createGate(
+      db,
+      principal,
+      gateInput("npm publish # intent", { intent: "Publish with password=hunter2hunter2" }),
+      { newId },
+    );
+    expect(gate.intent).toBe("Publish with password=[REDACTED]");
+    expect(gate.redactions).toBeGreaterThanOrEqual(1);
+  });
+
+  it("claims each parked gate's one-hour reminder once, inside the window", async () => {
+    const hour = 3_600_000;
+    const due = await createGate(db, principal, gateInput("vercel --prod # remind"), { newId });
+    await parkGate(db, {
+      gateId: due.id,
+      repoId: principal.repoId,
+      now: new Date(Date.now() - 1.5 * hour),
+    });
+    const recent = await createGate(db, principal, gateInput("vercel --prod # recent"), { newId });
+    await parkGate(db, { gateId: recent.id, repoId: principal.repoId });
+    const old = await createGate(db, principal, gateInput("vercel --prod # old"), { newId });
+    await parkGate(db, {
+      gateId: old.id,
+      repoId: principal.repoId,
+      now: new Date(Date.now() - 5 * hour),
+    });
+
+    const window = {
+      parkedBefore: new Date(Date.now() - hour),
+      notBefore: new Date(Date.now() - 3 * hour),
+    };
+    const [first, second] = await Promise.all([
+      claimLateReminders(db, window),
+      claimLateReminders(db, window),
+    ]);
+    const claimed = [...first, ...second];
+    expect(claimed.filter((id) => id === due.id)).toHaveLength(1);
+    expect(claimed).not.toContain(recent.id);
+    expect(claimed).not.toContain(old.id);
+    expect(await claimLateReminders(db, window)).not.toContain(due.id);
   });
 
   it("fails abandoned permits and closes calls that overran their cap", async () => {

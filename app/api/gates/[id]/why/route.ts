@@ -33,6 +33,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
   const input = {
     command: gate.command,
     context: gate.context,
+    intent: gate.intent,
     preset: gate.preset,
     env: gate.env,
     repo: gate.repo.name,

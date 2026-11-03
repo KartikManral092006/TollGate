@@ -23,6 +23,8 @@ export const createGateSchema = z
     cwd: z.string().min(1).max(500), // redacted by the hook
     branch: z.string().max(200).nullable().optional(),
     context: z.string().max(2048).default(""),
+    // Claude Code's own one-line description of the Bash call ("Apply pending migrations").
+    intent: z.string().max(300).nullable().optional(),
     redactions: z.number().int().min(0).max(10_000).default(0),
     cmdHash: z.string().regex(SHA256_RE),
     sessionId: z.string().max(200).optional(),

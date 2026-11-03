@@ -6,7 +6,7 @@ Your team approves before your coding agent does something you can't undo.
 
 - **Approved:** the command continues, through Claude Code's normal permission check (Guard mode, the default).
 - **Denied with a reason:** the agent receives the reason as its next instruction and revises its plan.
-- **Nobody answers in time:** the gate is **parked**. The agent moves on, and once a teammate approves, the exact same command passes on retry (single use, 24 h).
+- **Nobody answers in time:** the gate is **parked** and approvers who haven't voted get a reminder (and one more an hour later). The agent moves on, and once a teammate approves, the exact same command passes on retry (single use, 24 h).
 
 Every other command runs untouched; the hook adds about 50 ms.
 
@@ -35,7 +35,7 @@ Every other command runs untouched; the hook adds about 50 ms.
 
 ## What leaves your machine
 
-Only for commands that match a preset: the command and working directory after **local redaction** (known token formats, `KEY=value` secrets, passwords in URLs, secret flags, and every value from your `.env*` files), your git branch, the last commit subject, and for migrations the newest migration's SQL (capped at 2 KB). The card shows how many values were hidden. The server redacts everything again.
+Only for commands that match a preset: the command and working directory after **local redaction** (known token formats, `KEY=value` secrets, passwords in URLs, secret flags, and every value from your `.env*` files), Claude Code's one-line description of the command (shown to approvers as the agent's reason), your git branch, the last commit subject, and for migrations the newest migration's SQL (capped at 2 KB). The card shows how many values were hidden. The server redacts everything again.
 
 ## Commands
 

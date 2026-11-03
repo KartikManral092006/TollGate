@@ -4,7 +4,11 @@ import type { NexconnClient } from "@/features/nexconn/server/client";
 import { sendSystemMessage } from "@/features/nexconn/server/api";
 import { SYSTEM_USER_ID } from "@/features/nexconn/shared/config";
 import { encodeContent } from "@/features/nexconn/shared/messages";
-import { gateWaitingNotice, parkedDecisionNotice } from "@/features/notify/shared/messages";
+import {
+  gateParkedNotice,
+  gateWaitingNotice,
+  parkedDecisionNotice,
+} from "@/features/notify/shared/messages";
 
 type Notice = { push: string; chat: string; subject: string; text: string; html: string };
 
@@ -12,8 +16,13 @@ export type NotifyDeps = {
   db: PrismaClient;
   // Null when Nexconn isn't configured: email still goes out.
   nexconn: NexconnClient | null;
-  // Sends one email; false when skipped (no provider, throttled, daily cap).
-  email: (to: { userId: string; address: string }, notice: Notice) => Promise<boolean>;
+  // Sends one email; false when skipped (no provider, throttled, daily cap). Reminders use
+  // their own throttle, so a gate's first email doesn't swallow the reminder 5 minutes later.
+  email: (
+    to: { userId: string; address: string },
+    notice: Notice,
+    options?: { kind?: "reminder" },
+  ) => Promise<boolean>;
   gateUrl: (teamId: string, gateId: string) => string;
 };
 
@@ -61,6 +70,7 @@ export async function notifyGateWaiting(deps: NotifyDeps, gateId: string) {
     requester: displayName(gate.requester.name, gate.requester.id),
     quorum: gate.quorum,
     url: deps.gateUrl(gate.teamId, gate.id),
+    intent: gate.intent,
   });
 
   const nexconnIds = voters.flatMap((v) => (v.user.nexconnUserId ? [v.user.nexconnUserId] : []));
@@ -93,5 +103,46 @@ export async function notifyParkedDecision(deps: NotifyDeps, gateId: string) {
   await Promise.allSettled([
     systemMessage(deps, gate.requester.nexconnUserId ? [gate.requester.nexconnUserId] : [], notice),
     deps.email({ userId: gate.requester.id, address: gate.requester.email }, notice),
+  ]);
+}
+
+// Nobody decided before the agent gave up: remind the voters who haven't voted yet. `late` is
+// the single follow-up an hour after parking.
+export async function notifyGateParked(deps: NotifyDeps, gateId: string, late = false) {
+  const gate = await deps.db.gate.findUnique({
+    where: { id: gateId },
+    include: {
+      repo: { select: { name: true } },
+      requester: { select: { id: true, name: true } },
+      votes: { select: { userId: true } },
+    },
+  });
+  if (!gate || gate.status !== "parked") return;
+
+  const voted = (gate.votes ?? []).map((vote) => vote.userId);
+  const voters = await deps.db.membership.findMany({
+    where: {
+      teamId: gate.teamId,
+      role: { in: [...VOTING_ROLES] },
+      userId: { notIn: [gate.requesterId, ...voted] },
+    },
+    select: { user: { select: { id: true, email: true, nexconnUserId: true } } },
+  });
+  const notice = gateParkedNotice({
+    code: gate.code,
+    repo: gate.repo.name,
+    command: gate.command,
+    requester: displayName(gate.requester.name, gate.requester.id),
+    url: deps.gateUrl(gate.teamId, gate.id),
+    intent: gate.intent,
+    late,
+  });
+
+  const nexconnIds = voters.flatMap((v) => (v.user.nexconnUserId ? [v.user.nexconnUserId] : []));
+  await Promise.allSettled([
+    systemMessage(deps, nexconnIds, notice),
+    ...voters.map((v) =>
+      deps.email({ userId: v.user.id, address: v.user.email }, notice, { kind: "reminder" }),
+    ),
   ]);
 }

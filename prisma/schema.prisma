@@ -227,6 +227,7 @@ model Gate {
   cwd         String // redacted
   branch      String?
   context     String        @db.VarChar(2048) // redacted, truncated
+  intent      String?       @db.VarChar(300) // the agent's own description of the command; redacted
   redactions  Int
   cmdHash     String // sha256(command + cwd + repo), from the hook; binds the grant
   quorum      Int
@@ -235,6 +236,7 @@ model Gate {
   decidedById String?
   denyReason  String?
   parkedAt    DateTime?
+  remindedAt  DateTime? // the one "still parked" reminder went out
   messageId   String? // Nexconn message for metadata updates
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

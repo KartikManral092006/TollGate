@@ -202,6 +202,15 @@ export function GateCard({
           </div>
         </div>
 
+        {gate.intent && (
+          <p className="rounded-lg border-s-4 border-signal bg-muted/50 px-3 py-2 text-sm">
+            <span className="block text-xs font-semibold text-muted-foreground">
+              The agent&apos;s reason, in its own words
+            </span>
+            &ldquo;{gate.intent}&rdquo;
+          </p>
+        )}
+
         {/* The command on the road, as the agent typed it. */}
         <CodeBlock size="sm" className="border-0 bg-asphalt text-white dark:bg-asphalt">
           <CodeBlockContent wrap className="pe-11! text-[13px] break-all">
