@@ -18,6 +18,8 @@ const PRESET_SUMMARY: Record<string, string> = {
   "destructive-fs":
     "Deletes files or folders outside this repository, which version control can't restore.",
   "tollgate-test": "A harmless test command that only prints text. It changes nothing.",
+  opaque:
+    "Runs code nobody can read beforehand: it is downloaded, decoded or put together from a variable at the moment it runs.",
 };
 
 const UNDO: Record<string, string> = {
@@ -29,6 +31,7 @@ const UNDO: Record<string, string> = {
   infra: "Deleted resources usually can't be recovered.",
   "destructive-fs": "Can't be undone unless there's a backup.",
   "tollgate-test": "Nothing to undo.",
+  opaque: "Depends entirely on what the code turns out to do. Ask where it comes from first.",
 };
 
 type Finding = { pattern: RegExp; warning: string };

@@ -37,6 +37,7 @@ function gate(
       "DATABASE_URL=postgres://deploy:[REDACTED]@db.staging:5432/billing npx prisma migrate deploy",
     context: `Newest migration 20261102_drop_legacy_total:\n${MIGRATION}`,
     intent: "Apply the pending migration so the minor-units change works on staging",
+    via: null,
     redactions: 1,
     quorum: 1,
     approvals: 0,

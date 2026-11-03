@@ -5,8 +5,9 @@ import {
   authoritativeQuorum,
   DEFAULT_PRESETS,
   detectEnv,
-  matchPreset,
+  matchCommand,
   presetListSchema,
+  withDefaultPresets,
   type Preset,
 } from "@/features/gates/shared/presets";
 import {
@@ -31,7 +32,7 @@ export function questionReason(question: string): string {
 
 export function repoPresets(raw: unknown): Preset[] {
   const parsed = presetListSchema.safeParse(raw);
-  return parsed.success ? parsed.data : DEFAULT_PRESETS;
+  return parsed.success ? withDefaultPresets(parsed.data) : DEFAULT_PRESETS;
 }
 
 type Ids = { newId: () => string; now?: () => Date };
@@ -48,11 +49,18 @@ export async function createGate(
   const cwd = redact(input.cwd);
   const context = redact(input.context);
   const intent = input.intent ? redact(input.intent) : null;
-  const serverMatch = matchPreset(repoPresets(principal.presets), {
+  const via = (input.via ?? []).map((line) => ({
+    from: redact(line.from),
+    runs: redact(line.runs),
+  }));
+  // The server can't read package.json, so it re-matches what the hook says a script runs,
+  // as well as the command itself (wrappers and inline scripts it expands on its own).
+  const serverMatch = matchCommand(repoPresets(principal.presets), {
     command: command.text,
     cwd: cwd.text,
     // The server never sees the real repo root; only pattern matching applies here.
     repoRoot: cwd.text,
+    extra: via.map((line) => ({ text: line.runs.text, via: [line.from.text] })),
   });
   const presetQuorum = authoritativeQuorum(serverMatch, input.quorum);
   const env = serverMatch?.env === "prod" ? "prod" : (input.env ?? serverMatch?.env ?? "other");
@@ -110,8 +118,17 @@ export async function createGate(
         branch: input.branch ? truncate(redact(input.branch).text, 200) : null,
         context: truncate(context.text, 2048),
         intent: intent ? truncate(intent.text, 300) : null,
+        via: via.length
+          ? truncate(via.map((line) => `${line.from.text} → ${line.runs.text}`).join("\n"), 1400)
+          : null,
+        sessionId: input.sessionId ? truncate(input.sessionId, 200) : null,
         redactions:
-          input.redactions + command.count + cwd.count + context.count + (intent?.count ?? 0),
+          input.redactions +
+          command.count +
+          cwd.count +
+          context.count +
+          (intent?.count ?? 0) +
+          via.reduce((sum, line) => sum + line.from.count + line.runs.count, 0),
         cmdHash: input.cmdHash,
         quorum: policy.quorum,
         followUpOfId: asked?.id ?? null,

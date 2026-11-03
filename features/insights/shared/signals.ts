@@ -76,6 +76,7 @@ export type SignalInput = {
   command: string;
   context: string;
   intent: string | null;
+  via?: string | null;
   branch: string | null;
   createdAt: string;
   requester: { id: string };
@@ -113,6 +114,16 @@ export function riskSignals(gate: SignalInput, history: HistoryGate[]): RiskSign
         text: "The agent calls this a dry run, but the command isn't one",
       });
     }
+  }
+
+  // The risky part was inside a package script or wrapper, not typed directly.
+  const from = gate.via?.split("\n")[0]?.split(" → ")[0];
+  if (from) {
+    add({
+      id: "hidden-in-script",
+      level: "medium",
+      text: `Runs inside ${from}, not typed directly`,
+    });
   }
 
   if (gate.env === "prod" && gate.branch && !MAIN_BRANCH.test(gate.branch)) {
