@@ -12,6 +12,8 @@ export type GateMetrics = {
   denied: number;
   // Closed with a question to the agent: not a decision, so not in the deny rate.
   asked: number;
+  // Approved on arrival by a team rule: counted as approved, kept out of decision times.
+  autoApproved: number;
   parked: number;
   expired: number;
   // Denied ÷ decided (approved + denied); null until something is decided.
@@ -37,9 +39,16 @@ export function gateMetrics(gates: GateView[]): GateMetrics {
   const approved = count("approved");
   const asked = gates.filter((g) => g.status === "denied" && g.question).length;
   const denied = count("denied") - asked;
+  const autoApproved = gates.filter((g) => g.rule?.action === "auto_approve").length;
 
   const decisionSecs = gates
-    .filter((g) => (g.status === "approved" || g.status === "denied") && !g.question && g.decidedAt)
+    .filter(
+      (g) =>
+        (g.status === "approved" || g.status === "denied") &&
+        !g.question &&
+        g.rule?.action !== "auto_approve" &&
+        g.decidedAt,
+    )
     .map((g) => (Date.parse(g.decidedAt!) - Date.parse(g.createdAt)) / 1000)
     .filter((sec) => sec >= 0);
 
@@ -60,6 +69,7 @@ export function gateMetrics(gates: GateView[]): GateMetrics {
     approved,
     denied,
     asked,
+    autoApproved,
     parked: count("parked"),
     expired: count("expired"),
     denyRate: ratio(denied, approved + denied),

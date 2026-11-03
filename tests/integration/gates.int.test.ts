@@ -19,6 +19,7 @@ import {
 } from "@/features/gates/server/hook-tokens";
 import { commandHash, type CreateGateInput } from "@/features/gates/shared/hook-api";
 import { DEFAULT_PRESETS } from "@/features/gates/shared/presets";
+import { acceptSuggestion, removeRule } from "@/features/insights/server/policy";
 import { acceptInvite, createInvite, createTeam } from "@/features/teams/server/teams";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { newAlnumId } from "@/lib/ids";
@@ -474,5 +475,60 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     });
     const stale = await createGate(db, principal, gateInput("vercel --prod # old ask"), { newId });
     expect(stale.followUpOfId).toBeNull();
+  });
+
+  it("applies a team rule to non-production gates only, and only rules it suggested", async () => {
+    // Nothing in history supports a rule yet, so the API path refuses it.
+    expect(
+      await acceptSuggestion(db, {
+        teamId,
+        repoId: principal.repoId,
+        key: "staging-deploy:staging:auto_approve",
+        userId: requester,
+        newId,
+      }),
+    ).toBeNull();
+
+    const rule = await db.policyRule.create({
+      data: {
+        id: newId(),
+        repoId: principal.repoId,
+        preset: "staging-deploy",
+        env: "staging",
+        action: "auto_approve",
+        createdById: requester,
+      },
+    });
+    const passed = await createGate(
+      db,
+      principal,
+      gateInput("fly deploy -a billing-staging", { preset: "staging-deploy" }),
+      { newId },
+    );
+    expect(passed).toMatchObject({ status: "approved", policyRuleId: rule.id });
+    expect(passed.decidedAt).not.toBeNull();
+
+    // The command names production: the rule never applies, whatever the preset says.
+    const prodish = await createGate(
+      db,
+      principal,
+      gateInput("fly deploy -a billing-staging --env production", { preset: "staging-deploy" }),
+      { newId },
+    );
+    expect(prodish).toMatchObject({ status: "pending", policyRuleId: null });
+
+    expect(await removeRule(db, { teamId, ruleId: rule.id })).toBe(true);
+    const after = await createGate(
+      db,
+      principal,
+      gateInput("fly deploy -a billing-staging # after", { preset: "staging-deploy" }),
+      { newId },
+    );
+    expect(after.status).toBe("pending");
+    // Gates the rule approved keep their status; the link is cleared with the rule.
+    expect(await db.gate.findUniqueOrThrow({ where: { id: passed.id } })).toMatchObject({
+      status: "approved",
+      policyRuleId: null,
+    });
   });
 });

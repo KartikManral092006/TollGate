@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { verifySession } from "@/features/auth/server/session";
 import { displayName } from "@/features/gates/shared/view";
+import { loadPolicyState } from "@/features/insights/server/policy";
 import { SettingsClient } from "@/features/settings/components/settings-client";
 import { TeamHeader } from "@/features/teams/components/team-header";
 import { loadSettings } from "@/features/teams/server/settings";
@@ -26,10 +27,11 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
   const membership = await getMembership(db, id, user.id);
   if (!membership) notFound();
 
-  const [members, settings, ai] = await Promise.all([
+  const [members, settings, ai, policy] = await Promise.all([
     listMembers(db, id),
     loadSettings(db, id, user.id),
     loadAiConfig(db, id),
+    loadPolicyState(db, id),
   ]);
   return (
     <div className="flex min-h-dvh flex-col">
@@ -45,6 +47,7 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
         repos={settings.repos}
         invites={settings.invites}
         ai={toAiConfigView(ai)}
+        policy={policy}
       />
     </div>
   );

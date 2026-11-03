@@ -46,6 +46,7 @@ function gate(
     question: null,
     followUp: null,
     answeredIn: null,
+    rule: null,
     decidedAt: null,
     parkedAt: null,
     grant: null,

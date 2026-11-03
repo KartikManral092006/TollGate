@@ -48,6 +48,13 @@ export type GateView = {
   followUp: { code: number; question: string; askedBy: string } | null;
   // The asked gate's answer arrived as this gate.
   answeredIn: number | null;
+  // A team rule changed this gate: one approval instead of more, or approved on arrival.
+  rule: {
+    action: "one_approval" | "auto_approve";
+    preset: string;
+    env: string;
+    by: string | null;
+  } | null;
   decidedAt: string | null;
   parkedAt: string | null;
   grant: { expiresAt: string; usedAt: string | null } | null;
@@ -83,6 +90,12 @@ export type GateRow = {
     votes: { userId: string; user: { name: string } }[];
   } | null;
   followUps?: { code: number }[];
+  policyRule?: {
+    action: "one_approval" | "auto_approve";
+    preset: string;
+    env: string;
+    createdBy: { name: string } | null;
+  } | null;
   decidedAt: DateLike | null;
   parkedAt: DateLike | null;
   createdAt: DateLike;
@@ -150,6 +163,14 @@ export function toGateView(row: GateRow): GateView {
     question: row.question ?? null,
     followUp: followUpView(row.followUpOf),
     answeredIn: row.followUps?.[0]?.code ?? null,
+    rule: row.policyRule
+      ? {
+          action: row.policyRule.action,
+          preset: row.policyRule.preset,
+          env: row.policyRule.env,
+          by: row.policyRule.createdBy?.name.trim() || null,
+        }
+      : null,
     decidedAt: isoOrNull(row.decidedAt),
     parkedAt: isoOrNull(row.parkedAt),
     grant: row.grant
