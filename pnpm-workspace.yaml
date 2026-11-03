@@ -1,0 +1,12 @@
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+  prisma: true
+  "@prisma/engines": true
+
+# @nexconn/call 26.2.1 declares chat/engine 26.2.0 as exact peers, while chat 26.2.1 needs
+# engine =26.2.1 and ChatUI needs ^26.2.1. Force one copy of each (spike T6, PLAN.md §6.1).
+# If the live call test fails, drop chatui and pin engine/chat to 26.2.0 instead.
+overrides:
+  "@nexconn/call>@nexconn/chat": 26.2.1
+  "@nexconn/call>@nexconn/engine": 26.2.1
