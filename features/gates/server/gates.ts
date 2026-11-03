@@ -278,7 +278,7 @@ export function listTeamGates(
   return db.gate.findMany({
     where: { teamId },
     orderBy: { createdAt: "desc" },
-    take: Math.min(options.take ?? 50, 100),
+    take: Math.min(options.take ?? 50, 500),
     ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
     include: {
       requester: { select: { id: true, name: true } },

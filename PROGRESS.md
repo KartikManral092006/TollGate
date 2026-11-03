@@ -74,6 +74,21 @@ Checked in headless Chrome at 375 px (light and dark) and 1280 px: no horizontal
 
 - Fixed: dev magic links weren't visible, because pino output from route handlers doesn't reach `next dev` under Turbopack. They're now also printed with `console.warn` (development only).
 
+## Settings and audit log (Nov 3)
+
+- **Settings** (`/teams/[id]/settings`):
+  - Link a repo: shows the full `npx tollgate-cli init --server … --token …` command once, with copy. Guard or Delegate; Delegate is owner only.
+  - Linked repos, with active tokens shown by prefix only, who created each, last used, and revoke with a confirmation.
+  - Invite links for teammates (approvers) or clients (guests), with a revoke option (`DELETE /api/teams/:id/invites/:inviteId`).
+  - Members with their roles.
+- **Audit log** (`/teams/[id]/audit`):
+  - Metrics from PLAN.md §12: gates, median decision time, deny rate, rubber-stamp rate (approval within 3 s). They're computed in `features/gates/shared/metrics.ts`.
+  - Status filters and search.
+  - CSV export: RFC 4180, with spreadsheet formula injection neutralised.
+  - A table on desktop and stacked rows on phones. Each row links back to the card in the room.
+
+Checked in headless Chrome at 375 px (light and dark) and 1280 px: no horizontal overflow and no page errors.
+
 ## Decisions
 
 - **One deny vetoes.** Anyone who knows why it's dangerous can stop it; approvals need quorum.
@@ -87,7 +102,7 @@ Checked in headless Chrome at 375 px (light and dark) and 1280 px: no horizontal
 ## Next
 
 1. Nov 4: Kartik creates the Tollgate Nexconn app and fills `.env`; run T1, T2, T6 live, T7; deploy the skeleton on HTTPS; new GitHub repo.
-2. Settings (link a repo and show the `init` command; invites; tokens) and the audit log.
+2. Call UI: Ring and Huddle buttons, the incoming-call sheet and the huddle bar. The server permits are ready.
 3. T0 (c), for Kartik: in a scratch repo linked with `init`, run `claude --dangerously-skip-permissions` and ask it to run `npm publish`. Check that the gate still appears and a deny still blocks.
 4. Call UI: huddle bar, Ring button, incoming-call sheet; permits are ready server-side.
 
