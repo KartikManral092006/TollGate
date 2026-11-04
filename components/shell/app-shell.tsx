@@ -16,6 +16,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LogoMark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandMenu } from "@/components/shell/command-menu";
 import { ActivityBell } from "@/features/activity/components/activity-bell";
@@ -109,10 +110,7 @@ function SidebarBody({
           href="/home"
           className="flex items-center gap-2 rounded-md text-base font-extrabold tracking-tight text-white outline-none focus-visible:ring-2 focus-visible:ring-signal"
         >
-          <span
-            aria-hidden
-            className="h-2.5 w-8 rounded-full bg-[repeating-linear-gradient(-45deg,#c8102e_0_5px,#ffffff_5px_10px)]"
-          />
+          <LogoMark className="size-6" />
           Tollgate
         </Link>
         <ActivityBell className="ms-auto text-white/70 hover:bg-white/10 hover:text-white dark:hover:bg-white/10" />
