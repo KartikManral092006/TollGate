@@ -1,17 +1,18 @@
 "use client";
 
 import { ArrowRight, Check, History, PauseCircle, TriangleAlert } from "lucide-react";
-import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useInView } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { NumberTicker } from "@/components/motion/number-ticker";
 import { cn } from "@/lib/utils";
+import { usePrefersReducedMotion } from "@/features/landing/motion/use-prefers-reduced";
 
 // Small looping demos of each feature, for the landing page's scroll story.
 
 // A clock for one demo's loop, ticking only while the tile is on screen. Reduced motion
 // freezes it at `still`, the frame that tells the story.
 function useLoop(ref: React.RefObject<HTMLElement | null>, period: number, still: number) {
-  const reduced = useReducedMotion() ?? false;
+  const reduced = usePrefersReducedMotion();
   const inView = useInView(ref, { margin: "-10%" });
   const [t, setT] = useState(still);
   useEffect(() => {
