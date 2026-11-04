@@ -4,6 +4,7 @@ export const TG = {
   Gate: "TG:Gate",
   Huddle: "TG:Huddle",
   Recap: "TG:Recap",
+  Agent: "TG:Agent",
 } as const;
 
 export type TgMessageType = (typeof TG)[keyof typeof TG];
@@ -42,6 +43,31 @@ export const huddleCardSchema = z.object({
 });
 
 export type HuddleCardPayload = z.infer<typeof huddleCardSchema>;
+
+// One Claude Code session that raised gates: the bot posts it on the session's first gate and
+// keeps its counts in metadata. `sessionKey` is our row id, never Claude's own session id.
+export const agentCardSchema = z.object({
+  sessionKey: z.string().min(1),
+  repo: z.string().min(1).max(200),
+  requester: z.string().min(1).max(64),
+  requesterId: z.string().min(1),
+  startedAt: z.number().int().positive(),
+});
+
+export type AgentCardPayload = z.infer<typeof agentCardSchema>;
+
+export type AgentTally = { raised: number; waiting: number; approved: number; denied: number };
+
+export function agentMetadata(input: AgentTally & { lastSeenAt: Date; lastCode: number | null }) {
+  return toMetadata({
+    n: input.raised,
+    w: input.waiting,
+    a: input.approved,
+    d: input.denied,
+    ls: input.lastSeenAt.getTime(),
+    ...(input.lastCode === null ? {} : { last: input.lastCode }),
+  });
+}
 
 export function isValidCustomType(messageType: string): boolean {
   return (

@@ -29,6 +29,7 @@ import { useAlerts } from "@/features/notify/client/use-alerts";
 import { SetupGuide } from "@/features/onboarding/components/setup-guide";
 import type { SetupState } from "@/features/onboarding/shared/steps";
 import { ChatLineView } from "@/features/room/components/chat-line";
+import { SessionStrip } from "@/features/room/components/session-strip";
 import { Composer } from "@/features/room/components/composer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
@@ -46,7 +47,21 @@ import { GateInvite } from "@/features/teams/components/gate-invite";
 type ThreadItem = (
   | { kind: "gate"; key: string; at: number; gate: GateView }
   | { kind: "line"; key: string; at: number; line: ChatLine }
+  | { kind: "session"; key: string; at: number; gates: GateView[] }
 ) & { day: string | null };
+
+// Gates grouped by the agent session that raised them, oldest first, for sessions with two or
+// more gates. (A loop rather than Map.groupBy: older iPhones in approvers' hands lack it.)
+function sessionRuns(gates: GateView[]): GateView[][] {
+  const runs = new Map<string, GateView[]>();
+  for (const gate of gates) {
+    if (!gate.session) continue;
+    runs.set(gate.session, [...(runs.get(gate.session) ?? []), gate]);
+  }
+  return [...runs.values()]
+    .filter((run) => run.length > 1)
+    .map((run) => [...run].sort((a, b) => a.code - b.code));
+}
 
 export function RoomClient({
   team,
@@ -161,6 +176,13 @@ export function RoomClient({
           at: line.sentTime,
           line,
         })),
+        // An agent session that raised two or more gates gets a strip just above its first.
+        ...sessionRuns(gates).map((run) => ({
+          kind: "session" as const,
+          key: `s-${run[0]!.session}`,
+          at: Date.parse(run[0]!.createdAt) - 1,
+          gates: run,
+        })),
       ]
         .sort((a, b) => a.at - b.at)
         // A day separator before the first item of each day.
@@ -255,7 +277,13 @@ export function RoomClient({
                             </Marker>
                           )}
                           <MessageScrollerItem>
-                            {item.kind === "gate" ? (
+                            {item.kind === "session" ? (
+                              <SessionStrip
+                                gates={item.gates}
+                                mine={item.gates[0]!.requester.id === viewer.id}
+                                onJump={jumpTo}
+                              />
+                            ) : item.kind === "gate" ? (
                               <GateCard
                                 gate={item.gate}
                                 viewer={viewer}

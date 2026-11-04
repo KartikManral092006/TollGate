@@ -42,6 +42,8 @@ export type GateView = {
   quorum: number;
   approvals: number;
   requester: { id: string; name: string };
+  // The Claude Code session that raised it, for grouping a run's gates in the room.
+  session?: string | null;
   votes: GateVoteView[];
   denyReason: string | null;
   // An approver asked instead of deciding; the gate closed and the agent got the question.
@@ -102,6 +104,7 @@ export type GateRow = {
     createdBy: { name: string } | null;
   } | null;
   decidedAt: DateLike | null;
+  sessionId?: string | null;
   parksAt?: DateLike | null;
   parkedAt: DateLike | null;
   createdAt: DateLike;
@@ -159,6 +162,7 @@ export function toGateView(row: GateRow): GateView {
     quorum: row.quorum,
     approvals: row.votes.filter((vote) => vote.decision === "approve").length,
     requester: { id: row.requester.id, name: displayName(row.requester.name, row.requester.id) },
+    session: row.sessionId ?? null,
     votes: row.votes.map((vote) => ({
       userId: vote.userId,
       name: displayName(vote.user.name, vote.userId),
