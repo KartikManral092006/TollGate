@@ -280,8 +280,15 @@ export function SetupGuide({
                 .
               </p>
             )}
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               <Loader2 className="size-3 animate-spin" aria-hidden /> Waiting for your computer…
+              <a
+                href="/docs/troubleshooting"
+                target="_blank"
+                className="ms-auto font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                Stuck? Troubleshooting
+              </a>
             </p>
           </div>
         );

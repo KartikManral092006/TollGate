@@ -6,14 +6,13 @@ import {
   Unplug,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { BorderBeam } from "@/components/fx/border-beam";
 import { Marquee } from "@/components/fx/marquee";
 import { ShimmerLink } from "@/components/fx/shimmer-button";
-import { Logo } from "@/components/logo";
 import { FeatureStory } from "@/features/landing/components/feature-story";
 import { LandingFooter } from "@/features/landing/components/footer";
 import { Hero } from "@/features/landing/components/hero";
+import { SiteHeader } from "@/features/landing/components/site-header";
 import { Rise } from "@/features/landing/components/landing-motion";
 import { Pipeline } from "@/features/landing/components/pipeline";
 import {
@@ -100,35 +99,7 @@ export default function LandingPage() {
     <div className="dark flex min-h-full flex-col bg-[#0b0f12] text-white">
       <SmoothScroll />
       <ScrollProgress />
-      {/* Solid, not frosted: a blur over the moving hero would be recomputed every frame. */}
-      <header className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-[#0b0f12]/90">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
-          <Logo className="text-white" />
-          <nav className="ms-auto flex items-center gap-1 text-sm">
-            <a
-              href="#how"
-              className="hidden rounded-md px-3 py-2 text-white/70 hover:text-white sm:block"
-            >
-              How it works
-            </a>
-            <a
-              href="#features"
-              className="hidden rounded-md px-3 py-2 text-white/70 hover:text-white sm:block"
-            >
-              Features
-            </a>
-            <a href="#demo" className="rounded-md px-3 py-2 text-white/70 hover:text-white">
-              Try it
-            </a>
-            <Link
-              href="/sign-in"
-              className="ms-1 rounded-lg bg-white px-3.5 py-2 font-semibold text-[#101417] transition-colors hover:bg-white/90"
-            >
-              Sign in
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1">
         <Hero />
