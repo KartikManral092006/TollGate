@@ -17,6 +17,10 @@ type HookEntry = {
 type Matcher = { matcher?: string; hooks?: HookEntry[] };
 type Settings = { hooks?: Record<string, Matcher[] | undefined> } & Record<string, unknown>;
 
+// Commands, file edits and MCP tools. The hook itself decides what's risky; other calls cost
+// one quick local check and pass.
+export const HOOK_MATCHER = "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*";
+
 export function isTollgateHook(command: string): boolean {
   return /tollgate/.test(command) && /\bhook\b/.test(command);
 }
@@ -37,7 +41,7 @@ export function mergeHookSettings(
   hooks.PreToolUse = [
     ...kept,
     {
-      matcher: "Bash",
+      matcher: HOOK_MATCHER,
       hooks: [
         {
           type: "command",

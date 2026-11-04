@@ -6,6 +6,7 @@ import {
   matchPreset,
   presetListSchema,
   rmTargetsOutsideRepo,
+  withDefaultPresets,
 } from "@/features/gates/shared/presets";
 
 const repo = { cwd: "/work/acme", repoRoot: "/work/acme" };
@@ -123,5 +124,71 @@ describe("custom presets", () => {
   it("skips a broken regex instead of throwing", () => {
     const presets = [{ name: "bad", patterns: ["(unclosed"], quorum: 1 }];
     expect(matchPreset(presets, { command: "anything", ...repo })).toBeNull();
+  });
+});
+
+describe("file edit and MCP presets", () => {
+  const edit = (subject: string) =>
+    matchPreset(DEFAULT_PRESETS, { command: subject, ...repo, tool: "edit" });
+  const mcp = (subject: string) =>
+    matchPreset(DEFAULT_PRESETS, { command: subject, ...repo, tool: "mcp" });
+
+  it.each([
+    ["edit .github/workflows/deploy.yml", "ci-config", "other", 1],
+    ["write .github/workflows/release-prod.yml", "ci-config", "prod", 2],
+    ["edit vercel.json", "ci-config", "other", 1],
+    ["edit apps/web/fly.toml", "ci-config", "other", 1],
+    ["write .env", "env-file", "other", 1],
+    ["edit .env.production", "env-file", "prod", 1],
+    ["edit apps/api/.env.staging", "env-file", "staging", 1],
+    ["edit .claude/settings.local.json", "guard-config", "other", 1],
+    ["edit ~/.claude/settings.json", "guard-config", "other", 1],
+    ["write .tollgate.json", "guard-config", "other", 1],
+    ["edit ~/.config/tollgate/tokens.json", "guard-config", "other", 1],
+  ])("gates %s as %s (%s, quorum %i)", (subject, preset, env, quorum) => {
+    expect(edit(subject)).toMatchObject({ preset: { name: preset }, env, quorum });
+  });
+
+  it.each([
+    "edit src/app.ts",
+    "write .env.example",
+    "edit docs/env-setup.md",
+    "edit prisma/schema.prisma",
+    "write tests/.github/workflows-notes.md",
+  ])("lets ordinary edits through: %s", (subject) => {
+    expect(edit(subject)).toBeNull();
+  });
+
+  it.each([
+    ["mcp__github__merge_pull_request", "other", 1],
+    ['mcp__supabase__execute_sql {"project":"prod","query":"DELETE FROM users"}', "prod", 2],
+    ['mcp__stripe__create_refund {"charge":"ch_1"}', "other", 1],
+    ["mcp__vercel__deploy_to_production", "prod", 2],
+    ["mcp__linear__delete_issue", "other", 1],
+  ])("gates the MCP call %s", (subject, env, quorum) => {
+    expect(mcp(subject)).toMatchObject({ preset: { name: "mcp-risky" }, env, quorum });
+  });
+
+  it.each([
+    "mcp__github__list_pull_requests",
+    "mcp__github__get_merged_status",
+    'mcp__linear__create_issue {"title":"delete old flags"}',
+    "mcp__context7__resolve_library_id",
+  ])("lets read-only and harmless MCP calls through: %s", (subject) => {
+    expect(mcp(subject)).toBeNull();
+  });
+
+  it("never matches across kinds", () => {
+    // A command that mentions a protected file is not an edit of it, and the other way round.
+    expect(match("cat .env.production")).toBeNull();
+    expect(edit("edit scripts/fly deploy")).toBeNull();
+    expect(match("mcp__github__merge_pull_request")).toBeNull();
+  });
+
+  it("keeps a built-in preset on its own kind, whatever a local file says", () => {
+    const local = [{ name: "prod-deploy", tool: "edit" as const, patterns: ["x"], quorum: 1 }];
+    expect(
+      matchPreset(withDefaultPresets(local), { command: "vercel --prod", ...repo }),
+    ).toMatchObject({ preset: { name: "prod-deploy" } });
   });
 });

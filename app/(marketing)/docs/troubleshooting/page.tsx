@@ -51,8 +51,12 @@ Token tg_7Hq2Kd… OK: team "Billing", guard mode`}</Output>
           started before <C>init</C> doesn&apos;t have it.
         </li>
         <li>
-          Check that <C>.claude/settings.json</C> in the repo has a <C>PreToolUse</C> entry for{" "}
-          <C>Bash</C> that runs <C>tollgate hook</C>. If not, run <C>init</C> again.
+          Check that <C>.claude/settings.local.json</C> in the repo has a <C>PreToolUse</C> entry
+          that runs <C>tollgate hook</C>. If not, run <C>init</C> again.
+        </li>
+        <li>
+          File edits and MCP tools aren&apos;t gated? Their hook needs CLI 0.2.4 or newer: run{" "}
+          <C>npx tollgate-cli@latest init</C> again, then restart Claude Code.
         </li>
         <li>
           The command may not match a preset (see{" "}

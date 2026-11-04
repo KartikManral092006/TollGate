@@ -6,7 +6,22 @@ import { expandCommand, type ScriptReader, type Segment } from "./expand";
 
 export type GateEnv = "prod" | "staging" | "other";
 
+// What a gate stops: a Bash command, a file edit (Edit, Write, MultiEdit, NotebookEdit), or an
+// MCP tool call. A preset only ever matches its own kind, so a file pattern can't catch a
+// command that happens to mention the same path.
+export const GATE_TOOLS = ["bash", "edit", "mcp"] as const;
+export type GateTool = (typeof GATE_TOOLS)[number];
+
+// How messages to agents and approvers name each kind.
+export const TOOL_NOUN: Record<GateTool, string> = {
+  bash: "command",
+  edit: "edit",
+  mcp: "tool call",
+};
+
 export const presetSchema = z.object({
+  // Defaults to "bash", so presets written before file and MCP gates keep their meaning.
+  tool: z.enum(GATE_TOOLS).optional(),
   name: z
     .string()
     .regex(/^[a-z0-9][a-z0-9-]{0,39}$/)
@@ -119,6 +134,52 @@ export const DEFAULT_PRESETS: Preset[] = [
     quorum: 1,
     outsideRepoOnly: true,
   },
+  // File edits are matched as "edit <path>" or "write <path>", the path relative to the repo
+  // (or ~/… outside it).
+  {
+    // An agent that may not run a command could otherwise switch the guard off: the hook's
+    // registration, the repo's presets, or this machine's Tollgate token.
+    name: "guard-config",
+    tool: "edit",
+    patterns: [
+      "(^|[\\s/])\\.claude/settings(\\.local)?\\.json$",
+      "(^|[\\s/])\\.tollgate\\.json$",
+      "(^|[\\s/])\\.config/tollgate/",
+    ],
+    env: "other",
+    quorum: 1,
+  },
+  {
+    // Where a deploy is defined: a change here ships with the next push, gate or not.
+    name: "ci-config",
+    tool: "edit",
+    patterns: [
+      "(^|[\\s/])\\.github/workflows/",
+      "(^|[\\s/])\\.gitlab-ci\\.ya?ml$",
+      "(^|[\\s/])(vercel|netlify)\\.(json|toml)$",
+      "(^|[\\s/])(fly|railway)\\.(json|toml)$",
+    ],
+    quorum: 1,
+    prodQuorum: 2,
+  },
+  {
+    name: "env-file",
+    tool: "edit",
+    patterns: ["(^|[\\s/])\\.env(\\.[^/\\s]+)?$"],
+    unless: ["\\.env\\.(example|sample|template|defaults)$"],
+    quorum: 1,
+  },
+  {
+    // MCP calls are matched as "mcp__server__tool {json args}". Tool names that move money,
+    // ship, merge or destroy, whichever server they come from.
+    name: "mcp-risky",
+    tool: "mcp",
+    patterns: [
+      "^mcp__\\S+?__(\\S*_)?(delete|drop|destroy|deploy|publish|merge|refund|charge|payout|transfer|execute_sql|apply_migration)(_\\S*)?(\\s|$)",
+    ],
+    quorum: 1,
+    prodQuorum: 2,
+  },
 ];
 
 const PROD_RE = /(^|[\s=:/_-])(prod|production)($|[\s.:/_-])|--prod\b/i;
@@ -177,18 +238,28 @@ export function rmTargetsOutsideRepo(command: string, cwd: string, repoRoot: str
 
 export type PresetMatch = { preset: Preset; env: GateEnv; quorum: number };
 
+// File names use dots where commands use dashes (".env.production", "deploy.prod.yml"), and
+// MCP arguments are JSON ({"environment":"production"}).
+function envOf(tool: GateTool, text: string): GateEnv {
+  if (tool === "edit") return detectEnv(text.replace(/\./g, "/"));
+  if (tool === "mcp") return detectEnv(text.replace(/["{},]/g, " "));
+  return detectEnv(text);
+}
+
 export function matchPreset(
   presets: Preset[],
-  input: { command: string; cwd: string; repoRoot: string },
+  input: { command: string; cwd: string; repoRoot: string; tool?: GateTool },
 ): PresetMatch | null {
+  const tool = input.tool ?? "bash";
   for (const preset of presets) {
+    if ((preset.tool ?? "bash") !== tool) continue;
     const hit = preset.patterns.some((source) => compile(source)?.test(input.command) ?? false);
     if (!hit) continue;
     if (preset.unless?.some((source) => compile(source)?.test(input.command) ?? false)) continue;
     if (preset.outsideRepoOnly && !rmTargetsOutsideRepo(input.command, input.cwd, input.repoRoot)) {
       continue;
     }
-    const env = preset.env ?? detectEnv(input.command);
+    const env = preset.env ?? envOf(tool, input.command);
     const quorum = env === "prod" ? Math.max(preset.quorum, preset.prodQuorum ?? 0) : preset.quorum;
     return { preset, env, quorum };
   }
@@ -202,8 +273,13 @@ export function withDefaultPresets(presets: Preset[]): Preset[] {
   const names = new Set(presets.map((preset) => preset.name));
   const merged = presets.map((preset) => {
     const builtIn = defaults.get(preset.name);
+    // The built-in kind wins too: a local file can't move prod-deploy off Bash commands.
     return builtIn
-      ? { ...preset, patterns: [...new Set([...preset.patterns, ...builtIn.patterns])] }
+      ? {
+          ...preset,
+          tool: builtIn.tool,
+          patterns: [...new Set([...preset.patterns, ...builtIn.patterns])],
+        }
       : preset;
   });
   return [...merged, ...DEFAULT_PRESETS.filter((preset) => !names.has(preset.name))];
@@ -227,21 +303,28 @@ export function matchCommand(
     command: string;
     cwd: string;
     repoRoot: string;
+    tool?: GateTool;
     readScripts?: ScriptReader;
     extra?: Segment[];
   },
 ): CommandMatch | null {
-  const pieces: Segment[] = [
-    { text: input.command, via: [] },
-    ...expandCommand(input.command, { cwd: input.cwd, readScripts: input.readScripts }),
-    ...(input.extra ?? []),
-  ];
+  const tool = input.tool ?? "bash";
+  // Only shell commands have pieces, wrappers and package scripts to see through.
+  const pieces: Segment[] =
+    tool === "bash"
+      ? [
+          { text: input.command, via: [] },
+          ...expandCommand(input.command, { cwd: input.cwd, readScripts: input.readScripts }),
+          ...(input.extra ?? []),
+        ]
+      : [{ text: input.command, via: [] }];
   let best: CommandMatch | null = null;
   for (const piece of pieces) {
     const match = matchPreset(presets, {
       command: piece.text,
       cwd: input.cwd,
       repoRoot: input.repoRoot,
+      tool,
     });
     if (!match) continue;
     const better =

@@ -80,4 +80,27 @@ describe("builtinExplanation", () => {
     });
     expect(text).not.toContain("APPROVE");
   });
+
+  it("explains file edits and MCP calls without reading shell flags into them", () => {
+    const edit = builtinExplanation({
+      ...base,
+      tool: "edit",
+      preset: "guard-config",
+      env: "other",
+      command: "edit .claude/settings.local.json",
+      context: '- "force": true\n+ "force": false',
+    });
+    expect(edit).toContain("could switch the gate off");
+    expect(edit).not.toContain("forces the operation");
+
+    const mcp = builtinExplanation({
+      ...base,
+      tool: "mcp",
+      preset: "custom-mcp",
+      env: "other",
+      command: 'mcp__x__run {"args":"-f"}',
+    });
+    expect(mcp).toContain("stopped this tool call");
+    expect(mcp).not.toContain("forces the operation");
+  });
 });

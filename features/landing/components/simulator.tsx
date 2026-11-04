@@ -29,6 +29,7 @@ function gate(
     code,
     status: "pending",
     preset: "db-migrate",
+    tool: "bash",
     env: "staging",
     repo: "acme/billing",
     mode: "guard",

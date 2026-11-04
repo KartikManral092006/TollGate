@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { GATE_TOOLS } from "./presets";
 
 // The contract between the CLI hook and /api/hook/*. Shared so both sides parse the same way.
 
@@ -17,6 +18,8 @@ export function commandHash(input: { repo: string; cwd: string; command: string 
 export const createGateSchema = z
   .object({
     preset: z.string().min(1).max(40),
+    // CLI 0.2.4+: what was stopped. Older hooks only send Bash commands.
+    tool: z.enum(GATE_TOOLS).default("bash"),
     quorum: z.number().int().min(1).max(9).optional(),
     env: z.enum(["prod", "staging", "other"]).optional(),
     command: z.string().min(1).max(4000), // redacted by the hook

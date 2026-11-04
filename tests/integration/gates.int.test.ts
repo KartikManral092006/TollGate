@@ -74,6 +74,7 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
   function gateInput(command: string, extra: Partial<CreateGateInput> = {}): CreateGateInput {
     return {
       preset: "db-migrate",
+      tool: "bash",
       command,
       cwd: "/work/acme",
       branch: "main",
@@ -134,6 +135,34 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     expect(gate.preset).toBe("prod-deploy");
     expect(gate.env).toBe("prod");
     expect(gate.quorum).toBe(2);
+  });
+
+  it("stores what kind of call a gate stops, and matches it with the server's own presets", async () => {
+    const workflow = await createGate(
+      db,
+      principal,
+      gateInput("write .github/workflows/release-prod.yml", {
+        tool: "edit",
+        preset: "made-up",
+        quorum: 1,
+      }),
+      { newId },
+    );
+    expect(workflow).toMatchObject({ tool: "edit", preset: "ci-config", env: "prod", quorum: 2 });
+
+    // Claimed as an edit, a command matches no file preset: the client's own rule stands.
+    const claimed = await createGate(
+      db,
+      principal,
+      gateInput("edit notes.md", { tool: "edit", preset: "custom", quorum: 1 }),
+      { newId },
+    );
+    expect(claimed).toMatchObject({ tool: "edit", preset: "custom", quorum: 1 });
+
+    const older = await createGate(db, principal, gateInput("npx prisma migrate deploy # old"), {
+      newId,
+    });
+    expect(older.tool).toBe("bash");
   });
 
   it("reaches quorum exactly once under 10 concurrent approvals", async () => {

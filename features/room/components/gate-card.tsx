@@ -5,12 +5,14 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  FilePen,
   GitBranch,
   ListChecks,
   Loader2,
   MessageCircleQuestion,
   MessageSquareReply,
   NotebookPen,
+  Plug,
   ShieldCheck,
   Sparkles,
   ThumbsDown,
@@ -34,6 +36,7 @@ import {
   type GateDisplayStatus,
   type GateView,
 } from "@/features/gates/shared/view";
+import { TOOL_NOUN } from "@/features/gates/shared/presets";
 import { joinNames, PrecedentNote } from "@/features/insights/components/precedent-note";
 import { RiskSignals } from "@/features/insights/components/risk-signals";
 import { SuggestedApprovers } from "@/features/insights/components/suggested-approvers";
@@ -151,6 +154,31 @@ function Note({
 // One gate in the room's thread. Not a card: the requester's avatar on the left with a line in
 // the gate's colour running down beside everything about it, divided from the next entry by a
 // hairline, like the rest of the app.
+const WANTS: Record<GateView["tool"], string> = {
+  bash: "wants to run",
+  edit: "wants to change a file:",
+  mcp: "wants to call a tool:",
+};
+
+// What the agent wants, at a glance: ❯ for a command, a pen for a file edit, a plug for an MCP
+// tool. Screen readers get the words.
+function ToolGlyph({ tool }: { tool: GateView["tool"] }) {
+  if (tool === "bash") {
+    return (
+      <span aria-hidden className="text-white/45 select-none">
+        ❯{" "}
+      </span>
+    );
+  }
+  const Icon = tool === "edit" ? FilePen : Plug;
+  return (
+    <>
+      <Icon aria-hidden className="me-1.5 inline size-3.5 -translate-y-px text-white/55" />
+      <span className="sr-only">{tool === "edit" ? "File edit: " : "MCP tool call: "}</span>
+    </>
+  );
+}
+
 export function GateCard({
   gate,
   viewer,
@@ -197,7 +225,8 @@ export function GateCard({
   onRing?: (gate: GateView, userId: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [showContext, setShowContext] = useState(contextOpen);
+  // An edit's change is the thing being decided on, so it starts open.
+  const [showContext, setShowContext] = useState(contextOpen || gate.tool === "edit");
   const [why, setWhy] = useState<{
     state: "loading" | "done" | "error";
     result?: WhyResult;
@@ -223,7 +252,8 @@ export function GateCard({
   const mine = gate.requester.id === viewer.id;
   const voted = gate.votes.some((vote) => vote.userId === viewer.id);
   const canAct = open && viewer.canVote && !mine && !voted;
-  const canAsk = canAct && onAsk !== undefined && gate.status === "pending";
+  // Only a Bash call carries a description, so only a command's agent can answer a question.
+  const canAsk = canAct && onAsk !== undefined && gate.status === "pending" && gate.tool === "bash";
   const denial = gate.votes.find((vote) => vote.decision === "deny");
   const outcome = outcomeLine(gate);
   const holdToApprove = needsHold(gate);
@@ -271,7 +301,7 @@ export function GateCard({
               <span className="font-semibold">
                 {mine ? "Your agent" : `${gate.requester.name}'s agent`}
               </span>{" "}
-              <span className="text-muted-foreground">wants to run</span>{" "}
+              <span className="text-muted-foreground">{WANTS[gate.tool]}</span>{" "}
               <span className="font-mono font-bold">TG-{gate.code}</span>
             </p>
             <AnimatePresence mode="popLayout" initial={false}>
@@ -388,16 +418,16 @@ export function GateCard({
         )}
 
         {open && gate.insights && <RiskSignals signals={gate.insights.signals} />}
-        {open && gate.insights?.precedent && <PrecedentNote precedent={gate.insights.precedent} />}
+        {open && gate.insights?.precedent && (
+          <PrecedentNote precedent={gate.insights.precedent} noun={TOOL_NOUN[gate.tool]} />
+        )}
 
-        {/* The command on the road, as the agent typed it. */}
+        {/* The command on the road, as the agent typed it, or the file or MCP tool it wants. */}
         <CodeBlock size="sm" className="border-0 bg-asphalt text-white dark:bg-asphalt">
           <CodeBlockContent wrap className="pe-11! text-[13px] break-all">
             {/* One span: the code element is a grid, so siblings would stack. */}
             <span>
-              <span aria-hidden className="text-white/45 select-none">
-                ❯{" "}
-              </span>
+              <ToolGlyph tool={gate.tool} />
               {gate.command}
             </span>
           </CodeBlockContent>
@@ -448,7 +478,7 @@ export function GateCard({
               aria-expanded={showContext}
               className="inline-flex items-center gap-1 rounded-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
-              Context
+              {gate.tool === "edit" ? "The change" : "Context"}
               <ChevronDown
                 className={cn("size-3.5 transition-transform", showContext && "rotate-180")}
                 aria-hidden
@@ -495,7 +525,7 @@ export function GateCard({
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <ContextView text={gate.context} />
+              <ContextView text={gate.context} diff={gate.tool === "edit"} />
             </motion.div>
           )}
         </AnimatePresence>

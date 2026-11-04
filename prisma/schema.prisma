@@ -239,8 +239,9 @@ model Gate {
   repoId       String
   requesterId  String
   preset       String
+  tool         String        @default("bash") // bash | edit | mcp: a command, a file edit or an MCP call
   env          String // prod | staging | other
-  command      String // redacted
+  command      String // redacted: the command, "edit <path>" or "mcp__server__tool {args}"
   cwd          String // redacted
   branch       String?
   context      String        @db.VarChar(2048) // redacted, truncated

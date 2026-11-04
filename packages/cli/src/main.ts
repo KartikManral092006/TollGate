@@ -1,4 +1,5 @@
 import { appendFileSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { DEFAULT_PRESETS } from "../../../features/gates/shared/presets";
@@ -48,6 +49,7 @@ function hookDeps(): HookDeps {
     context: buildContext,
     readScripts,
     env: process.env,
+    home: homedir(),
     now: () => Date.now(),
     sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
     audit: (event, detail) => {

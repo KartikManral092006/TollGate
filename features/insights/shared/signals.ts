@@ -1,3 +1,4 @@
+import { TOOL_NOUN, type GateTool } from "@/features/gates/shared/presets";
 import { commandShape } from "./precedent";
 import type { HistoryGate, RiskSignal } from "./types";
 
@@ -72,6 +73,7 @@ export type SignalInput = {
   id: string;
   repo: string;
   preset: string;
+  tool?: GateTool;
   env: string;
   command: string;
   context: string;
@@ -135,6 +137,7 @@ export function riskSignals(gate: SignalInput, history: HistoryGate[]): RiskSign
   }
 
   const shape = commandShape(gate.command);
+  const noun = TOOL_NOUN[gate.tool ?? "bash"];
   const created = Date.parse(gate.createdAt);
   const earlier = history.filter((h) => Date.parse(h.createdAt) < created && h.id !== gate.id);
 
@@ -152,8 +155,8 @@ export function riskSignals(gate: SignalInput, history: HistoryGate[]): RiskSign
       level: "high",
       text:
         deniedRetries === 1
-          ? "Same command was denied in the last hour"
-          : `Same command was denied ${deniedRetries} times in the last hour`,
+          ? `Same ${noun} was denied in the last hour`
+          : `Same ${noun} was denied ${deniedRetries} times in the last hour`,
     });
   }
 
@@ -165,7 +168,7 @@ export function riskSignals(gate: SignalInput, history: HistoryGate[]): RiskSign
     add({
       id: "first-time",
       level: "medium",
-      text: `First time this command has come through ${gate.repo}`,
+      text: `First time this ${noun} has come through ${gate.repo}`,
     });
   }
 

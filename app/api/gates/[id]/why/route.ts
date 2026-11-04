@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { json } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
+import { toolOf } from "@/features/gates/shared/view";
 
 const CACHE_SECONDS = 7 * 86_400;
 
@@ -38,6 +39,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
     preset: gate.preset,
     env: gate.env,
     repo: gate.repo.name,
+    tool: toolOf(gate.tool),
   };
   const builtin = (fallback: boolean): WhyResult => ({
     text: builtinExplanation(input),

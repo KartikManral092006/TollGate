@@ -9,8 +9,9 @@ import { median } from "@/features/gates/shared/metrics";
 export const WINDOW_DAYS = 30;
 export const MIN_DECISIONS = 10;
 const FAST_MS = 3000;
-// Mistakes here can't be redeployed away: always a human decision.
-const NEVER = new Set(["destructive-fs", "infra", "publish"]);
+// Mistakes here can't be redeployed away, or would switch the gate itself off: always a
+// human decision.
+const NEVER = new Set(["destructive-fs", "infra", "publish", "guard-config", "mcp-risky"]);
 
 export type PolicyActionValue = "one_approval" | "auto_approve";
 
