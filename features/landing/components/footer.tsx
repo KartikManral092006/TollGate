@@ -14,9 +14,10 @@ const COLUMNS: { title: string; links: { label: string; href: string; external?:
   {
     title: "Product",
     links: [
-      { label: "How it works", href: "#how" },
-      { label: "Features", href: "#features" },
-      { label: "Try it in your browser", href: "#demo" },
+      { label: "How it works", href: "/#how" },
+      { label: "Features", href: "/#features" },
+      { label: "Try it in your browser", href: "/#demo" },
+      { label: "Docs", href: "/docs" },
       { label: "Sign in", href: "/sign-in" },
     ],
   },
