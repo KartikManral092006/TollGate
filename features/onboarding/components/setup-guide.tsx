@@ -270,12 +270,12 @@ export function SetupGuide({
               <Command value={command} />
             ) : (
               <p className="rounded-lg bg-muted px-3 py-2">
-                Lost the command? Create a new one in{" "}
+                Lost the command? Get a new one with <strong>New token</strong> next to your repo in{" "}
                 <a
                   href={`/teams/${teamId}/settings`}
                   className="font-semibold underline underline-offset-4"
                 >
-                  Settings › Link a repo
+                  Settings › Linked repos
                 </a>
                 .
               </p>
