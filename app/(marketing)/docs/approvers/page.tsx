@@ -3,7 +3,6 @@ import {
   C,
   Callout,
   DocTitle,
-  Figure,
   H2,
   H3,
   List,
@@ -11,9 +10,6 @@ import {
   PrevNext,
   Table,
 } from "@/features/docs/components/doc";
-import approverCard from "@/features/docs/images/approver-card.jpg";
-import denyDrawer from "@/features/docs/images/deny-drawer.jpg";
-import roomThread from "@/features/docs/images/room-thread.jpg";
 
 export const metadata: Metadata = {
   title: "For approvers · Tollgate docs",
@@ -43,12 +39,6 @@ export default function ApproversPage() {
       </List>
 
       <H2 id="card">Reading a gate card</H2>
-      <Figure
-        src={approverCard}
-        narrow
-        alt="A waiting gate card on a phone with Ask, Deny and Approve buttons"
-        caption="A waiting gate, with the decision buttons at the bottom."
-      />
       <Table
         head={["On the card", "What it tells you"]}
         rows={[
@@ -95,12 +85,6 @@ export default function ApproversPage() {
         the agent word for word as its next instruction, so a good reason gets a better plan.
         Secrets in it are hidden before the agent sees it.
       </P>
-      <Figure
-        src={denyDrawer}
-        narrow
-        alt="The deny drawer with a reason box, a teammate's reply to reuse, and quick reasons"
-        caption="You can reuse a teammate's reply as the reason."
-      />
       <H3>Ask the agent first</H3>
       <P>
         Not sure? Press <strong>Ask…</strong> and type a question. The gate closes, the agent
@@ -123,11 +107,6 @@ export default function ApproversPage() {
         </li>
         <li>Translate a message into your language from its menu.</li>
       </List>
-      <Figure
-        src={roomThread}
-        alt="A team room with a denied gate, its replies, and the reason sent to the agent"
-        caption="A denied gate: the replies under it, and the reason the agent received."
-      />
 
       <H2 id="parked">When the agent stops waiting</H2>
       <P>
