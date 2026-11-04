@@ -1,7 +1,7 @@
 "use client";
 
 import { ShieldAlert } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Empty,
   EmptyContent,
@@ -31,6 +31,7 @@ import type { SetupState } from "@/features/onboarding/shared/steps";
 import { ChatLineView } from "@/features/room/components/chat-line";
 import { SessionStrip } from "@/features/room/components/session-strip";
 import { useReportSeen } from "@/features/room/client/use-report-seen";
+import { useMentionReceipts } from "@/features/room/client/use-mention-receipts";
 import { Composer } from "@/features/room/components/composer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
@@ -88,7 +89,7 @@ export function RoomClient({
   // Arrived from an invite made for the highlighted gate.
   welcome?: boolean;
 }) {
-  const { gates, lines, live, refresh, send } = useRoomLive({
+  const { gates, lines, live, refresh, send, selfNexconnId } = useRoomLive({
     teamId: team.id,
     channelId: team.channelId,
     initialGates,
@@ -153,6 +154,19 @@ export function RoomClient({
   });
   const viewing = useViewingGate(gates);
   useReportSeen({ gates, viewing, viewerId: viewer.id });
+  const nameOf = useCallback((id: string) => names.get(id) ?? "A teammate", [names]);
+  useMentionReceipts({
+    lines,
+    selfId: selfNexconnId,
+    channelId: team.channelId,
+    live,
+    callsEnabled,
+    nameOf,
+  });
+  const mentionable = useMemo(
+    () => members.filter((m) => m.id !== viewer.id).map((m) => ({ id: m.id, name: m.name })),
+    [members, viewer.id],
+  );
   const people = usePresence(team.id, { viewing, typing: actions.composing?.id ?? null });
   const online = useMemo(() => new Set(people.map((p) => p.userId)), [people]);
   const presenceOf = (gateId: string) => {
@@ -346,6 +360,13 @@ export function RoomClient({
                                 name={names.get(item.line.senderId) ?? "Teammate"}
                                 gate={gateOf(item.line)}
                                 onJump={jumpTo}
+                                mentionNames={item.line.mentions.map(nameOf)}
+                                mentionsMe={
+                                  selfNexconnId !== null &&
+                                  !item.line.mine &&
+                                  item.line.mentions.includes(selfNexconnId)
+                                }
+                                readBy={item.line.readBy.map(nameOf)}
                               />
                             )}
                           </MessageScrollerItem>
@@ -384,8 +405,15 @@ export function RoomClient({
                 disabled={live !== "live"}
                 reply={replying}
                 onCancelReply={() => setReplying(null)}
-                onSend={async (text) => {
-                  const sent = await send(text, replying ?? undefined);
+                members={mentionable}
+                onSend={async (text, mentions) => {
+                  const sent = await send(
+                    text,
+                    replying ?? undefined,
+                    mentions.length > 0
+                      ? { ids: mentions, from: names.get(viewer.id) ?? "A teammate" }
+                      : undefined,
+                  );
                   if (sent) setReplying(null);
                   return sent;
                 }}

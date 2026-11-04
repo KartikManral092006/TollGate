@@ -9,22 +9,65 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
-import { CHAT_MAX_CHARS } from "@/features/room/shared/chat";
+import { PersonAvatar } from "@/features/room/components/person-avatar";
+import { CHAT_MAX_CHARS, mentionedIds } from "@/features/room/shared/chat";
+import { cn } from "@/lib/utils";
+
+// "@" then up to a few letters, right before the caret: the mention being typed.
+const MENTION_RE = /(?:^|\s)@([^\s@]{0,24})$/;
 
 export function Composer({
   disabled,
   onSend,
   reply = null,
   onCancelReply,
+  members = [],
 }: {
   disabled: boolean;
-  onSend: (text: string) => Promise<boolean>;
+  // `mentions`: the Nexconn ids of the people @mentioned in the text.
+  onSend: (text: string, mentions: string[]) => Promise<boolean>;
+  // Teammates who can be @mentioned (not you).
+  members?: { id: string; name: string }[];
   // Replying on a gate card: the message is sent as "TG-17 · …" attached to that gate.
   reply?: { id: string; code: number } | null;
   onCancelReply?: () => void;
 }) {
   const [text, setText] = useState("");
   const field = useRef<HTMLTextAreaElement>(null);
+  const picked = useRef(new Map<string, string>());
+  const [query, setQuery] = useState<string | null>(null);
+  const [active, setActive] = useState(0);
+  const candidates =
+    query === null
+      ? []
+      : members
+          .filter((member) =>
+            member.name
+              .toLowerCase()
+              .split(/\s+/)
+              .some((word) => word.startsWith(query.toLowerCase())),
+          )
+          .slice(0, 5);
+
+  function track(value: string, caret: number) {
+    const match = MENTION_RE.exec(value.slice(0, caret));
+    setQuery(match ? match[1]! : null);
+    setActive(0);
+  }
+
+  function pick(member: { id: string; name: string }) {
+    const input = field.current;
+    const caret = input?.selectionStart ?? text.length;
+    const before = text.slice(0, caret).replace(/@([^\s@]{0,24})$/, `@${member.name} `);
+    const next = before + text.slice(caret);
+    picked.current.set(member.name, member.id);
+    setText(next);
+    setQuery(null);
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(before.length, before.length);
+    });
+  }
 
   useEffect(() => {
     if (reply) field.current?.focus();
@@ -34,7 +77,10 @@ export function Composer({
     const value = text.trim();
     if (!value) return;
     setText("");
-    if (!(await onSend(value))) setText(value);
+    setQuery(null);
+    const mentions = mentionedIds(value, picked.current);
+    if (await onSend(value, mentions)) picked.current.clear();
+    else setText(value);
   }
 
   return (
@@ -69,45 +115,99 @@ export function Composer({
           </motion.div>
         )}
       </AnimatePresence>
-      <InputGroup className="rounded-2xl bg-background shadow-xs">
-        <InputGroupTextarea
-          ref={field}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-              event.preventDefault();
-              void send();
+      <div className="relative">
+        <AnimatePresence>
+          {candidates.length > 0 && (
+            <motion.ul
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.15 }}
+              role="listbox"
+              aria-label="Mention a teammate"
+              className="absolute bottom-full left-0 z-20 mb-2 w-64 overflow-hidden rounded-xl border bg-popover p-1 shadow-lg"
+            >
+              {candidates.map((member, index) => (
+                <li key={member.id} role="option" aria-selected={index === active}>
+                  <button
+                    type="button"
+                    // Keeps focus (and the caret) in the text box.
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => pick(member)}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-sm",
+                      index === active ? "bg-muted" : "hover:bg-muted/60",
+                    )}
+                  >
+                    <PersonAvatar id={member.id} name={member.name} size="sm" />
+                    {member.name}
+                  </button>
+                </li>
+              ))}
+            </motion.ul>
+          )}
+        </AnimatePresence>
+        <InputGroup className="rounded-2xl bg-background shadow-xs">
+          <InputGroupTextarea
+            ref={field}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              track(event.target.value, event.target.selectionStart);
+            }}
+            onKeyDown={(event) => {
+              if (candidates.length > 0) {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  const step = event.key === "ArrowDown" ? 1 : -1;
+                  setActive((index) => (index + step + candidates.length) % candidates.length);
+                  return;
+                }
+                if (event.key === "Enter" || event.key === "Tab") {
+                  event.preventDefault();
+                  pick(candidates[active]!);
+                  return;
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setQuery(null);
+                  return;
+                }
+              }
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                void send();
+              }
+              if (event.key === "Escape" && reply) onCancelReply?.();
+            }}
+            placeholder={
+              disabled
+                ? "Chat isn't available right now"
+                : reply
+                  ? `Reply on TG-${reply.code}`
+                  : "Message your team"
             }
-            if (event.key === "Escape" && reply) onCancelReply?.();
-          }}
-          placeholder={
-            disabled
-              ? "Chat isn't available right now"
-              : reply
-                ? `Reply on TG-${reply.code}`
-                : "Message your team"
-          }
-          aria-label={reply ? `Reply on TG-${reply.code}` : "Message"}
-          rows={1}
-          // Leaves room for the "TG-17 · " prefix within the message limit.
-          maxLength={reply ? CHAT_MAX_CHARS - 12 : CHAT_MAX_CHARS}
-          disabled={disabled}
-          className="max-h-40 min-h-11 text-base sm:text-sm"
-        />
-        <InputGroupAddon align="inline-end">
-          <InputGroupButton
-            type="submit"
-            size="icon-sm"
-            variant="default"
-            className="rounded-full"
-            disabled={disabled || !text.trim()}
-            aria-label="Send"
-          >
-            <ArrowUp />
-          </InputGroupButton>
-        </InputGroupAddon>
-      </InputGroup>
+            aria-label={reply ? `Reply on TG-${reply.code}` : "Message"}
+            rows={1}
+            // Leaves room for the "TG-17 · " prefix within the message limit.
+            maxLength={reply ? CHAT_MAX_CHARS - 12 : CHAT_MAX_CHARS}
+            disabled={disabled}
+            className="max-h-40 min-h-11 text-base sm:text-sm"
+          />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              type="submit"
+              size="icon-sm"
+              variant="default"
+              className="rounded-full"
+              disabled={disabled || !text.trim()}
+              aria-label="Send"
+            >
+              <ArrowUp />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
+      </div>
     </form>
   );
 }

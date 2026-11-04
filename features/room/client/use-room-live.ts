@@ -7,6 +7,7 @@ import { TG } from "@/features/nexconn/shared/messages";
 import {
   chatLineFromMessage,
   mergeChat,
+  MENTION_PEOPLE,
   normalizeChatText,
   replyExtra,
   replyText,
@@ -69,6 +70,17 @@ export function useRoomLive(input: {
       }
       const data = event.data as { channelId?: string; messageType?: string };
       if (data.channelId !== channelId) return;
+      if (event.kind === "receipt") {
+        const { messageId, users } = event.data as { messageId: string; users: string[] };
+        setLines((current) =>
+          current.map((line) =>
+            line.id === messageId
+              ? { ...line, readBy: [...new Set([...line.readBy, ...users])] }
+              : line,
+          ),
+        );
+        return;
+      }
       if (event.kind === "metadataUpdated") {
         scheduleRefresh();
         return;
@@ -110,6 +122,26 @@ export function useRoomLive(input: {
           .map((message) => chatLineFromMessage(message, session.userId))
           .filter((line): line is ChatLine => line !== null);
         setLines((current) => mergeChat(current, history));
+
+        // Who has read your recent @mentions: only the sender may ask, which is you.
+        const mine = history.filter((line) => line.mine && line.mentions.length > 0).slice(-10);
+        for (const line of mine) {
+          const readers = await chat.BaseChannel.createMessagesReadReceiptUsersQuery({
+            channelIdentifier: new chat.GroupChannelIdentifier(channelId),
+            messageId: line.id,
+            pageSize: 50,
+            status: chat.MessageReadReceiptStatus.RESPONDED,
+          })
+            .loadNextPage()
+            .catch(() => null);
+          if (cancelled) return;
+          const users = readers?.isOk ? (readers.data?.data ?? []).map((u) => u.userId) : [];
+          if (users.length > 0) {
+            setLines((current) =>
+              current.map((l) => (l.id === line.id ? { ...l, readBy: users } : l)),
+            );
+          }
+        }
       } catch {
         if (!cancelled) setLive("offline");
       }
@@ -136,7 +168,12 @@ export function useRoomLive(input: {
 
   const send = useCallback(
     // With `gate`, a reply on that gate's card: prefixed with its code, tagged with its id.
-    async (raw: string, gate?: { id: string; code: number }): Promise<boolean> => {
+    // With `mention`, the people it @mentions get a push and the sender sees who read it.
+    async (
+      raw: string,
+      gate?: { id: string; code: number },
+      mention?: { ids: string[]; from: string },
+    ): Promise<boolean> => {
       const body = normalizeChatText(raw);
       if (!body) return false;
       const text = gate ? normalizeChatText(replyText(gate.code, body)) : body;
@@ -150,14 +187,29 @@ export function useRoomLive(input: {
         local: "sending",
         gateId: gate?.id ?? null,
         gateCode: gate?.code ?? null,
+        mentions: mention?.ids ?? [],
+        readBy: [],
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
         const { chat } = await startNexconn({ withChatUI: false, withCall: callsEnabled });
         const channel = new chat.GroupChannel(channelId);
-        const result = await channel.sendMessage(
-          new chat.SendTextMessageParams(gate ? { text, extra: replyExtra(gate.id) } : { text }),
-        );
+        const params = new chat.SendTextMessageParams({
+          text,
+          ...(gate ? { extra: replyExtra(gate.id) } : {}),
+          ...(mention?.ids.length
+            ? { mentionedInfo: { type: MENTION_PEOPLE, userIdList: mention.ids } }
+            : {}),
+        });
+        if (mention?.ids.length) {
+          params.needReceipt = true;
+          params.pushConfig = {
+            pushTitle: `${mention.from} mentioned you`,
+            pushContent: Array.from(text).slice(0, 120).join(""),
+            pushData: "",
+          };
+        }
+        const result = await channel.sendMessage(params);
         if (!result.isOk || !result.data) throw new Error(`send failed: ${result.code}`);
         const sent = result.data;
         setLines((current) =>
