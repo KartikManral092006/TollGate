@@ -8,6 +8,7 @@ import {
   claimLateReminders,
   expireParkedGates,
   getGateForRepo,
+  markGateSeen,
   parkGate,
   VoteRejectedError,
 } from "@/features/gates/server/gates";
@@ -498,6 +499,27 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     await syncAgentSession(deps, gates[0]!.id, newId);
     expect(calls.map((c) => c.path)).toEqual(["/v4/channel-type/message/metadata/set"]);
     expect(calls[0]!.body.metadata).toMatchObject({ n: "3", w: "2", d: "1", a: "0" });
+  });
+
+  it("records each teammate's first look at a waiting gate, never the requester's", async () => {
+    const gate = await createGate(db, principal, gateInput("drizzle-kit push # seen"), { newId });
+    expect(await markGateSeen(db, { gateId: gate.id, userId: requester })).toBe(false);
+    expect(await markGateSeen(db, { gateId: gate.id, userId: outsider })).toBe(false);
+    expect(await markGateSeen(db, { gateId: gate.id, userId: approvers[4]! })).toBe(true);
+    expect(await markGateSeen(db, { gateId: gate.id, userId: approvers[4]! })).toBe(false);
+    await castVote(db, {
+      gateId: gate.id,
+      userId: approvers[5]!,
+      decision: "deny",
+      reason: "No",
+      newId,
+    });
+    expect(await markGateSeen(db, { gateId: gate.id, userId: approvers[6]! })).toBe(false);
+    const seen = await db.gateSeen.findMany({
+      where: { gateId: gate.id },
+      select: { userId: true },
+    });
+    expect(seen).toEqual([{ userId: approvers[4] }]);
   });
 
   it("expires parked gates after 24 h and refuses votes on them", async () => {

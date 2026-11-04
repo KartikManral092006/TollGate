@@ -408,6 +408,10 @@ const GATE_INCLUDE = {
     },
   },
   followUps: { select: { code: true }, orderBy: { createdAt: "asc" }, take: 1 },
+  seen: {
+    orderBy: { seenAt: "asc" },
+    select: { userId: true, seenAt: true, user: { select: { name: true } } },
+  },
   policyRule: {
     select: { action: true, preset: true, env: true, createdBy: { select: { name: true } } },
   },
@@ -442,4 +446,29 @@ export function listTeamGates(
 // One gate of a team, or null (another team's gate looks the same as a missing one).
 export function getTeamGate(db: PrismaClient, teamId: string, gateId: string) {
   return db.gate.findFirst({ where: { id: gateId, teamId }, include: GATE_INCLUDE });
+}
+
+// A teammate looked at a waiting gate's card. The requester's own looks don't count, nor do
+// looks after it was decided. True when this is their first look (the card's metadata then
+// changes so every room updates).
+export async function markGateSeen(
+  db: PrismaClient,
+  input: { gateId: string; userId: string },
+): Promise<boolean> {
+  const gate = await db.gate.findUnique({
+    where: { id: input.gateId },
+    select: { teamId: true, requesterId: true, status: true },
+  });
+  if (!gate || gate.requesterId === input.userId) return false;
+  if (gate.status !== "pending" && gate.status !== "parked") return false;
+  const member = await db.membership.findUnique({
+    where: { teamId_userId: { teamId: gate.teamId, userId: input.userId } },
+    select: { role: true },
+  });
+  if (!member) return false;
+  const { count } = await db.gateSeen.createMany({
+    data: [{ gateId: input.gateId, userId: input.userId }],
+    skipDuplicates: true,
+  });
+  return count === 1;
 }

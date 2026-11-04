@@ -137,6 +137,14 @@ function addHandlers(chat: ChatModule) {
       onMessageBlocked({ info }) {
         nexconnEvents.emit("messageBlocked", info);
       },
+      onMessageReceiptResponse({ responses }) {
+        for (const response of responses) {
+          nexconnEvents.emit("receipt", {
+            messageId: response.messageId,
+            users: response.users.map((user) => user.userId),
+          });
+        }
+      },
     }),
   );
 

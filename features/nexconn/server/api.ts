@@ -71,6 +71,8 @@ export async function sendGroupMessage(
     isEchoToSender?: 0 | 1;
     hasMetadata?: boolean;
     metadata?: Record<string, string>;
+    // Members' clients can then report "read" on it (persisted messages only).
+    needReadReceipt?: 0 | 1;
   },
 ): Promise<{ messageIds: { channelId: string; messageId: string }[] }> {
   if (!input.messageType.startsWith(BUILT_IN_PREFIX) && !isValidCustomType(input.messageType)) {
