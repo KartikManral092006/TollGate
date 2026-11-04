@@ -1,6 +1,15 @@
 "use client";
 
-import { AlertCircle, CheckCheck, Lock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCheck,
+  Languages,
+  Loader2,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { clockTime } from "@/features/room/shared/format";
+import type { Translation } from "@/features/room/client/use-translate";
 import { replyBody, type ChatLine } from "@/features/room/shared/chat";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +55,9 @@ export function ChatLineView({
   readBy = [],
   onEdit,
   onDelete,
+  translation,
+  onTranslate,
+  onHideTranslation,
 }: {
   line: ChatLine;
   name: string;
@@ -56,6 +69,10 @@ export function ChatLineView({
   // Your own sent messages: change or delete them for everyone.
   onEdit?: (messageId: string, text: string) => Promise<boolean>;
   onDelete?: (messageId: string) => Promise<boolean>;
+  // Someone else's message, machine-translated into your language on request.
+  translation?: Translation;
+  onTranslate?: (messageId: string, text: string) => void;
+  onHideTranslation?: (messageId: string) => void;
 }) {
   const code = gate?.code ?? line.gateCode;
   const body = code !== null ? replyBody(line.text) : line.text;
@@ -63,6 +80,7 @@ export function ChatLineView({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const canChange = line.mine && line.local === null && (onEdit || onDelete);
+  const canTranslate = !line.mine && onTranslate !== undefined && !translation;
 
   async function save() {
     if (editing === null || !onEdit) return;
@@ -105,10 +123,10 @@ export function ChatLineView({
           ) : (
             <span className="text-xs text-muted-foreground" suppressHydrationWarning>
               {clockTime(line.sentTime)}
-              {line.edited && " · edited"}
+              {line.edited && " (edited)"}
             </span>
           )}
-          {canChange && editing === null && (
+          {(canChange || canTranslate) && editing === null && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -123,12 +141,17 @@ export function ChatLineView({
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                {onEdit && (
+                {canTranslate && (
+                  <DropdownMenuItem onClick={() => onTranslate(line.id, body)}>
+                    <Languages /> Translate
+                  </DropdownMenuItem>
+                )}
+                {canChange && onEdit && (
                   <DropdownMenuItem onClick={() => setEditing(body)}>
                     <Pencil /> Edit
                   </DropdownMenuItem>
                 )}
-                {onDelete && (
+                {canChange && onDelete && (
                   <DropdownMenuItem variant="destructive" onClick={() => setConfirming(true)}>
                     <Trash2 /> Delete for everyone
                   </DropdownMenuItem>
@@ -160,6 +183,31 @@ export function ChatLineView({
             ))}
           {editing === null && withMentions(body, mentionNames)}
         </p>
+        {translation && (
+          <div className="mt-1.5 border-s-2 border-border ps-2.5 text-sm" aria-live="polite">
+            {translation.state === "loading" ? (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden /> Translating…
+              </span>
+            ) : translation.state === "failed" ? (
+              <span className="text-muted-foreground">Couldn&apos;t translate this one.</span>
+            ) : (
+              <p className="whitespace-pre-wrap">{translation.text}</p>
+            )}
+            <p className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <Languages className="size-3" aria-hidden /> Machine translation
+              </span>
+              <button
+                type="button"
+                onClick={() => onHideTranslation?.(line.id)}
+                className="underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Hide
+              </button>
+            </p>
+          </div>
+        )}
         {editing !== null && (
           <div className="mt-1 flex flex-col gap-2">
             <Textarea

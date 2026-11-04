@@ -32,6 +32,7 @@ import { ChatLineView } from "@/features/room/components/chat-line";
 import { SessionStrip } from "@/features/room/components/session-strip";
 import { useReportSeen } from "@/features/room/client/use-report-seen";
 import { useMentionReceipts } from "@/features/room/client/use-mention-receipts";
+import { useTranslate } from "@/features/room/client/use-translate";
 import { Composer } from "@/features/room/components/composer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
@@ -169,6 +170,7 @@ export function RoomClient({
     () => members.filter((m) => m.role !== "guest").map((m) => m.id),
     [members],
   );
+  const translator = useTranslate(callsEnabled);
   const mentionable = useMemo(
     () => members.filter((m) => m.id !== viewer.id).map((m) => ({ id: m.id, name: m.name })),
     [members, viewer.id],
@@ -375,6 +377,13 @@ export function RoomClient({
                                 readBy={item.line.readBy.map(nameOf)}
                                 onEdit={edit}
                                 onDelete={remove}
+                                translation={translator.translations.get(item.line.id)}
+                                onTranslate={
+                                  live === "live"
+                                    ? (id, text) => void translator.translate(id, text)
+                                    : undefined
+                                }
+                                onHideTranslation={translator.hide}
                               />
                             )}
                           </MessageScrollerItem>
