@@ -228,6 +228,16 @@
   }
 }
 
+/* The landing footer's scan light, running along its top edge. */
+@keyframes fx-footer-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
 /* The landing hero's "scroll" hint: a dot sliding down a mouse outline. */
 @keyframes fx-scroll-dot {
   0% {

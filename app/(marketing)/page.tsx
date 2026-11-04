@@ -12,6 +12,7 @@ import { Marquee } from "@/components/fx/marquee";
 import { ShimmerLink } from "@/components/fx/shimmer-button";
 import { Logo } from "@/components/logo";
 import { FeatureStory } from "@/features/landing/components/feature-story";
+import { LandingFooter } from "@/features/landing/components/footer";
 import { Hero } from "@/features/landing/components/hero";
 import { Rise } from "@/features/landing/components/landing-motion";
 import { Pipeline } from "@/features/landing/components/pipeline";
@@ -238,20 +239,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-white/10">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-white/50 sm:flex-row sm:items-center sm:px-6">
-          <Logo className="text-white" />
-          <p className="sm:ms-4">
-            Team threads and calls powered by the Nexconn Chat and Call SDKs.
-          </p>
-          <a
-            href="https://github.com/KartikManral092006/TollGate"
-            className="underline-offset-4 hover:text-white hover:underline sm:ms-auto"
-          >
-            Source on GitHub
-          </a>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 }
