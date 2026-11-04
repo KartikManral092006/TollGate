@@ -100,7 +100,8 @@ export default function LandingPage() {
     <div className="dark flex min-h-full flex-col bg-[#0b0f12] text-white">
       <SmoothScroll />
       <ScrollProgress />
-      <header className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-[#0b0f12]/60 backdrop-blur-xl">
+      {/* Solid, not frosted: a blur over the moving hero would be recomputed every frame. */}
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-[#0b0f12]/90">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
           <Logo className="text-white" />
           <nav className="ms-auto flex items-center gap-1 text-sm">
