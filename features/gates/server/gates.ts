@@ -251,7 +251,11 @@ export async function castVote(
       voterCanVote: canVote(membership.role as TeamRoleValue),
     });
     if (rejection) throw new VoteRejectedError(rejection);
-    const question = input.question?.trim() || null;
+    // Reasons, notes and questions reach the agent and the room's card, and a deny reason can
+    // be a teammate's chat reply picked from the thread: redact here too, never trust the client.
+    const clean = (text: string | null | undefined, max: number) =>
+      text?.trim() ? truncate(redact(text.trim()).text, max) : null;
+    const question = clean(input.question, 500);
     // Only a waiting hook passes the question on; a parked agent has stopped listening.
     if (question && gate.status !== "pending") throw new VoteRejectedError("not_waiting");
 
@@ -261,7 +265,7 @@ export async function castVote(
           gateId: gate.id,
           userId: input.userId,
           decision: question ? "deny" : input.decision,
-          reason: question ?? (input.reason?.trim() || null),
+          reason: question ?? clean(input.reason, 1000),
         },
       ],
       skipDuplicates: true,

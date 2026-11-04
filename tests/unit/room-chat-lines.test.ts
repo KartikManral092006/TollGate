@@ -5,6 +5,10 @@ import {
   chatLineFromMessage,
   mergeChat,
   normalizeChatText,
+  repliesTo,
+  replyBody,
+  replyExtra,
+  replyText,
   type ChatLine,
 } from "@/features/room/shared/chat";
 
@@ -15,6 +19,8 @@ const line = (id: string, sentTime: number, overrides: Partial<ChatLine> = {}): 
   sentTime,
   mine: false,
   local: null,
+  gateId: null,
+  gateCode: null,
   ...overrides,
 });
 
@@ -48,6 +54,20 @@ describe("mergeChat", () => {
   });
 });
 
+describe("repliesTo", () => {
+  const gate = { id: "B".repeat(32), code: 9 };
+  it("collects tagged replies, and untagged ones by code, but not other gates' or failed ones", () => {
+    const lines = [
+      line("a", 1, { gateId: gate.id, gateCode: 9 }),
+      line("b", 2, { gateCode: 9 }),
+      line("c", 3, { gateId: "C".repeat(32), gateCode: 9 }),
+      line("d", 4),
+      line("e", 5, { gateId: gate.id, gateCode: 9, local: "failed" }),
+    ];
+    expect(repliesTo(lines, gate).map((l) => l.id)).toEqual(["a", "b"]);
+  });
+});
+
 describe("chatLineFromMessage", () => {
   const message = {
     messageId: "nx1",
@@ -65,8 +85,46 @@ describe("chatLineFromMessage", () => {
       sentTime: 1000,
       mine: false,
       local: null,
+      gateId: null,
+      gateCode: null,
     });
     expect(chatLineFromMessage(message, "U1")?.mine).toBe(true);
+  });
+
+  const GATE = "A".repeat(32);
+
+  it("attaches a reply to its gate by the id in extra", () => {
+    const reply = chatLineFromMessage(
+      {
+        ...message,
+        content: { text: replyText(17, "does billing read it?"), extra: replyExtra(GATE) },
+      },
+      "me",
+    );
+    expect(reply).toMatchObject({
+      gateId: GATE,
+      gateCode: 17,
+      text: "TG-17 · does billing read it?",
+    });
+    expect(replyBody(reply!.text)).toBe("does billing read it?");
+  });
+
+  it("falls back to the code prefix when extra is missing or not ours", () => {
+    for (const extra of [
+      undefined,
+      "not json",
+      JSON.stringify({ gateId: "short" }),
+      "x".repeat(300),
+    ]) {
+      const reply = chatLineFromMessage(
+        { ...message, content: { text: "TG-4 · yes, nightly", extra } },
+        "me",
+      );
+      expect(reply).toMatchObject({ gateId: null, gateCode: 4 });
+    }
+    expect(
+      chatLineFromMessage({ ...message, content: { text: "TG-4 is fine" } }, "me")?.gateCode,
+    ).toBeNull();
   });
 
   it.each([

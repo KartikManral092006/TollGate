@@ -263,8 +263,8 @@ export function ReviewClient({
                   gate={current}
                   viewer={viewer}
                   contextOpen
-                  onApprove={async (gate) => {
-                    await actions.approve(gate);
+                  onApprove={async (gate, note) => {
+                    await actions.approve(gate, note);
                   }}
                   onDeny={actions.deny}
                   onAsk={actions.ask}

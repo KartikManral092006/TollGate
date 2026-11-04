@@ -8,6 +8,8 @@ import {
   ListChecks,
   Loader2,
   MessageCircleQuestion,
+  MessageSquareReply,
+  NotebookPen,
   ShieldCheck,
   Sparkles,
   ThumbsDown,
@@ -17,6 +19,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { HoldButton } from "@/components/hold-button";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   CodeBlock,
   CodeBlockActions,
@@ -159,6 +162,8 @@ export function GateCard({
   footer,
   invite,
   welcome = false,
+  replies = [],
+  onReply,
   contextOpen = false,
   presence,
 }: {
@@ -174,9 +179,13 @@ export function GateCard({
   invite?: React.ReactNode;
   // The viewer just joined through an invite made for this gate.
   welcome?: boolean;
+  // Chat replies on this gate, oldest first; the newest two show under the votes.
+  replies?: { id: string; name: string; text: string }[];
+  // Start a reply on this gate in the room's composer.
+  onReply?: (gate: GateView) => void;
   // Plain-language explanation: the team's AI provider, or the built-in rules.
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
-  onApprove: (gate: GateView) => Promise<void>;
+  onApprove: (gate: GateView, note?: string) => Promise<void>;
   onDeny: (gate: GateView) => void;
   // Ask the agent a question instead of deciding; only while its hook is still waiting.
   onAsk?: (gate: GateView) => void;
@@ -215,10 +224,13 @@ export function GateCard({
   const outcome = outcomeLine(gate);
   const holdToApprove = needsHold(gate);
 
+  // An optional one-line note with the approval, shown to the rest of the quorum.
+  const [note, setNote] = useState<string | null>(null);
+
   async function approve() {
     setBusy(true);
     try {
-      await onApprove(gate);
+      await onApprove(gate, note?.trim() || undefined);
     } finally {
       setBusy(false);
     }
@@ -443,6 +455,18 @@ export function GateCard({
               Why?
             </button>
           )}
+          {onReply && (
+            <button
+              type="button"
+              onClick={() => onReply(gate)}
+              className="inline-flex items-center gap-1 rounded-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <MessageSquareReply className="size-3.5" aria-hidden />
+              {replies.length > 0
+                ? `${replies.length} ${replies.length === 1 ? "reply" : "replies"}`
+                : "Reply"}
+            </button>
+          )}
           <span className="ms-auto">
             <QuorumDots approvals={gate.approvals} quorum={gate.quorum} />
           </span>
@@ -536,6 +560,33 @@ export function GateCard({
           </ul>
         )}
 
+        {replies.length > 0 && (
+          <ul
+            aria-label={`Replies on TG-${gate.code}`}
+            className="flex flex-col gap-1 border-l-2 border-border pl-3"
+          >
+            {replies.length > 2 && (
+              <li className="text-xs text-muted-foreground">
+                {replies.length - 2} earlier {replies.length - 2 === 1 ? "reply" : "replies"} in the
+                room
+              </li>
+            )}
+            <AnimatePresence initial={false}>
+              {replies.slice(-2).map((reply) => (
+                <motion.li
+                  key={reply.id}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm"
+                >
+                  <span className="font-medium">{reply.name}</span>{" "}
+                  <span className="text-muted-foreground">{reply.text}</span>
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
+        )}
+
         {shown === "asked" && gate.question ? (
           <Note tone="pending" label="Sent to the agent to answer">
             &ldquo;{gate.question}&rdquo;{" "}
@@ -588,6 +639,29 @@ export function GateCard({
             approve it or deny it with a reason.
           </motion.p>
         )}
+        <AnimatePresence initial={false}>
+          {canAct && note !== null && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <Input
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setNote(null);
+                }}
+                maxLength={300}
+                autoFocus
+                aria-label={`Note with your approval of TG-${gate.code}`}
+                placeholder="A note with your approval, e.g. rename + backfill looks right"
+                className="h-10 text-base sm:text-sm"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
         {canAct && (
           // Full-width, thumb-sized on phones; a compact row on the right on wider screens.
           <div
@@ -625,7 +699,9 @@ export function GateCard({
                 label={`Hold to approve TG-${gate.code}`}
               >
                 {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ThumbsUp aria-hidden />}
-                Hold to approve
+                {/* A third of a phone's width fits one word; the hint below says the rest. */}
+                <span className={canAsk ? "sm:hidden" : "hidden"}>Hold</span>
+                <span className={canAsk ? "hidden sm:inline" : undefined}>Hold to approve</span>
               </HoldButton>
             ) : (
               <Button className="h-11 sm:h-9 sm:px-5" onClick={approve} disabled={busy}>
@@ -635,10 +711,24 @@ export function GateCard({
             )}
           </div>
         )}
-        {canAct && holdToApprove && (
-          <p className="-mt-1 text-xs text-muted-foreground sm:text-end">
-            {gate.env === "prod" ? "Production" : "High risk"}: press and hold Approve for a second.
-          </p>
+        {canAct && (
+          <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => setNote((value) => (value === null ? "" : null))}
+              aria-expanded={note !== null}
+              className="inline-flex items-center gap-1 rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <NotebookPen className="size-3.5" aria-hidden />
+              {note === null ? "Add a note" : "No note"}
+            </button>
+            {holdToApprove && (
+              <p>
+                {gate.env === "prod" ? "Production" : "High risk"}: press and hold Approve for a
+                second.
+              </p>
+            )}
+          </div>
         )}
         {open && mine && (
           <p className="text-xs text-muted-foreground">
