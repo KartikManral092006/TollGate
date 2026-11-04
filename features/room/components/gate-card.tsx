@@ -157,6 +157,8 @@ export function GateCard({
   onRing,
   onWhy,
   footer,
+  invite,
+  welcome = false,
   contextOpen = false,
   presence,
 }: {
@@ -168,6 +170,10 @@ export function GateCard({
   // Teammates (by name) looking at this gate or writing a reason or question for it.
   presence?: { looking: string[]; typing: string[] };
   footer?: React.ReactNode;
+  // Under the requester's own waiting gate when nobody else can decide it.
+  invite?: React.ReactNode;
+  // The viewer just joined through an invite made for this gate.
+  welcome?: boolean;
   // Plain-language explanation: the team's AI provider, or the built-in rules.
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
   onApprove: (gate: GateView) => Promise<void>;
@@ -571,6 +577,17 @@ export function GateCard({
           />
         )}
 
+        {canAct && welcome && (
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.4 }}
+            className="rounded-lg bg-gate-pending/15 px-3 py-2 text-sm text-gate-pending-fg"
+          >
+            {gate.requester.name} invited you to decide this one. Read what it will run, then
+            approve it or deny it with a reason.
+          </motion.p>
+        )}
         {canAct && (
           // Full-width, thumb-sized on phones; a compact row on the right on wider screens.
           <div
@@ -628,6 +645,7 @@ export function GateCard({
             Waiting for your team. You can&apos;t approve your own agent&apos;s command.
           </p>
         )}
+        {open && mine && invite}
         {open && voted && !mine && (
           <p className="text-xs text-muted-foreground">
             You voted. Waiting for the rest of the quorum.

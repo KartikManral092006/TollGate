@@ -20,7 +20,14 @@ import {
 import { commandHash, type CreateGateInput } from "@/features/gates/shared/hook-api";
 import { DEFAULT_PRESETS } from "@/features/gates/shared/presets";
 import { acceptSuggestion, removeRule } from "@/features/insights/server/policy";
-import { acceptInvite, createInvite, createTeam } from "@/features/teams/server/teams";
+import { loadSetupState } from "@/features/onboarding/server/setup";
+import {
+  acceptInvite,
+  createGateInvite,
+  createInvite,
+  createTeam,
+  getInvitePreview,
+} from "@/features/teams/server/teams";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { newAlnumId } from "@/lib/ids";
 
@@ -302,12 +309,109 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
       ok: true,
       teamId,
       joinedNow: false,
+      gateId: null,
     });
     expect(await acceptInvite(db, { token: `${invite.token}x`, userId: outsider })).toEqual({
       ok: false,
       reason: "invalid",
     });
   });
+  it("lets a solo owner get their own gate decided through a one-person, 48 h invite", async () => {
+    const owner = await user("solo");
+    const solo = await createTeam(db, { id: newId(), name: "Solo shop", ownerId: owner });
+    const link = await db.repoLink.create({
+      data: { id: newId(), teamId: solo.id, name: "solo/api", presets: DEFAULT_PRESETS },
+    });
+    const minted = await mintHookToken(db, { id: newId(), repoId: link.id, createdById: owner });
+    const soloPrincipal = await authenticateHookToken(db, `Bearer ${minted.token}`);
+    if (!soloPrincipal) throw new Error("token did not authenticate");
+    const test = await createGate(
+      db,
+      soloPrincipal,
+      gateInput("echo tollgate-test", { preset: "tollgate-test" }),
+      { newId },
+    );
+    const migrate = await createGate(db, soloPrincipal, gateInput("npx prisma migrate deploy"), {
+      newId,
+    });
+
+    let setup = await loadSetupState(db, solo.id, owner);
+    expect(setup.steps.invite).toBe(false);
+    expect(setup.memberCount).toBe(1);
+    expect(setup.waitingGate).toEqual({ id: test.id, code: test.code });
+
+    const now = new Date();
+    const invite = await createGateInvite(db, {
+      id: newId(),
+      teamId: solo.id,
+      gateId: test.id,
+      createdById: owner,
+      now,
+    });
+    if (!invite.ok) throw new Error(invite.reason);
+    expect(invite.expiresAt.getTime() - now.getTime()).toBe(48 * 3_600_000);
+
+    // Before sign-in: who, which team, which gate. The command only for the test preset.
+    const preview = await getInvitePreview(db, invite.token);
+    expect(preview).toMatchObject({
+      status: "ok",
+      teamName: "Solo shop",
+      inviterName: "solo",
+      role: "approver",
+      gate: { code: test.code, repo: "solo/api", command: "echo tollgate-test" },
+    });
+    const migrateInvite = await createGateInvite(db, {
+      id: newId(),
+      teamId: solo.id,
+      gateId: migrate.id,
+      createdById: owner,
+    });
+    if (!migrateInvite.ok) throw new Error(migrateInvite.reason);
+    expect((await getInvitePreview(db, migrateInvite.token))?.gate?.command).toBeNull();
+    expect(await getInvitePreview(db, `${invite.token}x`)).toBeNull();
+
+    const friend = await user("friend");
+    expect(await acceptInvite(db, { token: invite.token, userId: friend })).toEqual({
+      ok: true,
+      teamId: solo.id,
+      joinedNow: true,
+      gateId: test.id,
+    });
+    const joined = await db.membership.findUnique({
+      where: { teamId_userId: { teamId: solo.id, userId: friend } },
+      select: { invitedById: true, role: true },
+    });
+    expect(joined).toEqual({ invitedById: owner, role: "approver" });
+    // One person per gate link: a forwarded copy doesn't let a second one in.
+    const second = await user("forwarded");
+    expect(await acceptInvite(db, { token: invite.token, userId: second })).toEqual({
+      ok: false,
+      reason: "used_up",
+    });
+    expect((await getInvitePreview(db, invite.token))?.status).toBe("used_up");
+
+    // Joining isn't setup done; someone else deciding a gate is.
+    setup = await loadSetupState(db, solo.id, owner);
+    expect(setup.memberCount).toBe(2);
+    expect(setup.steps.invite).toBe(false);
+    await castVote(db, { gateId: test.id, userId: friend, decision: "approve", newId });
+    setup = await loadSetupState(db, solo.id, owner);
+    expect(setup.steps.invite).toBe(true);
+    expect(setup.waitingGate).toEqual({ id: migrate.id, code: migrate.code });
+
+    expect(
+      await createGateInvite(db, {
+        id: newId(),
+        teamId: solo.id,
+        gateId: test.id,
+        createdById: owner,
+      }),
+    ).toEqual({ ok: false, reason: "decided" });
+    expect(
+      await createGateInvite(db, { id: newId(), teamId, gateId: migrate.id, createdById: owner }),
+    ).toEqual({ ok: false, reason: "not_found" });
+  });
+
   it("expires parked gates after 24 h and refuses votes on them", async () => {
     const gate = await createGate(db, principal, gateInput("vercel --prod # stale"), { newId });
     const longAgo = new Date(Date.now() - 25 * 3_600_000);

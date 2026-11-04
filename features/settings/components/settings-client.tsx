@@ -40,7 +40,8 @@ import { REPO_NAME_RE } from "@/features/teams/shared/schemas";
 import type { AiConfigView } from "@/features/why/shared/providers";
 import { cn } from "@/lib/utils";
 
-type Member = { id: string; name: string; role: string };
+// invitedBy: whose link they joined through, so a forwarded link shows up here.
+type Member = { id: string; name: string; role: string; invitedBy: string | null };
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -359,9 +360,16 @@ function Members({ members, viewerId }: { members: Member[]; viewerId: string })
       {members.map((member) => (
         <li key={member.id} className="flex items-center gap-3 py-2.5">
           <PersonAvatar id={member.id} name={member.name} size="sm" />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            {member.name}
-            {member.id === viewerId && <span className="text-muted-foreground"> (you)</span>}
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-sm font-medium">
+              {member.name}
+              {member.id === viewerId && <span className="text-muted-foreground"> (you)</span>}
+            </span>
+            {member.invitedBy && (
+              <span className="truncate text-xs text-muted-foreground">
+                Joined via {member.invitedBy}’s invite
+              </span>
+            )}
           </span>
           <span className="text-sm text-muted-foreground">
             {ROLE_LABEL[member.role] ?? member.role}

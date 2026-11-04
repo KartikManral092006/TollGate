@@ -31,6 +31,7 @@ import {
   type SetupStepId,
 } from "@/features/onboarding/shared/steps";
 import { CopyField } from "@/features/settings/components/copy-field";
+import { GateInvite } from "@/features/teams/components/gate-invite";
 import { REPO_NAME_RE } from "@/features/teams/shared/schemas";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,7 @@ const TITLES: Record<SetupStepId, string> = {
   repo: "Link the repo your agent works in",
   connect: "Connect your computer",
   gate: "See your first gate",
-  invite: "Invite someone to approve",
+  invite: "Get a gate decided by someone else",
 };
 
 const POLL_MS = 4000;
@@ -135,7 +136,7 @@ export function SetupGuide({
       setOpen(currentStep(next));
       if (finished === "connect") toast.success("Your computer is connected to Tollgate.");
       if (finished === "gate") toast.success("Your first gate arrived. That's the whole loop!");
-      if (finished === "invite") toast.success("A teammate joined.");
+      if (finished === "invite") toast.success("Someone else decided a gate. Tollgate is set up.");
     }
     if (next.complete && !before.complete) router.refresh();
   }, [teamId, router]);
@@ -296,6 +297,26 @@ export function SetupGuide({
           </div>
         );
       case "invite":
+        if (state.waitingGate && isOwner && state.memberCount === 1) {
+          return (
+            <div className="flex flex-col gap-3">
+              <p>
+                You can&apos;t approve your own agent&apos;s commands, so TG-
+                {state.waitingGate.code} is waiting for someone else. Invite a teammate or client to
+                decide it: they sign in from the link, with nothing to install.
+              </p>
+              <GateInvite gateId={state.waitingGate.id} code={state.waitingGate.code} />
+            </div>
+          );
+        }
+        if (state.memberCount > 1) {
+          return (
+            <p>
+              Your team is in. This step finishes when someone decides a gate they didn&apos;t raise
+              {state.waitingGate ? `: TG-${state.waitingGate.code} is waiting` : ""}.
+            </p>
+          );
+        }
         return (
           <div className="flex flex-col gap-2">
             <p>

@@ -41,6 +41,7 @@ import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { useRoomLive } from "@/features/room/client/use-room-live";
 import type { ChatLine } from "@/features/room/shared/chat";
 import { dayLabel } from "@/features/room/shared/format";
+import { GateInvite } from "@/features/teams/components/gate-invite";
 
 type ThreadItem = (
   | { kind: "gate"; key: string; at: number; gate: GateView }
@@ -57,6 +58,7 @@ export function RoomClient({
   setup,
   serverUrl,
   isOwner,
+  welcome = false,
 }: {
   team: { id: string; name: string; channelId: string };
   viewer: Viewer;
@@ -67,6 +69,8 @@ export function RoomClient({
   setup: SetupState;
   serverUrl: string;
   isOwner: boolean;
+  // Arrived from an invite made for the highlighted gate.
+  welcome?: boolean;
 }) {
   const { gates, lines, live, refresh, send } = useRoomLive({
     teamId: team.id,
@@ -194,12 +198,16 @@ export function RoomClient({
               <MessageScroller className="flex-1">
                 <MessageScrollerViewport>
                   <MessageScrollerContent className="mx-auto w-full max-w-3xl gap-0 px-4 py-4 sm:px-6">
-                    <SetupGuide
-                      teamId={team.id}
-                      serverUrl={serverUrl}
-                      isOwner={isOwner}
-                      initial={setup}
-                    />
+                    {/* Someone just invited to decide a gate came for that gate, not the
+                        team's setup checklist. */}
+                    {!welcome && (
+                      <SetupGuide
+                        teamId={team.id}
+                        serverUrl={serverUrl}
+                        isOwner={isOwner}
+                        initial={setup}
+                      />
+                    )}
                     {items.map((item) => {
                       return (
                         <Fragment key={item.key}>
@@ -214,6 +222,12 @@ export function RoomClient({
                                 gate={item.gate}
                                 viewer={viewer}
                                 highlighted={item.gate.id === highlightGateId}
+                                welcome={welcome && item.gate.id === highlightGateId}
+                                invite={
+                                  isOwner && members.length === 1 ? (
+                                    <GateInvite gateId={item.gate.id} code={item.gate.code} />
+                                  ) : undefined
+                                }
                                 onApprove={async (gate) => {
                                   await actions.approve(gate);
                                 }}

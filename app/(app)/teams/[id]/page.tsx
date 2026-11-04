@@ -58,6 +58,7 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
       setup={setup}
       serverUrl={env.NEXT_PUBLIC_APP_URL}
       isOwner={membership.role === "owner"}
+      welcome={highlight !== null && query.joined === "1"}
     />
   );
 }

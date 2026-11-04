@@ -14,5 +14,5 @@ export async function POST(request: Request, ctx: RouteContext<"/api/invites/[to
 
   const result = await acceptInvite(db, { token, userId: auth.user.id });
   if (!result.ok) return json({ error: result.reason }, result.reason === "invalid" ? 404 : 410);
-  return json({ teamId: result.teamId, joinedNow: result.joinedNow });
+  return json({ teamId: result.teamId, joinedNow: result.joinedNow, gateId: result.gateId });
 }
