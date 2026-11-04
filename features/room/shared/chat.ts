@@ -18,6 +18,8 @@ export type ChatLine = {
   // mention someone, who has read it so far (read receipts).
   mentions: string[];
   readBy: string[];
+  // Sent to some members only (Nexconn directedUserIds): the team, without its clients.
+  teamOnly: boolean;
 };
 
 // Nexconn's MentionedType.SINGAL: specific people (the enum isn't exported at runtime).
@@ -89,6 +91,7 @@ type RawMessage = {
   senderUserId?: string;
   sentTime?: number;
   content?: unknown;
+  directedUserIds?: unknown;
 };
 
 // A text message from Nexconn as a chat line, or null for anything else.
@@ -115,6 +118,7 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     gateCode: Number(REPLY_PREFIX_RE.exec(text)?.[1]) || null,
     mentions: mentionsFrom(content?.mentionedInfo),
     readBy: [],
+    teamOnly: Array.isArray(message.directedUserIds) && message.directedUserIds.length > 0,
   };
 }
 

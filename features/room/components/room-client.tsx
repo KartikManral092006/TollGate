@@ -163,6 +163,12 @@ export function RoomClient({
     callsEnabled,
     nameOf,
   });
+  // Clients (guest role) don't receive "team only" messages.
+  const hasClients = members.some((m) => m.role === "guest");
+  const teamMembers = useMemo(
+    () => members.filter((m) => m.role !== "guest").map((m) => m.id),
+    [members],
+  );
   const mentionable = useMemo(
     () => members.filter((m) => m.id !== viewer.id).map((m) => ({ id: m.id, name: m.name })),
     [members, viewer.id],
@@ -406,13 +412,15 @@ export function RoomClient({
                 reply={replying}
                 onCancelReply={() => setReplying(null)}
                 members={mentionable}
-                onSend={async (text, mentions) => {
+                hasClients={hasClients && members.find((m) => m.id === viewer.id)?.role !== "guest"}
+                onSend={async (text, mentions, teamOnly) => {
                   const sent = await send(
                     text,
                     replying ?? undefined,
                     mentions.length > 0
                       ? { ids: mentions, from: names.get(viewer.id) ?? "A teammate" }
                       : undefined,
+                    teamOnly ? teamMembers : undefined,
                   );
                   if (sent) setReplying(null);
                   return sent;

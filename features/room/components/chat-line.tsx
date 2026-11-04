@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCheck } from "lucide-react";
+import { AlertCircle, CheckCheck, Lock } from "lucide-react";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { clockTime } from "@/features/room/shared/format";
 import { replyBody, type ChatLine } from "@/features/room/shared/chat";
@@ -53,6 +53,11 @@ export function ChatLineView({
       <div className="min-w-0">
         <p className="flex items-baseline gap-2 text-sm">
           <span className="font-semibold">{line.mine ? "You" : name}</span>
+          {line.teamOnly && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-gate-pending/15 px-1.5 text-[11px] font-medium text-gate-pending-fg">
+              <Lock className="size-3" aria-hidden /> Team only
+            </span>
+          )}
           {line.local === "failed" ? (
             <span className="inline-flex items-center gap-1 text-xs text-destructive">
               <AlertCircle className="size-3" aria-hidden /> Not sent

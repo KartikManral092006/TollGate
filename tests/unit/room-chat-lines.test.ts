@@ -24,6 +24,7 @@ const line = (id: string, sentTime: number, overrides: Partial<ChatLine> = {}): 
   gateCode: null,
   mentions: [],
   readBy: [],
+  teamOnly: false,
   ...overrides,
 });
 
@@ -103,7 +104,11 @@ describe("chatLineFromMessage", () => {
       gateCode: null,
       mentions: [],
       readBy: [],
+      teamOnly: false,
     });
+    expect(chatLineFromMessage({ ...message, directedUserIds: ["U1", "U2"] }, "me")?.teamOnly).toBe(
+      true,
+    );
     expect(chatLineFromMessage(message, "U1")?.mine).toBe(true);
   });
 
