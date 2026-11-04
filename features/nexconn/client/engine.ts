@@ -140,6 +140,7 @@ function addHandlers(chat: ChatModule) {
       onMessageReceiptResponse({ responses }) {
         for (const response of responses) {
           nexconnEvents.emit("receipt", {
+            channelId: response.channelIdentifier.channelId,
             messageId: response.messageId,
             users: response.users.map((user) => user.userId),
           });

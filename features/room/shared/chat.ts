@@ -14,7 +14,26 @@ export type ChatLine = {
   // "TG-17 · " prefix survived (another client, or extra lost in history).
   gateId: string | null;
   gateCode: number | null;
+  // Nexconn user ids @mentioned in it (mentionedInfo), and, on your own messages that
+  // mention someone, who has read it so far (read receipts).
+  mentions: string[];
+  readBy: string[];
 };
+
+// Nexconn's MentionedType.SINGAL: specific people (the enum isn't exported at runtime).
+export const MENTION_PEOPLE = 2;
+
+// The @mentions kept in a message: picked names whose "@Name" is still in the text.
+export function mentionedIds(text: string, picked: Map<string, string>): string[] {
+  return [...picked.entries()].filter(([name]) => text.includes(`@${name}`)).map(([, id]) => id);
+}
+
+function mentionsFrom(info: unknown): string[] {
+  const list = (info as { userIdList?: unknown } | null | undefined)?.userIdList;
+  return Array.isArray(list)
+    ? list.filter((id): id is string => typeof id === "string").slice(0, 50)
+    : [];
+}
 
 // Replies start with the gate's code so they read right in any Nexconn client, and carry the
 // gate's id in `extra` so they attach to the right card even if two teams share a code.
@@ -78,7 +97,9 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     return null;
   }
   const content = message.content as
-    { text?: unknown; content?: unknown; extra?: unknown } | null | undefined;
+    | { text?: unknown; content?: unknown; extra?: unknown; mentionedInfo?: unknown }
+    | null
+    | undefined;
   const raw = typeof content?.text === "string" ? content.text : content?.content;
   if (typeof raw !== "string") return null;
   const text = normalizeChatText(raw);
@@ -92,6 +113,8 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     local: null,
     gateId: gateIdFromExtra(content?.extra),
     gateCode: Number(REPLY_PREFIX_RE.exec(text)?.[1]) || null,
+    mentions: mentionsFrom(content?.mentionedInfo),
+    readBy: [],
   };
 }
 

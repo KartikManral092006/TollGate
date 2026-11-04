@@ -5,6 +5,7 @@ import {
   chatLineFromMessage,
   mergeChat,
   normalizeChatText,
+  mentionedIds,
   repliesTo,
   replyBody,
   replyExtra,
@@ -21,6 +22,8 @@ const line = (id: string, sentTime: number, overrides: Partial<ChatLine> = {}): 
   local: null,
   gateId: null,
   gateCode: null,
+  mentions: [],
+  readBy: [],
   ...overrides,
 });
 
@@ -51,6 +54,17 @@ describe("mergeChat", () => {
     const merged = mergeChat([], many);
     expect(merged).toHaveLength(CHAT_KEEP);
     expect(merged[0]?.id).toBe("m5");
+  });
+});
+
+describe("mentionedIds", () => {
+  it("keeps only picked names still written in the text", () => {
+    const picked = new Map([
+      ["Ana Ruiz", "ana"],
+      ["Ben Okafor", "ben"],
+    ]);
+    expect(mentionedIds("@Ana Ruiz does billing read it?", picked)).toEqual(["ana"]);
+    expect(mentionedIds("nobody", picked)).toEqual([]);
   });
 });
 
@@ -87,8 +101,24 @@ describe("chatLineFromMessage", () => {
       local: null,
       gateId: null,
       gateCode: null,
+      mentions: [],
+      readBy: [],
     });
     expect(chatLineFromMessage(message, "U1")?.mine).toBe(true);
+  });
+
+  it("reads who a message @mentions", () => {
+    const mention = chatLineFromMessage(
+      {
+        ...message,
+        content: {
+          text: "@Ana Ruiz can you look?",
+          mentionedInfo: { type: 2, userIdList: ["ana", 7] },
+        },
+      },
+      "me",
+    );
+    expect(mention?.mentions).toEqual(["ana"]);
   });
 
   const GATE = "A".repeat(32);
