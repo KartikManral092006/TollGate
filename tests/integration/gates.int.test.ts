@@ -174,6 +174,21 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     expect(status?.decidedByName).toBe("approver0");
   });
 
+  it("redacts a deny reason picked from a chat reply before the agent sees it", async () => {
+    const gate = await createGate(db, principal, gateInput("drizzle-kit push # thread"), { newId });
+    const secret = `ghp_${"a1B2".repeat(9)}`;
+    await castVote(db, {
+      gateId: gate.id,
+      userId: approvers[1]!,
+      decision: "deny",
+      reason: `Use the deploy token ${secret} instead`,
+      newId,
+    });
+    const status = await getGateForRepo(db, gate.id, principal.repoId);
+    expect(status?.gate.denyReason).toMatch(/^Use the deploy token .+ instead$/);
+    expect(status?.gate.denyReason).not.toContain(secret);
+  });
+
   it("rejects the requester, non-members and double votes", async () => {
     const gate = await createGate(db, principal, gateInput("vercel --prod"), { newId });
     const vote = (userId: string) =>

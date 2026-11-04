@@ -18,7 +18,14 @@ const VOTE_ERRORS: Record<string, string> = {
 
 // Approve, deny with a reason, ask, and "Why?" for a gate, shared by the room, a gate's own
 // page and review mode, so all three behave the same. `drawers` must be rendered once.
-export function useGateActions({ refresh }: { refresh: () => Promise<void> | void }) {
+export function useGateActions({
+  refresh,
+  repliesFor,
+}: {
+  refresh: () => Promise<void> | void;
+  // A gate's chat replies, offered as deny reasons (the room has them; other pages don't).
+  repliesFor?: (gate: GateView) => { id: string; name: string; text: string }[];
+}) {
   const [denying, setDenying] = useState<GateView | null>(null);
   const [asking, setAsking] = useState<GateView | null>(null);
 
@@ -74,13 +81,14 @@ export function useGateActions({ refresh }: { refresh: () => Promise<void> | voi
         gate={denying}
         onClose={() => setDenying(null)}
         onSubmit={(gate, reason) => vote(gate, "deny", reason)}
+        replies={denying && repliesFor ? repliesFor(denying) : []}
       />
       <DenyDrawer gate={asking} mode="ask" onClose={() => setAsking(null)} onSubmit={ask} />
     </>
   );
 
   return {
-    approve: (gate: GateView) => vote(gate, "approve"),
+    approve: (gate: GateView, note?: string) => vote(gate, "approve", note),
     deny: setDenying,
     ask: setAsking,
     explain,

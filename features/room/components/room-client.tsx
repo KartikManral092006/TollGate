@@ -1,7 +1,7 @@
 "use client";
 
 import { ShieldAlert } from "lucide-react";
-import { Fragment, useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Empty,
   EmptyContent,
@@ -39,7 +39,7 @@ import { useViewingGate } from "@/features/presence/client/use-viewing";
 import { presenceFor } from "@/features/presence/shared/presence";
 import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { useRoomLive } from "@/features/room/client/use-room-live";
-import type { ChatLine } from "@/features/room/shared/chat";
+import { repliesTo, replyBody, type ChatLine } from "@/features/room/shared/chat";
 import { dayLabel } from "@/features/room/shared/format";
 import { GateInvite } from "@/features/teams/components/gate-invite";
 
@@ -96,7 +96,45 @@ export function RoomClient({
     [members, viewer.id],
   );
   const names = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
-  const actions = useGateActions({ refresh });
+
+  // Gate threads: chat replies attached to a card, by the id they carry or their "TG-17" code.
+  const [replying, setReplying] = useState<{ id: string; code: number } | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const replies = useMemo(() => {
+    const byGate = new Map<string, { id: string; name: string; text: string }[]>();
+    for (const gate of gates) {
+      const thread = repliesTo(lines, gate);
+      if (thread.length === 0) continue;
+      byGate.set(
+        gate.id,
+        thread.map((line) => ({
+          id: line.id,
+          name: line.mine ? "You" : (names.get(line.senderId) ?? "Teammate"),
+          text: replyBody(line.text),
+        })),
+      );
+    }
+    return byGate;
+  }, [gates, lines, names]);
+  const gateOf = (line: ChatLine) => {
+    const gate =
+      (line.gateId && gates.find((g) => g.id === line.gateId)) ||
+      (line.gateCode !== null && gates.find((g) => g.code === line.gateCode)) ||
+      null;
+    return gate ? { id: gate.id, code: gate.code } : null;
+  };
+  const jumpTo = (gateId: string) => {
+    document
+      .getElementById(`gate-${gateId}`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setFlashId(gateId);
+    setTimeout(() => setFlashId((current) => (current === gateId ? null : current)), 1800);
+  };
+
+  const actions = useGateActions({
+    refresh,
+    repliesFor: (gate) => replies.get(gate.id) ?? [],
+  });
   const viewing = useViewingGate(gates);
   const people = usePresence(team.id, { viewing, typing: actions.composing?.id ?? null });
   const online = useMemo(() => new Set(people.map((p) => p.userId)), [people]);
@@ -221,15 +259,19 @@ export function RoomClient({
                               <GateCard
                                 gate={item.gate}
                                 viewer={viewer}
-                                highlighted={item.gate.id === highlightGateId}
+                                highlighted={
+                                  item.gate.id === highlightGateId || item.gate.id === flashId
+                                }
+                                replies={replies.get(item.gate.id)}
+                                onReply={live === "live" ? setReplying : undefined}
                                 welcome={welcome && item.gate.id === highlightGateId}
                                 invite={
                                   isOwner && members.length === 1 ? (
                                     <GateInvite gateId={item.gate.id} code={item.gate.code} />
                                   ) : undefined
                                 }
-                                onApprove={async (gate) => {
-                                  await actions.approve(gate);
+                                onApprove={async (gate, note) => {
+                                  await actions.approve(gate, note);
                                 }}
                                 onDeny={actions.deny}
                                 onAsk={actions.ask}
@@ -269,6 +311,8 @@ export function RoomClient({
                               <ChatLineView
                                 line={item.line}
                                 name={names.get(item.line.senderId) ?? "Teammate"}
+                                gate={gateOf(item.line)}
+                                onJump={jumpTo}
                               />
                             )}
                           </MessageScrollerItem>
@@ -303,7 +347,16 @@ export function RoomClient({
               />
             )}
             <div className="mx-auto w-full max-w-3xl">
-              <Composer disabled={live !== "live"} onSend={send} />
+              <Composer
+                disabled={live !== "live"}
+                reply={replying}
+                onCancelReply={() => setReplying(null)}
+                onSend={async (text) => {
+                  const sent = await send(text, replying ?? undefined);
+                  if (sent) setReplying(null);
+                  return sent;
+                }}
+              />
             </div>
           </div>
         </div>

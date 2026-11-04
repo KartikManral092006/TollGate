@@ -12,6 +12,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Textarea } from "@/components/ui/textarea";
+import { redact } from "@/features/gates/shared/redact";
 import type { GateView } from "@/features/gates/shared/view";
 import { cn } from "@/lib/utils";
 
@@ -53,11 +54,14 @@ export function DenyDrawer({
   mode = "deny",
   onClose,
   onSubmit,
+  replies = [],
 }: {
   gate: GateView | null;
   mode?: keyof typeof COPY;
   onClose: () => void;
   onSubmit: (gate: GateView, text: string) => Promise<boolean>;
+  // The gate's chat replies: a teammate's reply can become the reason the agent gets.
+  replies?: { id: string; name: string; text: string }[];
 }) {
   const copy = COPY[mode];
   const [reason, setReason] = useState("");
@@ -99,6 +103,26 @@ export function DenyDrawer({
               aria-label={copy.label}
               className="text-base sm:text-sm"
             />
+            {mode === "deny" && replies.length > 0 && (
+              <fieldset className="flex flex-col gap-1.5">
+                <legend className="mb-1 text-xs font-medium text-muted-foreground">
+                  Use a reply as the reason
+                </legend>
+                {replies.slice(-4).map((reply) => (
+                  <button
+                    key={reply.id}
+                    type="button"
+                    // Secrets are hidden before the text is shown, so what's in the box is
+                    // exactly what the agent will read. The server redacts again.
+                    onClick={() => setReason(redact(reply.text).text.slice(0, 1000))}
+                    className="rounded-lg border px-3 py-2 text-start text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <span className="font-medium">{reply.name}</span>{" "}
+                    <span className="text-muted-foreground">{reply.text}</span>
+                  </button>
+                ))}
+              </fieldset>
+            )}
             <div className="flex flex-wrap gap-2">
               {copy.quick.map((quick) => (
                 <button

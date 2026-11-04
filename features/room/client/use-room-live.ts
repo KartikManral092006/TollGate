@@ -8,6 +8,8 @@ import {
   chatLineFromMessage,
   mergeChat,
   normalizeChatText,
+  replyExtra,
+  replyText,
   type ChatLine,
 } from "@/features/room/shared/chat";
 
@@ -133,9 +135,11 @@ export function useRoomLive(input: {
   }, [live, refresh]);
 
   const send = useCallback(
-    async (raw: string): Promise<boolean> => {
-      const text = normalizeChatText(raw);
-      if (!text) return false;
+    // With `gate`, a reply on that gate's card: prefixed with its code, tagged with its id.
+    async (raw: string, gate?: { id: string; code: number }): Promise<boolean> => {
+      const body = normalizeChatText(raw);
+      if (!body) return false;
+      const text = gate ? normalizeChatText(replyText(gate.code, body)) : body;
       const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const optimistic: ChatLine = {
         id: tempId,
@@ -144,12 +148,16 @@ export function useRoomLive(input: {
         sentTime: Date.now(),
         mine: true,
         local: "sending",
+        gateId: gate?.id ?? null,
+        gateCode: gate?.code ?? null,
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
         const { chat } = await startNexconn({ withChatUI: false, withCall: callsEnabled });
         const channel = new chat.GroupChannel(channelId);
-        const result = await channel.sendMessage(new chat.SendTextMessageParams({ text }));
+        const result = await channel.sendMessage(
+          new chat.SendTextMessageParams(gate ? { text, extra: replyExtra(gate.id) } : { text }),
+        );
         if (!result.isOk || !result.data) throw new Error(`send failed: ${result.code}`);
         const sent = result.data;
         setLines((current) =>
