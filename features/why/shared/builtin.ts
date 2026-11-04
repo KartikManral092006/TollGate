@@ -1,3 +1,4 @@
+import { TOOL_NOUN as NOUN } from "@/features/gates/shared/presets";
 import type { WhyInput } from "./prompt";
 
 // The default "Why?": rule-based, so it is free, instant, private and can't be steered by text
@@ -20,6 +21,14 @@ const PRESET_SUMMARY: Record<string, string> = {
   "tollgate-test": "A harmless test command that only prints text. It changes nothing.",
   opaque:
     "Runs code nobody can read beforehand: it is downloaded, decoded or put together from a variable at the moment it runs.",
+  "guard-config":
+    "Changes Tollgate's own setup: the hook that stops risky commands, this repo's rules, or the saved token. An agent editing these could switch the gate off.",
+  "ci-config":
+    "Changes how the project is built or deployed. It takes effect on the next push, without another gate.",
+  "env-file":
+    "Changes an environment file, which usually holds secrets and settings such as database URLs and API keys. Values are hidden here.",
+  "mcp-risky":
+    "Calls a tool on a connected service (an MCP server) whose name says it deletes, deploys, merges, publishes or moves money. It acts on that service directly, outside this repo.",
 };
 
 const UNDO: Record<string, string> = {
@@ -32,6 +41,12 @@ const UNDO: Record<string, string> = {
   "destructive-fs": "Can't be undone unless there's a backup.",
   "tollgate-test": "Nothing to undo.",
   opaque: "Depends entirely on what the code turns out to do. Ask where it comes from first.",
+  "guard-config":
+    "Easy to change back, but until then commands may run without anyone being asked.",
+  "ci-config": "Reversible with another commit, but a deploy may run before anyone notices.",
+  "env-file":
+    "Reversible if the old values are known. A wrong or exposed secret may need replacing.",
+  "mcp-risky": "Depends on the service. Many of these actions can't be undone from here.",
 };
 
 type Finding = { pattern: RegExp; warning: string };
@@ -102,13 +117,14 @@ export function builtinExplanation(input: WhyInput): string {
   const lines: string[] = [];
   lines.push(
     PRESET_SUMMARY[input.preset] ??
-      `Tollgate stopped this command because it matches the team's "${input.preset}" rule.`,
+      `Tollgate stopped this ${NOUN[input.tool ?? "bash"]} because it matches the team's "${input.preset}" rule.`,
   );
   const envText = envLine(input.env);
   if (envText) lines.push(envText);
 
   const warnings = [
-    ...findings(COMMAND_FINDINGS, input.command),
+    // Flags like -f or --yes only mean something in a shell command.
+    ...((input.tool ?? "bash") === "bash" ? findings(COMMAND_FINDINGS, input.command) : []),
     ...(input.preset === "db-migrate" ? findings(SQL_FINDINGS, input.context) : []),
   ];
   if (warnings.length > 0) {

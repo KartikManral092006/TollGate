@@ -3,7 +3,8 @@
 // so text inside them can't act as instructions (both are already redacted).
 
 export const WHY_SYSTEM = [
-  "You explain shell commands to a person who must decide whether a coding agent may run them.",
+  "You explain what a coding agent wants to do (a shell command, a file edit, or a call to an",
+  "external service's tool through MCP) to a person who must decide whether it may.",
   "In at most 120 words of plain language: say what the command will do, what it could break or",
   "delete, and whether it can be undone. Mention the environment if it matters (prod, staging).",
   "Do not tell the reader to approve or deny, and do not give a verdict: the decision is theirs.",
@@ -21,14 +22,18 @@ export type WhyInput = {
   preset: string;
   env: string;
   repo: string;
+  // What was stopped; older callers only explain commands.
+  tool?: "bash" | "edit" | "mcp";
 };
+
+const KIND = { bash: "shell command", edit: "file edit", mcp: "MCP tool call" } as const;
 
 const escapeTags = (text: string) =>
   text.replace(/<\/?(command|context|details|agent_reason)>/gi, "[tag]");
 
 export function buildWhyPrompt(input: WhyInput): string {
   return [
-    `<details>repo: ${escapeTags(input.repo)}; rule: ${escapeTags(input.preset)}; environment: ${escapeTags(input.env)}</details>`,
+    `<details>repo: ${escapeTags(input.repo)}; kind: ${KIND[input.tool ?? "bash"]}; rule: ${escapeTags(input.preset)}; environment: ${escapeTags(input.env)}</details>`,
     `<command>\n${escapeTags(input.command)}\n</command>`,
     input.intent ? `<agent_reason>${escapeTags(input.intent)}</agent_reason>` : "",
     input.context ? `<context>\n${escapeTags(input.context)}\n</context>` : "",

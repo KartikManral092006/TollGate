@@ -16,6 +16,7 @@ function gate(patch: Partial<GateView>): GateView {
     code: 1,
     status: "pending",
     preset: "publish",
+    tool: "bash",
     env: "prod",
     repo: "acme/x",
     mode: "guard",

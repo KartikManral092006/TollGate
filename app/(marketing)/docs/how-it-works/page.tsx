@@ -19,10 +19,41 @@ export default function HowItWorksPage() {
 
       <H2 id="hook">The hook</H2>
       <P>
-        <C>tollgate-cli init</C> registers a <C>PreToolUse</C> hook in <C>.claude/settings.json</C>.
-        Claude Code runs it before every Bash command its agent makes. The hook checks the command
-        against your team&apos;s presets on your machine. Commands that don&apos;t match run as
-        usual, without anything being sent anywhere.
+        <C>tollgate-cli init</C> registers a <C>PreToolUse</C> hook in{" "}
+        <C>.claude/settings.local.json</C>. Claude Code runs it before every Bash command, file edit
+        and MCP tool call its agent makes. The hook checks it against your team&apos;s presets on
+        your machine. Anything that doesn&apos;t match runs as usual, without anything being sent
+        anywhere.
+      </P>
+
+      <H2 id="edits-and-tools">Edits and tools, not only commands</H2>
+      <P>
+        An agent that may not run <C>vercel --prod</C> could still change the deploy workflow, or
+        call a deploy tool through MCP. So Tollgate also gates:
+      </P>
+      <List>
+        <li>
+          Edits that would switch Tollgate off: <C>.claude/settings.json</C>, <C>.tollgate.json</C>,
+          and the token in <C>~/.config/tollgate</C>.
+        </li>
+        <li>
+          Deploy and CI files: <C>.github/workflows/</C>, <C>.gitlab-ci.yml</C>, and <C>vercel</C>,{" "}
+          <C>netlify</C>, <C>fly</C> and <C>railway</C> config.
+        </li>
+        <li>
+          <C>.env</C> files (not <C>.env.example</C>). The card shows which keys change, never their
+          values.
+        </li>
+        <li>
+          MCP tools whose names say they delete, deploy, publish, merge, refund, charge, transfer or
+          run SQL, such as <C>mcp__github__merge_pull_request</C>.
+        </li>
+      </List>
+      <P>
+        The card shows the change itself, removed lines in red and added lines in green. An approval
+        covers that exact change only: a different edit to the same file is a new gate. Ask
+        isn&apos;t offered on these gates, because only a Bash call can carry the agent&apos;s
+        answer back to the team.
       </P>
 
       <H2 id="see-through">It sees what a command really runs</H2>
@@ -54,7 +85,8 @@ export default function HowItWorksPage() {
       </P>
       <P>
         What&apos;s sent: the redacted command, its folder, the git branch, short context (such as a
-        migration&apos;s SQL), the agent&apos;s stated reason, and its Claude Code session id.
+        migration&apos;s SQL), the agent&apos;s stated reason, and its Claude Code session id. For
+        an edit, the path and the change; for an MCP call, the tool&apos;s name and arguments.
       </P>
 
       <H2 id="waiting">While your team decides</H2>

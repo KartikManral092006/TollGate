@@ -8,7 +8,7 @@ import {
   type HookDeps,
   type RepoConfig,
 } from "@/packages/cli/src/hook";
-import { isTollgateHook, mergeHookSettings } from "@/packages/cli/src/init";
+import { HOOK_MATCHER, isTollgateHook, mergeHookSettings } from "@/packages/cli/src/init";
 
 const config: RepoConfig = {
   repoRoot: "/w/acme",
@@ -58,6 +58,7 @@ function setup(options: {
     gitBranch: () => "main",
     context: () => "Newest migration 0002: ALTER TABLE invoices DROP COLUMN legacy_total;",
     env: options.env ?? {},
+    home: "/home/dev",
     now: () => clock,
     sleep: async (ms) => {
       clock += ms;
@@ -238,6 +239,113 @@ describe("decide", () => {
   });
 });
 
+describe("decide: file edits and MCP calls", () => {
+  const edit = (file_path: string, old_string: string, new_string: string) => ({
+    tool_name: "Edit",
+    tool_input: { file_path, old_string, new_string },
+    cwd: "/w/acme",
+    session_id: "s1",
+  });
+
+  it("gates an edit to a deploy workflow and shows the change", async () => {
+    const { deps, api } = setup({ statuses: [gate(), gate({ status: "approved" })] });
+    const decision = await decide(
+      edit("/w/acme/.github/workflows/deploy.yml", "branches: [main]", "branches: [main, dev]"),
+      deps,
+    );
+    expect(decision).toEqual({ kind: "none", note: "TG-17 approved" });
+    const body = vi.mocked(api.createGate).mock.calls[0]![0];
+    expect(body).toMatchObject({
+      preset: "ci-config",
+      tool: "edit",
+      command: "edit .github/workflows/deploy.yml",
+      context: "- branches: [main]\n+ branches: [main, dev]",
+      intent: null,
+    });
+    expect(body.via).toBeUndefined();
+  });
+
+  it("lets ordinary edits through without asking the server", async () => {
+    const { deps, api } = setup({});
+    expect(await decide(edit("/w/acme/src/app.ts", "a", "b"), deps)).toEqual({ kind: "none" });
+    expect(api.consumeGrant).not.toHaveBeenCalled();
+  });
+
+  it("binds a grant to the exact edit, not just the file", async () => {
+    const { deps, api } = setup({ statuses: [gate({ status: "approved" })] });
+    await decide(edit("/w/acme/vercel.json", '"a"', '"b"'), deps);
+    await decide(edit("/w/acme/vercel.json", '"a"', '"c"'), deps);
+    const [first, second] = vi.mocked(api.consumeGrant).mock.calls.map((call) => call[0]);
+    expect(first).not.toBe(second);
+  });
+
+  it("never sends the values written to a .env file", async () => {
+    const { deps, api } = setup({ statuses: [gate({ status: "approved" })] });
+    await decide(
+      {
+        tool_name: "Write",
+        tool_input: {
+          file_path: "/w/acme/.env.production",
+          content: "# keys\nSTRIPE_KEY=sk_live_new\nexport DB_URL = postgres://u:p@h/db",
+        },
+        cwd: "/w/acme",
+      },
+      deps,
+    );
+    const body = vi.mocked(api.createGate).mock.calls[0]![0];
+    expect(body).toMatchObject({
+      preset: "env-file",
+      env: "prod",
+      command: "write .env.production",
+    });
+    expect(body.context).toBe("+ # keys\n+ STRIPE_KEY=[REDACTED]\n+ export DB_URL =[REDACTED]");
+  });
+
+  it("gates edits that would switch Tollgate off, even outside the repo", async () => {
+    const { deps, api } = setup({ statuses: [gate({ status: "denied", denyReason: "no" })] });
+    const decision = await decide(
+      edit("/home/dev/.claude/settings.json", '"hooks"', '"hooks_off"'),
+      deps,
+    );
+    expect(vi.mocked(api.createGate).mock.calls[0]![0]).toMatchObject({
+      preset: "guard-config",
+      command: "edit ~/.claude/settings.json",
+    });
+    expect(decision).toMatchObject({ kind: "deny" });
+    expect((decision as { reason: string }).reason).toContain("Do not retry this edit as is");
+  });
+
+  it("gates a risky MCP call with its arguments, redacted", async () => {
+    const { deps, api } = setup({ statuses: [gate({ status: "approved", mode: "delegate" })] });
+    const decision = await decide(
+      {
+        tool_name: "mcp__supabase__execute_sql",
+        tool_input: { project: "prod", query: "DELETE FROM sessions", key: "supersecretvalue" },
+        cwd: "/w/acme",
+      },
+      deps,
+    );
+    expect(decision).toMatchObject({ kind: "allow" });
+    expect(vi.mocked(api.createGate).mock.calls[0]![0]).toMatchObject({
+      preset: "mcp-risky",
+      tool: "mcp",
+      env: "prod",
+      quorum: 2,
+      command:
+        'mcp__supabase__execute_sql {"project":"prod","query":"DELETE FROM sessions","key":"[REDACTED]"}',
+    });
+  });
+
+  it("names what was blocked when it can't reach the server", async () => {
+    const { deps } = setup({ createFails: true });
+    const decision = await decide(
+      { tool_name: "mcp__github__merge_pull_request", cwd: "/w/acme" },
+      deps,
+    );
+    expect((decision as { reason: string }).reason).toContain("this risky tool call was blocked");
+  });
+});
+
 describe("renderDecision", () => {
   it("prints nothing for no decision and the PreToolUse shape otherwise", () => {
     expect(renderDecision({ kind: "none" })).toBeNull();
@@ -273,10 +381,26 @@ describe("mergeHookSettings", () => {
     expect(merged.hooks?.Stop).toEqual(existing.hooks.Stop);
     const commands = merged.hooks!.PreToolUse!.flatMap((m) => m.hooks!.map((h) => h.command));
     expect(commands).toEqual(["./my-lint.sh", 'node "/new/tollgate.mjs" hook']);
+    expect(merged.hooks!.PreToolUse!.at(-1)!.matcher).toBe(HOOK_MATCHER);
     const tollgate = merged.hooks!.PreToolUse!.at(-1)!.hooks![0]!;
     expect(tollgate).toMatchObject({ timeout: 300, onFailure: "block" });
     const again = mergeHookSettings(merged, 'node "/new/tollgate.mjs" hook', 300);
     expect(again).toEqual(merged);
+  });
+
+  it("registers for commands, file edits and MCP tools", () => {
+    const matcher = new RegExp(`^(${HOOK_MATCHER})$`);
+    for (const tool of [
+      "Bash",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "NotebookEdit",
+      "mcp__github__merge_pull_request",
+    ]) {
+      expect(matcher.test(tool)).toBe(true);
+    }
+    for (const tool of ["Read", "Grep", "WebFetch", "Task"]) expect(matcher.test(tool)).toBe(false);
   });
 
   it("recognises Tollgate hook commands", () => {

@@ -60,6 +60,7 @@ export async function createGate(
   // as well as the command itself (wrappers and inline scripts it expands on its own).
   const serverMatch = matchCommand(repoPresets(principal.presets), {
     command: command.text,
+    tool: input.tool,
     cwd: cwd.text,
     // The server never sees the real repo root; only pattern matching applies here.
     repoRoot: cwd.text,
@@ -115,6 +116,7 @@ export async function createGate(
         repoId: principal.repoId,
         requesterId: principal.requesterId,
         preset,
+        tool: input.tool,
         env,
         command: truncate(command.text, 4000),
         cwd: truncate(cwd.text, 500),

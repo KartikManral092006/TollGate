@@ -23,7 +23,13 @@ export function tallyLine(tally: Precedent["tally"]): string | null {
 }
 
 // The team's earlier decision on the same (or a similar) command, shown before anyone votes.
-export function PrecedentNote({ precedent }: { precedent: Precedent }) {
+export function PrecedentNote({
+  precedent,
+  noun = "command",
+}: {
+  precedent: Precedent;
+  noun?: string;
+}) {
   const denied = precedent.status === "denied";
   const by = joinNames(precedent.by);
   const tally = tallyLine(precedent.tally);
@@ -38,8 +44,8 @@ export function PrecedentNote({ precedent }: { precedent: Precedent }) {
       <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
         <History className="size-3.5" aria-hidden />
         {precedent.match === "same"
-          ? "Your team has decided this command before"
-          : "Your team decided a similar command before"}
+          ? `Your team has decided this ${noun} before`
+          : `Your team decided a similar ${noun} before`}
       </p>
       <p className="mt-0.5" suppressHydrationWarning>
         <span className="font-semibold">TG-{precedent.code}</span>

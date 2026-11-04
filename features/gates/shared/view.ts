@@ -1,7 +1,13 @@
 // What the room and the audit log render for one gate. Built from a listTeamGates row on the
 // server; plain JSON, so it survives the trip to the browser unchanged.
 
+import { GATE_TOOLS, type GateTool } from "@/features/gates/shared/presets";
 import type { GateInsights } from "@/features/insights/shared/types";
+
+// Rows from before file and MCP gates have no tool column value but "bash".
+export function toolOf(value: string | undefined): GateTool {
+  return (GATE_TOOLS as readonly string[]).includes(value ?? "") ? (value as GateTool) : "bash";
+}
 
 export type GateStatusView = "pending" | "approved" | "denied" | "parked" | "expired";
 
@@ -28,6 +34,8 @@ export type GateView = {
   code: number;
   status: GateStatusView;
   preset: string;
+  // What was stopped: a command, a file edit or an MCP tool call.
+  tool: GateTool;
   env: string;
   repo: string;
   mode: "guard" | "delegate";
@@ -85,6 +93,7 @@ export type GateRow = {
   code: number;
   status: GateStatusView;
   preset: string;
+  tool?: string;
   env: string;
   branch: string | null;
   command: string;
@@ -156,6 +165,7 @@ export function toGateView(row: GateRow): GateView {
     code: row.code,
     status: row.status,
     preset: row.preset,
+    tool: toolOf(row.tool),
     env: row.env,
     repo: row.repo.name,
     mode: row.repo.mode,

@@ -30,18 +30,23 @@ function Highlighted({ line }: { line: string }) {
 }
 
 // The gate's context (newest migration SQL, last commit) with the lines that destroy data
-// marked in red, so an approver sees where the risk is, not only that it exists.
-export function ContextView({ text }: { text: string }) {
+// marked in red, so an approver sees where the risk is, not only that it exists. For a file
+// edit it's the change: "- " lines removed, "+ " lines added.
+export function ContextView({ text, diff = false }: { text: string; diff?: boolean }) {
   return (
     <div className="max-h-72 overflow-auto rounded-md bg-muted py-2 font-mono text-xs leading-relaxed">
       {text.split("\n").map((line, index) => {
         const loss = lossOf(line);
         const heading = /^(Newest migration|Last commit)\b/.test(line);
+        // "+" or "-" when the line starts with one and a space.
+        const change = diff && line[1] === " " ? line[0] : "";
         return (
           <div
             key={index}
             className={cn(
               "flex min-h-5 items-start gap-3 px-3",
+              change === "+" && "bg-gate-approved-bg text-gate-approved-fg",
+              change === "-" && "bg-gate-denied-bg text-gate-denied-fg",
               loss && "bg-gate-denied-bg text-gate-denied-fg",
               heading && "pt-1 font-sans font-semibold text-muted-foreground",
             )}

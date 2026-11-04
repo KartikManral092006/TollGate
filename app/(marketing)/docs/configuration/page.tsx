@@ -40,11 +40,33 @@ export default function ConfigurationPage() {
           ],
           [<C key="7">destructive-fs</C>, "rm -rf on paths outside the repo", "1"],
           [<C key="8">tollgate-test</C>, "echo tollgate-test (the test gate)", "1"],
+          [
+            <C key="9">guard-config</C>,
+            "edits to .claude/settings.json, .tollgate.json or the Tollgate token",
+            "1",
+          ],
+          [
+            <C key="10">ci-config</C>,
+            "edits to .github/workflows/, .gitlab-ci.yml, vercel, netlify, fly or railway config",
+            "1, or 2 in production",
+          ],
+          [<C key="11">env-file</C>, "edits to .env files (not .env.example)", "1"],
+          [
+            <C key="12">mcp-risky</C>,
+            "MCP tools that delete, deploy, publish, merge, refund, charge or run SQL",
+            "1, or 2 in production",
+          ],
         ]}
       />
       <P>
         <C>init</C> writes the presets into <C>.tollgate.json</C> at the repo root. Commit it so
         everyone on the team is gated the same way.
+      </P>
+      <P>
+        To add your own, give a preset a <C>&quot;tool&quot;</C> of <C>&quot;edit&quot;</C> or{" "}
+        <C>&quot;mcp&quot;</C>. Edit patterns are matched against <C>edit path/to/file</C> (or{" "}
+        <C>write …</C> for a new file), MCP patterns against{" "}
+        <C>mcp__server__tool {"{arguments}"}</C>. Presets without a tool match Bash commands.
       </P>
 
       <H2 id="timeout">How long the agent waits</H2>

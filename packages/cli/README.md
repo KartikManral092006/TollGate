@@ -11,6 +11,13 @@ Your team approves before your coding agent does something you can't undo.
 
 Every other command runs untouched; the hook adds about 50 ms.
 
+It also gates what an agent could do instead of running the command:
+
+- **File edits** to Tollgate's own setup (`.claude/settings*.json`, `.tollgate.json`, the token), deploy and CI files (`.github/workflows/`, `.gitlab-ci.yml`, `vercel`/`netlify`/`fly`/`railway` config) and `.env` files. The card shows the change; `.env` values are hidden.
+- **MCP tools** whose names delete, deploy, publish, merge, refund, charge, transfer or run SQL (`mcp__github__merge_pull_request`, `mcp__supabase__execute_sql`).
+
+An approval covers that exact edit or call only. Custom presets take `"tool": "edit"` or `"tool": "mcp"`; edit patterns match `edit <path>` (`write <path>` for a new file), MCP patterns match `mcp__server__tool {json arguments}`.
+
 ## Set up
 
 1. In your team's Tollgate room, open **Settings › Repos › Link a repo** and copy the command it shows.
@@ -46,7 +53,7 @@ Tollgate is not a shell parser and not a sandbox. It does **not** read Makefiles
 
 ## What leaves your machine
 
-Only for commands that match a preset: the command and working directory after **local redaction** (known token formats, `KEY=value` secrets, passwords in URLs, secret flags, and every value from your `.env*` files), Claude Code's one-line description of the command (shown to approvers as the agent's reason), your git branch, the last commit subject, and for migrations the newest migration's SQL (capped at 2 KB). The card shows how many values were hidden. The server redacts everything again.
+Only for commands that match a preset: the command and working directory after **local redaction** (known token formats, `KEY=value` secrets, passwords in URLs, secret flags, and every value from your `.env*` files), Claude Code's one-line description of the command (shown to approvers as the agent's reason), your git branch, the last commit subject, and for migrations the newest migration's SQL (capped at 2 KB). For a gated edit, the path and the change (capped at 80 lines); for a gated MCP call, the tool name and its arguments, redacted the same way. The card shows how many values were hidden. The server redacts everything again.
 
 ## Commands
 
@@ -57,6 +64,8 @@ Only for commands that match a preset: the command and working directory after *
 | `test`   | Raise a harmless gate for `echo tollgate-test`                      |
 | `unlink` | Forget this repo's token on this machine (revoke it in the web app) |
 | `hook`   | The hook itself; Claude Code calls it with JSON on stdin            |
+
+After upgrading from 0.2.3 or earlier, run `init` again: it re-registers the hook for file edits and MCP tools.
 
 ## Safety notes
 

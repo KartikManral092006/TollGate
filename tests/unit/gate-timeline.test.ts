@@ -10,6 +10,7 @@ function gate(patch: Partial<GateView>): GateView {
     code: 7,
     status: "pending",
     preset: "db-migrate",
+    tool: "bash",
     env: "prod",
     repo: "acme/x",
     mode: "guard",
