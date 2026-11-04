@@ -222,6 +222,7 @@ export function useRoomLive(input: {
         readBy: [],
         teamOnly: Boolean(onlyTo?.length),
         edited: false,
+        attachment: null,
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
@@ -251,6 +252,75 @@ export function useRoomLive(input: {
           mergeChat(
             current.filter((line) => line.id !== tempId),
             [{ ...optimistic, id: sent.messageId, sentTime: sent.sentTime, local: null }],
+          ),
+        );
+        return true;
+      } catch {
+        setLines((current) =>
+          current.map((line) => (line.id === tempId ? { ...line, local: "failed" } : line)),
+        );
+        return false;
+      }
+    },
+    [channelId, callsEnabled],
+  );
+
+  // A picture or file into the room (or onto a gate, like a reply). Shown while uploading;
+  // the line becomes the real message once Nexconn has the file.
+  const sendFile = useCallback(
+    async (file: File, gate?: { id: string; code: number }): Promise<boolean> => {
+      const isImage = /^image\/(png|jpe?g|gif|webp)$/.test(file.type);
+      const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const optimistic: ChatLine = {
+        id: tempId,
+        senderId: selfRef.current ?? "me",
+        text: "",
+        sentTime: Date.now(),
+        mine: true,
+        local: "sending",
+        gateId: gate?.id ?? null,
+        gateCode: gate?.code ?? null,
+        mentions: [],
+        readBy: [],
+        teamOnly: false,
+        edited: false,
+        attachment: isImage
+          ? { kind: "image", url: "", thumb: null }
+          : { kind: "file", url: "", name: file.name, size: file.size },
+      };
+      setLines((current) => mergeChat(current, [optimistic]));
+      try {
+        const { chat } = await startNexconn({ withChatUI: false, withCall: callsEnabled });
+        const extra = gate ? { extra: replyExtra(gate.id) } : {};
+        const channel = new chat.GroupChannel(channelId);
+        let result;
+        if (isImage) {
+          const params = new chat.SendImageMessageParams({
+            thumbnailBase64: await thumbnail(file),
+            remoteUrl: "",
+            ...extra,
+          });
+          params.file = file;
+          result = await channel.sendMediaMessage(params);
+        } else {
+          const params = new chat.SendFileMessageParams({
+            name: file.name.slice(0, 120),
+            size: file.size,
+            fileType: file.name.split(".").pop()?.toLowerCase() ?? "",
+            remoteUrl: "",
+            ...extra,
+          });
+          params.file = file;
+          result = await channel.sendMediaMessage(params);
+        }
+        if (!result.isOk || !result.data) throw new Error(`upload failed: ${result.code}`);
+        const sent = result.data as unknown as ChatMessage;
+        messages.current.set(sent.messageId, sent);
+        const line = chatLineFromMessage(sent, selfRef.current);
+        setLines((current) =>
+          mergeChat(
+            current.filter((l) => l.id !== tempId),
+            line ? [line] : [],
           ),
         );
         return true;
@@ -316,5 +386,18 @@ export function useRoomLive(input: {
     [channelId, callsEnabled],
   );
 
-  return { gates, lines, live, selfNexconnId, refresh, send, edit, remove, setGates };
+  return { gates, lines, live, selfNexconnId, refresh, send, sendFile, edit, remove, setGates };
+}
+
+// A small JPEG preview (base64, no data: prefix) that Nexconn carries inside the message,
+// so the picture shows before the full image loads.
+async function thumbnail(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 240 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.6).split(",")[1] ?? "";
 }
