@@ -34,6 +34,7 @@ import { SessionStrip } from "@/features/room/components/session-strip";
 import { useReportSeen } from "@/features/room/client/use-report-seen";
 import { useMentionReceipts } from "@/features/room/client/use-mention-receipts";
 import { useTranslate } from "@/features/room/client/use-translate";
+import { useChatNotify } from "@/features/room/client/use-chat-notify";
 import { useNexconnOnline } from "@/features/presence/client/use-nexconn-online";
 import { Composer } from "@/features/room/components/composer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
@@ -173,6 +174,7 @@ export function RoomClient({
     [members],
   );
   const translator = useTranslate(callsEnabled);
+  const chatNotify = useChatNotify(team.channelId, live, callsEnabled);
   const mentionable = useMemo(
     () => members.filter((m) => m.id !== viewer.id).map((m) => ({ id: m.id, name: m.name })),
     [members, viewer.id],
@@ -244,6 +246,23 @@ export function RoomClient({
         live={live}
         openCount={openCount}
         onEnableAlerts={alerts.permission === "default" ? () => void alerts.enable() : undefined}
+        chatNotify={chatNotify.notify}
+        onChatNotify={
+          live === "live"
+            ? (next) =>
+                void chatNotify.change(next).then((ok) => {
+                  if (!ok) toast.error("Couldn't change chat notifications.");
+                  else
+                    toast.success(
+                      next === "none"
+                        ? "Chat muted. Gates still notify you."
+                        : next === "mentions"
+                          ? "Chat notifies you only when you're @mentioned."
+                          : "Chat notifies you about every message.",
+                    );
+                })
+            : undefined
+        }
       />
 
       <div className="flex min-h-0 flex-1">
