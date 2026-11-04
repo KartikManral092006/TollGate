@@ -173,6 +173,8 @@ export function useRoomLive(input: {
       raw: string,
       gate?: { id: string; code: number },
       mention?: { ids: string[]; from: string },
+      // Only these members receive it (the team without its clients).
+      onlyTo?: string[],
     ): Promise<boolean> => {
       const body = normalizeChatText(raw);
       if (!body) return false;
@@ -189,6 +191,7 @@ export function useRoomLive(input: {
         gateCode: gate?.code ?? null,
         mentions: mention?.ids ?? [],
         readBy: [],
+        teamOnly: Boolean(onlyTo?.length),
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
@@ -201,6 +204,7 @@ export function useRoomLive(input: {
             ? { mentionedInfo: { type: MENTION_PEOPLE, userIdList: mention.ids } }
             : {}),
         });
+        if (onlyTo?.length) params.directedUserIds = onlyTo;
         if (mention?.ids.length) {
           params.needReceipt = true;
           params.pushConfig = {

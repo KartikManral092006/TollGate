@@ -59,6 +59,7 @@ export function describeMessage(message: ChatMessage) {
     contentType: typeof message.content,
     content: message.content,
     metadata: Object.fromEntries(message.metadata ?? new Map()),
+    directedUserIds: message.directedUserIds ?? [],
   };
 }
 

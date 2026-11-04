@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, MessageSquareReply, X } from "lucide-react";
+import { ArrowUp, Lock, MessageSquareReply, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -22,10 +22,14 @@ export function Composer({
   reply = null,
   onCancelReply,
   members = [],
+  hasClients = false,
 }: {
   disabled: boolean;
-  // `mentions`: the Nexconn ids of the people @mentioned in the text.
-  onSend: (text: string, mentions: string[]) => Promise<boolean>;
+  // `mentions`: the Nexconn ids of the people @mentioned in the text. `teamOnly`: keep it
+  // from the team's clients.
+  onSend: (text: string, mentions: string[], teamOnly: boolean) => Promise<boolean>;
+  // The team has client (guest) members, so a message can be kept to the team.
+  hasClients?: boolean;
   // Teammates who can be @mentioned (not you).
   members?: { id: string; name: string }[];
   // Replying on a gate card: the message is sent as "TG-17 · …" attached to that gate.
@@ -33,6 +37,7 @@ export function Composer({
   onCancelReply?: () => void;
 }) {
   const [text, setText] = useState("");
+  const [teamOnly, setTeamOnly] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
   const picked = useRef(new Map<string, string>());
   const [query, setQuery] = useState<string | null>(null);
@@ -79,7 +84,7 @@ export function Composer({
     setText("");
     setQuery(null);
     const mentions = mentionedIds(value, picked.current);
-    if (await onSend(value, mentions)) picked.current.clear();
+    if (await onSend(value, mentions, hasClients && teamOnly)) picked.current.clear();
     else setText(value);
   }
 
@@ -183,9 +188,11 @@ export function Composer({
             placeholder={
               disabled
                 ? "Chat isn't available right now"
-                : reply
-                  ? `Reply on TG-${reply.code}`
-                  : "Message your team"
+                : teamOnly && hasClients
+                  ? "Message the team (clients won't see it)"
+                  : reply
+                    ? `Reply on TG-${reply.code}`
+                    : "Message your team"
             }
             aria-label={reply ? `Reply on TG-${reply.code}` : "Message"}
             rows={1}
@@ -195,6 +202,22 @@ export function Composer({
             className="max-h-40 min-h-11 text-base sm:text-sm"
           />
           <InputGroupAddon align="inline-end">
+            {hasClients && (
+              <InputGroupButton
+                type="button"
+                size="icon-sm"
+                variant={teamOnly ? "secondary" : "ghost"}
+                className={cn("rounded-full", teamOnly && "text-gate-pending-fg")}
+                aria-pressed={teamOnly}
+                aria-label={
+                  teamOnly ? "Team only: clients won't see this" : "Visible to clients too"
+                }
+                title={teamOnly ? "Team only: clients won't see this" : "Keep this from clients"}
+                onClick={() => setTeamOnly((value) => !value)}
+              >
+                <Lock />
+              </InputGroupButton>
+            )}
             <InputGroupButton
               type="submit"
               size="icon-sm"
