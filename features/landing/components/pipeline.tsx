@@ -264,13 +264,6 @@ export function Pipeline() {
                   <stop offset="70%" stopColor="#ff3b5c" />
                   <stop offset="100%" stopColor="#2ee59d" />
                 </linearGradient>
-                <filter id="pipeline-glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
               </defs>
               <path
                 d={PATH}
@@ -278,6 +271,16 @@ export function Pipeline() {
                 stroke="rgb(255 255 255 / 0.12)"
                 strokeWidth={2}
                 strokeDasharray="4 8"
+              />
+              {/* A wide faint copy instead of an SVG blur filter, which repaints every frame. */}
+              <path
+                data-lit
+                d={PATH}
+                fill="none"
+                stroke="url(#pipeline-lit)"
+                strokeWidth={12}
+                strokeLinecap="round"
+                opacity={0.12}
               />
               <path
                 data-track
@@ -287,7 +290,6 @@ export function Pipeline() {
                 stroke="url(#pipeline-lit)"
                 strokeWidth={3}
                 strokeLinecap="round"
-                filter="url(#pipeline-glow)"
               />
             </svg>
 
