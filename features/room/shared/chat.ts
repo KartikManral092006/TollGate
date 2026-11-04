@@ -1,6 +1,14 @@
 export const CHAT_MAX_CHARS = 500;
 export const CHAT_KEEP = 200;
 export const TEXT_MESSAGE_TYPE = "RC:TxtMsg";
+export const IMAGE_MESSAGE_TYPE = "RC:ImgMsg";
+export const FILE_MESSAGE_TYPE = "RC:FileMsg";
+
+// A picture or file sent into the room. Links are only ever https (a client could send
+// anything), and the thumbnail is plain base64.
+export type Attachment =
+  | { kind: "image"; url: string; thumb: string | null }
+  | { kind: "file"; url: string; name: string; size: number };
 
 export type ChatLine = {
   // Nexconn message id, or a temporary id while sending.
@@ -22,7 +30,48 @@ export type ChatLine = {
   teamOnly: boolean;
   // Changed by its sender after sending.
   edited: boolean;
+  attachment: Attachment | null;
 };
+
+function safeUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 2048) return null;
+  try {
+    return new URL(value).protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function attachmentFrom(type: string | undefined, content: Record<string, unknown> | null) {
+  if (!content) return null;
+  if (type === IMAGE_MESSAGE_TYPE) {
+    const url = safeUrl(content.remoteUrl ?? content.imageUri);
+    if (!url) return null;
+    const thumb = content.thumbnailBase64 ?? content.content;
+    return {
+      kind: "image" as const,
+      url,
+      thumb:
+        typeof thumb === "string" && thumb.length < 200_000 && /^[A-Za-z0-9+/=]+$/.test(thumb)
+          ? thumb
+          : null,
+    };
+  }
+  if (type === FILE_MESSAGE_TYPE) {
+    const url = safeUrl(content.remoteUrl ?? content.fileUrl);
+    if (!url) return null;
+    return {
+      kind: "file" as const,
+      url,
+      name: normalizeChatText(typeof content.name === "string" ? content.name : "file").slice(
+        0,
+        120,
+      ),
+      size: typeof content.size === "number" ? content.size : 0,
+    };
+  }
+  return null;
+}
 
 // Nexconn's MentionedType.SINGAL: specific people (the enum isn't exported at runtime).
 export const MENTION_PEOPLE = 2;
@@ -99,15 +148,32 @@ type RawMessage = {
   hasChanged?: unknown;
 };
 
-// A text message from Nexconn as a chat line, or null for anything else.
+// A text, picture or file message from Nexconn as a chat line, or null for anything else.
 export function chatLineFromMessage(message: RawMessage, selfId: string | null): ChatLine | null {
-  if (message.messageType !== TEXT_MESSAGE_TYPE || !message.messageId || !message.senderUserId) {
-    return null;
-  }
+  if (!message.messageId || !message.senderUserId) return null;
   const content = message.content as
     | { text?: unknown; content?: unknown; extra?: unknown; mentionedInfo?: unknown }
     | null
     | undefined;
+  const base = {
+    id: message.messageId,
+    senderId: message.senderUserId,
+    sentTime: message.sentTime ?? Date.now(),
+    mine: message.senderUserId === selfId,
+    local: null,
+    gateId: gateIdFromExtra(content?.extra),
+    mentions: [],
+    readBy: [],
+    teamOnly: Array.isArray(message.directedUserIds) && message.directedUserIds.length > 0,
+    edited: false,
+  };
+  const attachment = attachmentFrom(
+    message.messageType,
+    (content ?? null) as Record<string, unknown> | null,
+  );
+  // A picture or file attached to a gate carries the gate's id in extra, like a reply.
+  if (attachment) return { ...base, text: "", gateCode: null, attachment };
+  if (message.messageType !== TEXT_MESSAGE_TYPE) return null;
   const updated = (message.updateInfo as { content?: { text?: unknown; content?: unknown } } | null)
     ?.content;
   const newest = updated?.text ?? updated?.content;
@@ -133,6 +199,7 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     readBy: [],
     teamOnly: Array.isArray(message.directedUserIds) && message.directedUserIds.length > 0,
     edited: typeof newest === "string" || message.hasChanged === true,
+    attachment: null,
   };
 }
 

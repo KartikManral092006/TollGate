@@ -26,6 +26,7 @@ const line = (id: string, sentTime: number, overrides: Partial<ChatLine> = {}): 
   readBy: [],
   teamOnly: false,
   edited: false,
+  attachment: null,
   ...overrides,
 });
 
@@ -107,6 +108,7 @@ describe("chatLineFromMessage", () => {
       readBy: [],
       teamOnly: false,
       edited: false,
+      attachment: null,
     });
     expect(
       chatLineFromMessage(
@@ -118,6 +120,54 @@ describe("chatLineFromMessage", () => {
       true,
     );
     expect(chatLineFromMessage(message, "U1")?.mine).toBe(true);
+  });
+
+  it("turns pictures and files into attachments, with https links only", () => {
+    const image = chatLineFromMessage(
+      {
+        ...message,
+        messageType: "RC:ImgMsg",
+        content: { remoteUrl: "https://files.example/a.png", thumbnailBase64: "QUJD" },
+      },
+      "me",
+    );
+    expect(image?.attachment).toEqual({
+      kind: "image",
+      url: "https://files.example/a.png",
+      thumb: "QUJD",
+    });
+    const file = chatLineFromMessage(
+      {
+        ...message,
+        messageType: "RC:FileMsg",
+        content: { remoteUrl: "https://files.example/m.sql", name: "migration.sql", size: 2048 },
+      },
+      "me",
+    );
+    expect(file?.attachment).toEqual({
+      kind: "file",
+      url: "https://files.example/m.sql",
+      name: "migration.sql",
+      size: 2048,
+    });
+    for (const url of ["javascript:alert(1)", "http://plain.example/x.png", "nope"]) {
+      expect(
+        chatLineFromMessage(
+          { ...message, messageType: "RC:ImgMsg", content: { remoteUrl: url } },
+          "me",
+        ),
+      ).toBeNull();
+    }
+    expect(
+      chatLineFromMessage(
+        {
+          ...message,
+          messageType: "RC:ImgMsg",
+          content: { remoteUrl: "https://files.example/a.png", thumbnailBase64: "<svg onload=x>" },
+        },
+        "me",
+      )?.attachment,
+    ).toMatchObject({ thumb: null });
   });
 
   it("reads who a message @mentions", () => {

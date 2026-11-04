@@ -1,6 +1,7 @@
 "use client";
 
 import { ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Empty,
@@ -91,7 +92,7 @@ export function RoomClient({
   // Arrived from an invite made for the highlighted gate.
   welcome?: boolean;
 }) {
-  const { gates, lines, live, refresh, send, edit, remove, selfNexconnId } = useRoomLive({
+  const { gates, lines, live, refresh, send, sendFile, edit, remove, selfNexconnId } = useRoomLive({
     teamId: team.id,
     channelId: team.channelId,
     initialGates,
@@ -429,6 +430,12 @@ export function RoomClient({
                 reply={replying}
                 onCancelReply={() => setReplying(null)}
                 members={mentionable}
+                onAttach={(file) => {
+                  void sendFile(file, replying ?? undefined).then((sent) => {
+                    if (sent) setReplying(null);
+                    else toast.error("Couldn't send the file. Try again.");
+                  });
+                }}
                 hasClients={hasClients && members.find((m) => m.id === viewer.id)?.role !== "guest"}
                 onSend={async (text, mentions, teamOnly) => {
                   const sent = await send(

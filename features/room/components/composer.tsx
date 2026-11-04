@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUp, Lock, MessageSquareReply, X } from "lucide-react";
+import { ArrowUp, Lock, MessageSquareReply, Paperclip, X } from "lucide-react";
+import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -13,6 +14,8 @@ import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { CHAT_MAX_CHARS, mentionedIds } from "@/features/room/shared/chat";
 import { cn } from "@/lib/utils";
 
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+
 // "@" then up to a few letters, right before the caret: the mention being typed.
 const MENTION_RE = /(?:^|\s)@([^\s@]{0,24})$/;
 
@@ -23,6 +26,7 @@ export function Composer({
   onCancelReply,
   members = [],
   hasClients = false,
+  onAttach,
 }: {
   disabled: boolean;
   // `mentions`: the Nexconn ids of the people @mentioned in the text. `teamOnly`: keep it
@@ -30,6 +34,8 @@ export function Composer({
   onSend: (text: string, mentions: string[], teamOnly: boolean) => Promise<boolean>;
   // The team has client (guest) members, so a message can be kept to the team.
   hasClients?: boolean;
+  // Send a picture or file (into the reply's gate when replying).
+  onAttach?: (file: File) => void;
   // Teammates who can be @mentioned (not you).
   members?: { id: string; name: string }[];
   // Replying on a gate card: the message is sent as "TG-17 · …" attached to that gate.
@@ -39,6 +45,7 @@ export function Composer({
   const [text, setText] = useState("");
   const [teamOnly, setTeamOnly] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
+  const filePicker = useRef<HTMLInputElement>(null);
   const picked = useRef(new Map<string, string>());
   const [query, setQuery] = useState<string | null>(null);
   const [active, setActive] = useState(0);
@@ -202,6 +209,38 @@ export function Composer({
             className="max-h-40 min-h-11 text-base sm:text-sm"
           />
           <InputGroupAddon align="inline-end">
+            {onAttach && (
+              <>
+                <input
+                  ref={filePicker}
+                  type="file"
+                  className="hidden"
+                  accept="image/png,image/jpeg,image/gif,image/webp,.pdf,.txt,.log,.sql,.csv,.json,.md,.yaml,.yml"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    if (!file) return;
+                    if (file.size > MAX_FILE_BYTES) {
+                      toast.error("That file is over 20 MB.");
+                      return;
+                    }
+                    onAttach(file);
+                  }}
+                />
+                <InputGroupButton
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="rounded-full"
+                  disabled={disabled}
+                  aria-label="Attach a picture or file (files aren't checked for secrets)"
+                  title="Attach a picture or file. Unlike messages, files aren't checked for secrets."
+                  onClick={() => filePicker.current?.click()}
+                >
+                  <Paperclip />
+                </InputGroupButton>
+              </>
+            )}
             {hasClients && (
               <InputGroupButton
                 type="button"
