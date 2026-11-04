@@ -7,6 +7,7 @@ import { displayName, toGateView } from "@/features/gates/shared/view";
 import { withInsights } from "@/features/insights/server/insights";
 import { ReviewClient } from "@/features/review/components/review-client";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
+import { roleCanOpenWindow } from "@/features/gates/shared/windows";
 import { canVote, ID_RE } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
 
@@ -30,7 +31,11 @@ export default async function ReviewPage({ params }: PageProps<"/teams/[id]/revi
   return (
     <ReviewClient
       teamId={id}
-      viewer={{ id: user.id, canVote: canVote(membership.role) }}
+      viewer={{
+        id: user.id,
+        canVote: canVote(membership.role),
+        canOpenWindows: roleCanOpenWindow(membership.role),
+      }}
       initialGates={await withInsights(db, id, gates.map(toGateView))}
       members={members.map((m) => ({ id: m.user.id, name: displayName(m.user.name, m.user.id) }))}
     />

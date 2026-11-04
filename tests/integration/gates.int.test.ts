@@ -6,6 +6,7 @@ import {
   consumeGrant,
   createGate,
   claimLateReminders,
+  endWindow,
   expireParkedGates,
   getGateForRepo,
   markGateSeen,
@@ -163,6 +164,84 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
       newId,
     });
     expect(older.tool).toBe("bash");
+  });
+
+  it("approves one agent's same kind of gate for a while, only within the limits", async () => {
+    // Far from the real clock, so no other test's gates fall inside these windows.
+    const t0 = new Date("2020-01-01T10:00:00Z");
+    const at = (minutes: number) => () => new Date(t0.getTime() + minutes * 60_000);
+    const raise = (command: string, minutes: number, who = principal) =>
+      createGate(db, who, gateInput(command), { newId, now: at(minutes) });
+
+    const first = await raise("npx prisma migrate deploy # window", 0);
+    expect(first).toMatchObject({ preset: "db-migrate", env: "other", quorum: 1 });
+    const opened = await castVote(db, {
+      gateId: first.id,
+      userId: approvers[2]!,
+      decision: "approve",
+      windowMinutes: 60,
+      newId,
+      now: t0,
+    });
+    expect(opened.window?.expiresAt).toEqual(at(60)());
+
+    // Same agent, same kind, inside the window: approved on arrival, nobody asked.
+    const inside = await raise("npx prisma db push # window", 30);
+    expect(inside).toMatchObject({
+      status: "approved",
+      windowId: opened.window!.id,
+      parksAt: null,
+    });
+
+    // Production, another kind, another person's agent, or after it closes: asks as usual.
+    expect((await raise("DATABASE_ENV=production npx prisma migrate deploy # w", 31)).status).toBe(
+      "pending",
+    );
+    expect((await raise("vercel # window", 32)).status).toBe("pending");
+    const minted = await mintHookToken(db, {
+      id: newId(),
+      repoId: principal.repoId,
+      createdById: approvers[3]!,
+    });
+    const someoneElse = (await authenticateHookToken(db, `Bearer ${minted.token}`))!;
+    expect((await raise("npx prisma migrate deploy # other", 33, someoneElse)).status).toBe(
+      "pending",
+    );
+    expect((await raise("npx prisma migrate deploy # late", 61)).status).toBe("pending");
+
+    // Ended early by anyone who can approve: the next one asks again.
+    const second = await raise("npx prisma migrate deploy # again", 70);
+    const reopened = await castVote(db, {
+      gateId: second.id,
+      userId: approvers[2]!,
+      decision: "approve",
+      windowMinutes: 30,
+      newId,
+      now: at(70)(),
+    });
+    expect((await raise("npx prisma db push # reopened", 75)).status).toBe("approved");
+    expect(
+      await endWindow(db, { windowId: reopened.window!.id, userId: approvers[4]!, now: at(76)() }),
+    ).toMatchObject({ gateId: second.id });
+    expect((await raise("npx prisma db push # ended", 77)).status).toBe("pending");
+    expect(await endWindow(db, { windowId: reopened.window!.id, userId: outsider })).toBeNull();
+
+    // Refused: production, two approvals, an odd length, or a client opening it.
+    const refuse = async (gateId: string, userId: string, windowMinutes: number) =>
+      castVote(db, { gateId, userId, decision: "approve", windowMinutes, newId }).catch(
+        (error: VoteRejectedError) => error.reason,
+      );
+    const prod = await raise("DATABASE_ENV=production npx prisma migrate deploy # r", 80);
+    expect(await refuse(prod.id, approvers[5]!, 60)).toBe("window_not_allowed");
+    const two = await raise("terraform apply # r", 81);
+    expect(await refuse(two.id, approvers[5]!, 60)).toBe("window_not_allowed");
+    const odd = await raise("npx prisma migrate deploy # odd", 82);
+    expect(await refuse(odd.id, approvers[5]!, 45)).toBe("window_not_allowed");
+    const guest = await user("guest-window");
+    await db.membership.create({ data: { teamId, userId: guest, role: "guest" } });
+    expect(await refuse(odd.id, guest, 60)).toBe("window_not_allowed");
+    // A refused window never cast the vote.
+    expect(await db.vote.count({ where: { gateId: odd.id } })).toBe(0);
   });
 
   it("reaches quorum exactly once under 10 concurrent approvals", async () => {

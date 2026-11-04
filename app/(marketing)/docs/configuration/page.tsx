@@ -112,6 +112,17 @@ export default function ConfigurationPage() {
         owner decides in <strong>Settings › Rules</strong>. Rules are never suggested for
         production, publishing, infrastructure, or deletes outside the repo.
       </P>
+      <P>
+        For a few hours rather than for good, an approver can{" "}
+        <a
+          href="/docs/approvers#decide"
+          className="text-[#f2c14e] underline-offset-4 hover:underline"
+        >
+          approve for a while
+        </a>{" "}
+        instead: one teammate&apos;s agent, one kind of gate, 30 minutes to 4 hours, with the same
+        limits as rules.
+      </P>
 
       <H2 id="invites">Invites</H2>
       <List>
