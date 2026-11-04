@@ -20,6 +20,8 @@ export type ChatLine = {
   readBy: string[];
   // Sent to some members only (Nexconn directedUserIds): the team, without its clients.
   teamOnly: boolean;
+  // Changed by its sender after sending.
+  edited: boolean;
 };
 
 // Nexconn's MentionedType.SINGAL: specific people (the enum isn't exported at runtime).
@@ -92,6 +94,9 @@ type RawMessage = {
   sentTime?: number;
   content?: unknown;
   directedUserIds?: unknown;
+  // Set once a message has been edited: its newest content.
+  updateInfo?: unknown;
+  hasChanged?: unknown;
 };
 
 // A text message from Nexconn as a chat line, or null for anything else.
@@ -103,7 +108,15 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     | { text?: unknown; content?: unknown; extra?: unknown; mentionedInfo?: unknown }
     | null
     | undefined;
-  const raw = typeof content?.text === "string" ? content.text : content?.content;
+  const updated = (message.updateInfo as { content?: { text?: unknown; content?: unknown } } | null)
+    ?.content;
+  const newest = updated?.text ?? updated?.content;
+  const raw =
+    typeof newest === "string"
+      ? newest
+      : typeof content?.text === "string"
+        ? content.text
+        : content?.content;
   if (typeof raw !== "string") return null;
   const text = normalizeChatText(raw);
   if (!text) return null;
@@ -119,6 +132,7 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     mentions: mentionsFrom(content?.mentionedInfo),
     readBy: [],
     teamOnly: Array.isArray(message.directedUserIds) && message.directedUserIds.length > 0,
+    edited: typeof newest === "string" || message.hasChanged === true,
   };
 }
 
