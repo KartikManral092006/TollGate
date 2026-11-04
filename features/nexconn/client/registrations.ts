@@ -8,12 +8,14 @@ export const TG_REGISTRATIONS: CustomMessageRegistration[] = [
   { messageType: TG.Gate, isPersisted: true, isCounted: true },
   { messageType: TG.Huddle, isPersisted: true, isCounted: false },
   { messageType: TG.Recap, isPersisted: true, isCounted: false },
+  { messageType: TG.Agent, isPersisted: true, isCounted: false },
 ];
 
 const DIGESTS: Record<string, string> = {
   [TG.Gate]: "[Gate]",
   [TG.Huddle]: "[Call]",
   [TG.Recap]: "[Recap]",
+  [TG.Agent]: "[Agent session]",
 };
 
 // ChatUI shows only DMs, where TG:* cards never appear, so no element is registered: an

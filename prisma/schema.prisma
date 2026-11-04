@@ -137,21 +137,22 @@ enum CallStatus {
 
 // A group of people with one Nexconn group channel (the thread space).
 model Team {
-  id                  String        @id // 32 letters and digits (lib/ids)
+  id                  String         @id // 32 letters and digits (lib/ids)
   name                String
-  nexconnChannelId    String        @unique // "tg" + id
+  nexconnChannelId    String         @unique // "tg" + id
   nexconnGroupReadyAt DateTime? // set once the Nexconn group exists
-  nextGateCode        Int           @default(1) // TG-n; taken in the gate-create transaction
+  nextGateCode        Int            @default(1) // TG-n; taken in the gate-create transaction
   createdById         String?
-  createdBy           User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  createdBy           User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
   memberships         Membership[]
   invites             Invite[]
   repos               RepoLink[]
   gates               Gate[]
   calls               CallSession[]
   aiConfig            TeamAiConfig?
+  agentSessions       AgentSession[]
 
   @@map("teams")
 }
@@ -275,6 +276,7 @@ model Gate {
   @@unique([teamId, code])
   @@index([teamId, createdAt(sort: Desc)])
   @@index([repoId, cmdHash])
+  @@index([teamId, sessionId])
   @@index([followUpOfId])
   @@map("gates")
 }
@@ -372,4 +374,21 @@ model PolicyRule {
 
   @@unique([repoId, preset, env])
   @@map("policy_rules")
+}
+
+// One Claude Code session that raised gates in a team, shown as one TG:Agent card the bot
+// keeps up to date. Gates join it on (teamId, sessionId); the counts are read from them.
+model AgentSession {
+  id          String   @id
+  teamId      String
+  sessionId   String   @db.VarChar(200) // Claude Code's session id, as the hook sent it
+  repoId      String
+  requesterId String
+  messageId   String? // the TG:Agent card, for metadata updates
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, sessionId])
+  @@map("agent_sessions")
 }

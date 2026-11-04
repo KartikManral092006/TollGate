@@ -17,6 +17,7 @@ import {
   revokeHookToken,
   type HookPrincipal,
 } from "@/features/gates/server/hook-tokens";
+import { syncAgentSession } from "@/features/gates/server/agent-sessions";
 import { commandHash, type CreateGateInput } from "@/features/gates/shared/hook-api";
 import { DEFAULT_PRESETS } from "@/features/gates/shared/presets";
 import { acceptSuggestion, removeRule } from "@/features/insights/server/policy";
@@ -425,6 +426,78 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
     expect(
       await createGateInvite(db, { id: newId(), teamId, gateId: migrate.id, createdById: owner }),
     ).toEqual({ ok: false, reason: "not_found" });
+  });
+
+  it("keeps one bot card per agent session, posted once and updated with its counts", async () => {
+    const calls: { path: string; body: Record<string, unknown> }[] = [];
+    let sent = 0;
+    const client = {
+      currentHost: () => "fake",
+      async call<T>(path: string, body: unknown): Promise<T> {
+        calls.push({ path, body: body as Record<string, unknown> });
+        if (path.endsWith("/message/send")) {
+          // Slow enough that concurrent syncs overlap while the first card is being posted.
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          sent += 1;
+          return { messageIds: [{ channelId: "c", messageId: `msg${sent}` }] } as T;
+        }
+        return {} as T;
+      },
+    };
+    const deps = {
+      db,
+      client,
+      teamChat: {
+        db,
+        client,
+        registerUser: async () => undefined,
+        allowGroupCreate: async () => true,
+        acquireGroupLock: async () => true,
+        releaseGroupLock: async () => undefined,
+      },
+    };
+    await db.team.update({ where: { id: teamId }, data: { nexconnGroupReadyAt: new Date() } });
+    await db.membership.update({
+      where: { teamId_userId: { teamId, userId: requester } },
+      data: { nexconnJoinedAt: new Date() },
+    });
+    const sessionId = `session-${newId()}`;
+    const gates = await Promise.all(
+      [0, 1, 2].map((i) =>
+        createGate(db, principal, gateInput(`npx prisma migrate deploy # s${i}`, { sessionId }), {
+          newId,
+        }),
+      ),
+    );
+    const noSession = await createGate(db, principal, gateInput("npx prisma db push # none"), {
+      newId,
+    });
+
+    await Promise.all(gates.map((gate) => syncAgentSession(deps, gate.id, newId)));
+    await syncAgentSession(deps, noSession.id, newId);
+    const posts = calls.filter((c) => c.path.endsWith("/message/send"));
+    expect(posts).toHaveLength(1);
+    expect(posts[0]!.body.messageType).toBe("TG:Agent");
+    const card = JSON.parse(posts[0]!.body.content as string) as Record<string, unknown>;
+    expect(card).toMatchObject({ repo: "acme/billing", requester: "requester" });
+    expect(JSON.stringify(card)).not.toContain(sessionId);
+
+    const session = await db.agentSession.findUniqueOrThrow({
+      where: { teamId_sessionId: { teamId, sessionId } },
+    });
+    expect(session.messageId).toBe("msg1");
+
+    await castVote(db, {
+      gateId: gates[0]!.id,
+      userId: approvers[3]!,
+      decision: "deny",
+      reason: "No",
+      newId,
+    });
+    calls.length = 0;
+    await syncAgentSession(deps, gates[0]!.id, newId);
+    expect(calls.map((c) => c.path)).toEqual(["/v4/channel-type/message/metadata/set"]);
+    expect(calls[0]!.body.metadata).toMatchObject({ n: "3", w: "2", d: "1", a: "0" });
   });
 
   it("expires parked gates after 24 h and refuses votes on them", async () => {

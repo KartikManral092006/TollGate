@@ -17,7 +17,7 @@ const GROUP_CHANNEL_TYPE = 3;
 
 export type CardDeps = { db: PrismaClient; client: NexconnClient; teamChat: TeamChatDeps };
 
-async function ensureGroupFor(deps: CardDeps, teamId: string, userId: string) {
+export async function ensureGroupFor(deps: CardDeps, teamId: string, userId: string) {
   const team = await deps.db.team.findUniqueOrThrow({ where: { id: teamId } });
   const user = await deps.db.user.findUniqueOrThrow({
     where: { id: userId },

@@ -9,6 +9,7 @@ import {
   type CardDeps,
 } from "@/features/gates/server/cards";
 import { sendEmail } from "@/features/email/server/resend";
+import { syncAgentSession } from "@/features/gates/server/agent-sessions";
 import { getNexconn, NexconnNotConfiguredError } from "@/features/nexconn/server";
 import {
   notifyGateParked,
@@ -19,6 +20,7 @@ import {
 import { teamChatDeps } from "@/features/teams/server";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { newAlnumId } from "@/lib/ids";
 import { logger } from "@/lib/logger";
 import { consumeRate } from "@/lib/rate-limit.server";
 import { redis } from "@/lib/redis";
@@ -77,7 +79,12 @@ function notifyDeps(): NotifyDeps {
 }
 
 export function announceGate(gateId: string) {
-  inBackground("gate card", { gateId }, () => postGateCard(cardDeps(), gateId));
+  inBackground("gate card", { gateId }, async () => {
+    const deps = cardDeps();
+    await postGateCard(deps, gateId);
+    // After the gate's own card, so the session card is posted beside its first gate.
+    await syncAgentSession(deps, gateId, newAlnumId);
+  });
   inBackground("gate notice", { gateId }, () => notifyGateWaiting(notifyDeps(), gateId));
 }
 
@@ -110,6 +117,7 @@ export function mirrorGate(gateId: string) {
     // A vote can land before the card was posted (slow first send): post it first.
     await postGateCard(deps, gateId);
     await mirrorGateState(deps, gateId);
+    await syncAgentSession(deps, gateId, newAlnumId);
   });
 }
 
