@@ -9,6 +9,7 @@ import { withInsights } from "@/features/insights/server/insights";
 import { loadSetupState } from "@/features/onboarding/server/setup";
 import { RoomClient } from "@/features/room/components/room-client";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
+import { roleCanOpenWindow } from "@/features/gates/shared/windows";
 import { canVote, ID_RE } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -46,7 +47,11 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
         name: membership.team.name,
         channelId: membership.team.nexconnChannelId,
       }}
-      viewer={{ id: user.id, canVote: canVote(membership.role) }}
+      viewer={{
+        id: user.id,
+        canVote: canVote(membership.role),
+        canOpenWindows: roleCanOpenWindow(membership.role),
+      }}
       members={members.map((member) => ({
         id: member.user.id,
         name: displayName(member.user.name, member.user.id),

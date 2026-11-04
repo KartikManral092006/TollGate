@@ -27,12 +27,15 @@ model User {
   accounts      Account[]
 
   teamsCreated   Team[]
-  memberships    Membership[]  @relation("MembershipUser")
-  invited        Membership[]  @relation("MembershipInviter")
+  memberships    Membership[]     @relation("MembershipUser")
+  invited        Membership[]     @relation("MembershipInviter")
   invitesCreated Invite[]
   hookTokens     HookToken[]
   gatesRequested Gate[]
   policyRules    PolicyRule[]
+  windowsFor     ApprovalWindow[] @relation("WindowRequester")
+  windowsOpened  ApprovalWindow[] @relation("WindowCreator")
+  windowsEnded   ApprovalWindow[] @relation("WindowEnder")
   votes          Vote[]
   gatesSeen      GateSeen[]
   callsStarted   CallSession[]
@@ -138,20 +141,21 @@ enum CallStatus {
 
 // A group of people with one Nexconn group channel (the thread space).
 model Team {
-  id                  String         @id // 32 letters and digits (lib/ids)
+  id                  String           @id // 32 letters and digits (lib/ids)
   name                String
-  nexconnChannelId    String         @unique // "tg" + id
+  nexconnChannelId    String           @unique // "tg" + id
   nexconnGroupReadyAt DateTime? // set once the Nexconn group exists
-  nextGateCode        Int            @default(1) // TG-n; taken in the gate-create transaction
+  nextGateCode        Int              @default(1) // TG-n; taken in the gate-create transaction
   createdById         String?
-  createdBy           User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  createdBy           User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
   memberships         Membership[]
   invites             Invite[]
   repos               RepoLink[]
   gates               Gate[]
   calls               CallSession[]
+  windows             ApprovalWindow[]
   aiConfig            TeamAiConfig?
   agentSessions       AgentSession[]
 
@@ -196,19 +200,20 @@ model Invite {
 }
 
 model RepoLink {
-  id                   String       @id
+  id                   String           @id
   teamId               String
   name                 String // e.g. "acme/billing"
-  mode                 GateMode     @default(guard)
+  mode                 GateMode         @default(guard)
   presets              Json // server-authoritative presets, including quorum (features/gates/shared/presets)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  team                 Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  team                 Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
   tokens               HookToken[]
   gates                Gate[]
   rules                PolicyRule[]
+  windows              ApprovalWindow[]
   // Suggestions the owner said no to ("preset:env:action"), so they aren't offered again.
-  dismissedSuggestions String[]     @default([])
+  dismissedSuggestions String[]         @default([])
 
   @@unique([teamId, name])
   @@map("repo_links")
@@ -233,48 +238,51 @@ model HookToken {
 
 // One proposed risky command. Postgres is the truth; Nexconn metadata mirrors it.
 model Gate {
-  id           String        @id
-  code         Int // TG-17 (per-team sequence)
-  teamId       String
-  repoId       String
-  requesterId  String
-  preset       String
-  tool         String        @default("bash") // bash | edit | mcp: a command, a file edit or an MCP call
-  env          String // prod | staging | other
-  command      String // redacted: the command, "edit <path>" or "mcp__server__tool {args}"
-  cwd          String // redacted
-  branch       String?
-  context      String        @db.VarChar(2048) // redacted, truncated
-  intent       String?       @db.VarChar(300) // the agent's own description of the command; redacted
-  via          String?       @db.VarChar(1400) // "pnpm db:deploy → prisma migrate deploy" lines; redacted
-  sessionId    String?       @db.VarChar(200) // Claude Code session, for grouping a run's gates later
-  redactions   Int
-  cmdHash      String // sha256(command + cwd + repo), from the hook; binds the grant
-  quorum       Int
-  status       GateStatus    @default(pending)
-  decidedAt    DateTime?
-  decidedById  String?
-  denyReason   String?
-  parksAt      DateTime? // when the waiting hook gives up and parks it (countdown on the card)
-  parkedAt     DateTime?
-  remindedAt   DateTime? // the one "still parked" reminder went out
-  question     String?       @db.VarChar(500) // set when an approver asked instead of deciding
-  followUpOfId String? // the asked gate this retry answers
-  policyRuleId String? // approved on arrival by this team rule
-  messageId    String? // Nexconn message for metadata updates
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  team         Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  repo         RepoLink      @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  requester    User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
-  votes        Vote[]
-  invites      Invite[]
-  seen         GateSeen[]
-  grant        Grant?
-  calls        CallSession[]
-  followUpOf   Gate?         @relation("GateFollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)
-  followUps    Gate[]        @relation("GateFollowUp")
-  policyRule   PolicyRule?   @relation(fields: [policyRuleId], references: [id], onDelete: SetNull)
+  id            String           @id
+  code          Int // TG-17 (per-team sequence)
+  teamId        String
+  repoId        String
+  requesterId   String
+  preset        String
+  tool          String           @default("bash") // bash | edit | mcp: a command, a file edit or an MCP call
+  env           String // prod | staging | other
+  command       String // redacted: the command, "edit <path>" or "mcp__server__tool {args}"
+  cwd           String // redacted
+  branch        String?
+  context       String           @db.VarChar(2048) // redacted, truncated
+  intent        String?          @db.VarChar(300) // the agent's own description of the command; redacted
+  via           String?          @db.VarChar(1400) // "pnpm db:deploy → prisma migrate deploy" lines; redacted
+  sessionId     String?          @db.VarChar(200) // Claude Code session, for grouping a run's gates later
+  redactions    Int
+  cmdHash       String // sha256(command + cwd + repo), from the hook; binds the grant
+  quorum        Int
+  status        GateStatus       @default(pending)
+  decidedAt     DateTime?
+  decidedById   String?
+  denyReason    String?
+  parksAt       DateTime? // when the waiting hook gives up and parks it (countdown on the card)
+  parkedAt      DateTime?
+  remindedAt    DateTime? // the one "still parked" reminder went out
+  question      String?          @db.VarChar(500) // set when an approver asked instead of deciding
+  followUpOfId  String? // the asked gate this retry answers
+  policyRuleId  String? // approved on arrival by this team rule
+  messageId     String? // Nexconn message for metadata updates
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  team          Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  repo          RepoLink         @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  requester     User             @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  votes         Vote[]
+  invites       Invite[]
+  seen          GateSeen[]
+  grant         Grant?
+  calls         CallSession[]
+  followUpOf    Gate?            @relation("GateFollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)
+  followUps     Gate[]           @relation("GateFollowUp")
+  policyRule    PolicyRule?      @relation(fields: [policyRuleId], references: [id], onDelete: SetNull)
+  windowId      String? // approved on arrival by this approval window
+  window        ApprovalWindow?  @relation("WindowApproved", fields: [windowId], references: [id], onDelete: SetNull)
+  windowsOpened ApprovalWindow[] @relation("WindowSource")
 
   @@unique([teamId, code])
   @@index([teamId, createdAt(sort: Desc)])
@@ -363,6 +371,35 @@ model TeamAiConfig {
 }
 
 // A rule an owner accepted from Tollgate's suggestions: never for production.
+// "Approve the same for 2 hours": while it's open, one person's agent gets this kind of gate
+// (repo + preset + env) approved on arrival. Opened by an approver from a gate they approved;
+// anyone who can approve may end it early.
+model ApprovalWindow {
+  id          String    @id
+  teamId      String
+  repoId      String
+  preset      String
+  env         String // staging | other: never prod
+  requesterId String // whose agent it covers
+  createdById String
+  gateId      String // the approved gate it was opened from
+  expiresAt   DateTime
+  endedAt     DateTime?
+  endedById   String?
+  createdAt   DateTime  @default(now())
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  repo        RepoLink  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  requester   User      @relation("WindowRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("WindowCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  endedBy     User?     @relation("WindowEnder", fields: [endedById], references: [id], onDelete: SetNull)
+  gate        Gate      @relation("WindowSource", fields: [gateId], references: [id], onDelete: Cascade)
+  approved    Gate[]    @relation("WindowApproved")
+
+  @@index([repoId, preset, env, requesterId, expiresAt])
+  @@index([teamId, expiresAt])
+  @@map("approval_windows")
+}
+
 model PolicyRule {
   id          String       @id
   repoId      String

@@ -71,6 +71,18 @@ export type GateView = {
     env: string;
     by: string | null;
   } | null;
+  // Approved on arrival by someone's approval window, open until `until`.
+  window: { by: string; until: string } | null;
+  // The approval window opened when this gate was approved, if any.
+  opened: {
+    id: string;
+    by: string;
+    until: string;
+    endedAt: string | null;
+    endedBy: string | null;
+    // Gates it has approved so far.
+    used: number;
+  } | null;
   decidedAt: string | null;
   // When the waiting agent will give up and park this gate, if it's still pending.
   parksAt: string | null;
@@ -116,6 +128,15 @@ export type GateRow = {
     env: string;
     createdBy: { name: string } | null;
   } | null;
+  window?: { expiresAt: DateLike; createdBy: { name: string } } | null;
+  windowsOpened?: {
+    id: string;
+    expiresAt: DateLike;
+    endedAt: DateLike | null;
+    createdBy: { name: string };
+    endedBy: { name: string } | null;
+    _count: { approved: number };
+  }[];
   decidedAt: DateLike | null;
   sessionId?: string | null;
   messageId?: string | null;
@@ -156,6 +177,18 @@ function followUpView(asked: GateRow["followUpOf"]): GateView["followUp"] {
     code: asked.code,
     question: asked.question,
     askedBy: asker ? displayName(asker.user.name, asker.userId) : "A teammate",
+  };
+}
+
+function openedView(window: NonNullable<GateRow["windowsOpened"]>[number] | undefined) {
+  if (!window) return null;
+  return {
+    id: window.id,
+    by: window.createdBy.name.trim() || "A teammate",
+    until: iso(window.expiresAt),
+    endedAt: isoOrNull(window.endedAt),
+    endedBy: window.endedBy?.name.trim() || null,
+    used: window._count.approved,
   };
 }
 
@@ -203,6 +236,10 @@ export function toGateView(row: GateRow): GateView {
           by: row.policyRule.createdBy?.name.trim() || null,
         }
       : null,
+    window: row.window
+      ? { by: row.window.createdBy.name.trim() || "A teammate", until: iso(row.window.expiresAt) }
+      : null,
+    opened: openedView(row.windowsOpened?.[0]),
     decidedAt: isoOrNull(row.decidedAt),
     parksAt: isoOrNull(row.parksAt),
     parkedAt: isoOrNull(row.parkedAt),

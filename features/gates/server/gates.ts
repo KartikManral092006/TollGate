@@ -18,6 +18,7 @@ import {
   type Evaluation,
 } from "@/features/gates/shared/quorum";
 import { redact, truncate } from "@/features/gates/shared/redact";
+import { canOpenWindow, roleCanOpenWindow, WINDOW_MINUTES } from "@/features/gates/shared/windows";
 import { applyRule } from "@/features/insights/shared/policy";
 import { canVote, type TeamRoleValue } from "@/features/teams/shared/schemas";
 
@@ -86,6 +87,29 @@ export async function createGate(
   });
   const ruleApplied = rule && (policy.autoApprove || policy.quorum !== presetQuorum);
 
+  // An open approval window for this person's agent and this kind of gate approves it on
+  // arrival, under the same limits it was opened with. Like a rule, only for presets the
+  // server itself recognised.
+  const window =
+    serverMatch &&
+    !policy.autoApprove &&
+    detectEnv(command.text) !== "prod" &&
+    canOpenWindow({ preset, env, quorum: policy.quorum })
+      ? await db.approvalWindow.findFirst({
+          where: {
+            repoId: principal.repoId,
+            preset,
+            env,
+            requesterId: principal.requesterId,
+            endedAt: null,
+            expiresAt: { gt: now },
+          },
+          orderBy: { expiresAt: "desc" },
+          select: { id: true },
+        })
+      : null;
+  const autoApprove = policy.autoApprove || window !== null;
+
   return db.$transaction(async (tx) => {
     const [row] = await tx.$queryRaw<{ code: number }[]>`
       UPDATE teams SET "nextGateCode" = "nextGateCode" + 1, "updatedAt" = now()
@@ -128,7 +152,7 @@ export async function createGate(
           : null,
         sessionId: input.sessionId ? truncate(input.sessionId, 200) : null,
         // Older hooks don't say how long they wait: the default timeout minus the park margin.
-        parksAt: policy.autoApprove
+        parksAt: autoApprove
           ? null
           : new Date(now.getTime() + (input.waitSec ?? DEFAULT_WAIT_SEC) * 1000),
         redactions:
@@ -142,7 +166,8 @@ export async function createGate(
         quorum: policy.quorum,
         followUpOfId: asked?.id ?? null,
         policyRuleId: ruleApplied ? rule.id : null,
-        ...(policy.autoApprove ? { status: "approved" as const, decidedAt: now } : {}),
+        windowId: window?.id ?? null,
+        ...(autoApprove ? { status: "approved" as const, decidedAt: now } : {}),
       },
     });
   });
@@ -189,7 +214,15 @@ export class VoteRejectedError extends Error {
   override readonly name = "VoteRejectedError";
 
   constructor(
-    readonly reason: "not_found" | "closed" | "own_gate" | "not_allowed" | "voted" | "not_waiting",
+    readonly reason:
+      | "not_found"
+      | "closed"
+      | "own_gate"
+      | "not_allowed"
+      | "voted"
+      | "not_waiting"
+      // An approval window was asked for where windows.ts doesn't allow one.
+      | "window_not_allowed",
   ) {
     super(`Vote rejected: ${reason}`);
   }
@@ -205,6 +238,8 @@ export type VoteOutcome = {
   votes: { userId: string; decision: VoteDecision }[];
   grantExpiresAt: Date | null;
   messageId: string | null;
+  // Set when this approval also opened an approval window.
+  window: { id: string; expiresAt: Date } | null;
 };
 
 // One transaction with the gate row locked: concurrent votes are serialised, so quorum is
@@ -218,6 +253,8 @@ export async function castVote(
     reason?: string | null;
     // Ask instead of deciding: closes the gate like a deny, and the agent must answer.
     question?: string | null;
+    // Also approve the same kind of gate from this agent for this long (windows.ts).
+    windowMinutes?: number | null;
     newId: () => string;
     now?: Date;
   },
@@ -235,8 +272,11 @@ export async function castVote(
         quorum: number;
         cmdHash: string;
         messageId: string | null;
+        preset: string;
+        env: string;
       }[]
-    >`SELECT id, "teamId", "repoId", code, "requesterId", status, quorum, "cmdHash", "messageId"
+    >`SELECT id, "teamId", "repoId", code, "requesterId", status, quorum, "cmdHash", "messageId",
+        preset, env
       FROM gates WHERE id = ${input.gateId} FOR UPDATE`;
     if (!gate) throw new VoteRejectedError("not_found");
 
@@ -253,6 +293,17 @@ export async function castVote(
       voterCanVote: canVote(membership.role as TeamRoleValue),
     });
     if (rejection) throw new VoteRejectedError(rejection);
+    const windowMinutes = input.windowMinutes ?? null;
+    if (
+      windowMinutes !== null &&
+      (input.decision !== "approve" ||
+        input.question ||
+        !(WINDOW_MINUTES as readonly number[]).includes(windowMinutes) ||
+        !roleCanOpenWindow(membership.role) ||
+        !canOpenWindow(gate))
+    ) {
+      throw new VoteRejectedError("window_not_allowed");
+    }
     // Reasons, notes and questions reach the agent and the room's card, and a deny reason can
     // be a teammate's chat reply picked from the thread: redact here too, never trust the client.
     const clean = (text: string | null | undefined, max: number) =>
@@ -320,6 +371,32 @@ export async function castVote(
       }
     }
 
+    let window: VoteOutcome["window"] = null;
+    if (evaluation.status === "approved" && windowMinutes !== null) {
+      const scope = {
+        repoId: gate.repoId,
+        preset: gate.preset,
+        env: gate.env,
+        requesterId: gate.requesterId,
+      };
+      // A new window replaces an open one for the same agent and kind: one end time, not two.
+      await tx.approvalWindow.updateMany({
+        where: { ...scope, endedAt: null, expiresAt: { gt: now } },
+        data: { endedAt: now, endedById: input.userId },
+      });
+      window = await tx.approvalWindow.create({
+        data: {
+          id: input.newId(),
+          teamId: gate.teamId,
+          ...scope,
+          createdById: input.userId,
+          gateId: gate.id,
+          expiresAt: new Date(now.getTime() + windowMinutes * 60_000),
+        },
+        select: { id: true, expiresAt: true },
+      });
+    }
+
     return {
       gateId: gate.id,
       teamId: gate.teamId,
@@ -330,8 +407,32 @@ export async function castVote(
       votes: votes.map(({ userId, decision }) => ({ userId, decision })),
       grantExpiresAt,
       messageId: gate.messageId,
+      window,
     };
   });
+}
+
+// Anyone who can approve may close a window before its time; closing twice is not an error.
+export async function endWindow(
+  db: PrismaClient,
+  input: { windowId: string; userId: string; now?: Date },
+): Promise<{ teamId: string; gateId: string } | null> {
+  const now = input.now ?? new Date();
+  const window = await db.approvalWindow.findUnique({
+    where: { id: input.windowId },
+    select: { teamId: true, gateId: true },
+  });
+  if (!window) return null;
+  const membership = await db.membership.findUnique({
+    where: { teamId_userId: { teamId: window.teamId, userId: input.userId } },
+    select: { role: true },
+  });
+  if (!membership || !roleCanOpenWindow(membership.role)) return null;
+  await db.approvalWindow.updateMany({
+    where: { id: input.windowId, endedAt: null },
+    data: { endedAt: now, endedById: input.userId },
+  });
+  return window;
 }
 
 // Single use: exactly one caller gets the row back, however many retries race.
@@ -416,6 +517,20 @@ const GATE_INCLUDE = {
   },
   policyRule: {
     select: { action: true, preset: true, env: true, createdBy: { select: { name: true } } },
+  },
+  // The window that approved this gate on arrival, and the one opened from it.
+  window: { select: { expiresAt: true, createdBy: { select: { name: true } } } },
+  windowsOpened: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: {
+      id: true,
+      expiresAt: true,
+      endedAt: true,
+      createdBy: { select: { name: true } },
+      endedBy: { select: { name: true } },
+      _count: { select: { approved: true } },
+    },
   },
   calls: {
     orderBy: { createdAt: "asc" },

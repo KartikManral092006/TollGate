@@ -351,9 +351,10 @@ export function RoomClient({
                                     <GateInvite gateId={item.gate.id} code={item.gate.code} />
                                   ) : undefined
                                 }
-                                onApprove={async (gate, note) => {
-                                  await actions.approve(gate, note);
+                                onApprove={async (gate, note, windowMinutes) => {
+                                  await actions.approve(gate, note, windowMinutes);
                                 }}
+                                onEndWindow={actions.endWindow}
                                 onDeny={actions.deny}
                                 onAsk={actions.ask}
                                 onRing={

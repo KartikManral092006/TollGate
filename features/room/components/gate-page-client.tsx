@@ -111,9 +111,10 @@ export function GatePageClient({
           gate={gate}
           viewer={viewer}
           contextOpen
-          onApprove={async (target, note) => {
-            await actions.approve(target, note);
+          onApprove={async (target, note, windowMinutes) => {
+            await actions.approve(target, note, windowMinutes);
           }}
+          onEndWindow={actions.endWindow}
           onDeny={actions.deny}
           onAsk={actions.ask}
           onWhy={actions.explain}

@@ -9,6 +9,7 @@ import { withInsights } from "@/features/insights/server/insights";
 import { GatePageClient } from "@/features/room/components/gate-page-client";
 import { displayName } from "@/features/gates/shared/view";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
+import { roleCanOpenWindow } from "@/features/gates/shared/windows";
 import { canVote, ID_RE } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
 
@@ -37,7 +38,11 @@ export default async function GatePage({ params }: PageProps<"/teams/[id]/gates/
   return (
     <GatePageClient
       teamId={id}
-      viewer={{ id: user.id, canVote: canVote(membership.role) }}
+      viewer={{
+        id: user.id,
+        canVote: canVote(membership.role),
+        canOpenWindows: roleCanOpenWindow(membership.role),
+      }}
       initial={view!}
       members={members.map((m) => ({ id: m.user.id, name: displayName(m.user.name, m.user.id) }))}
     />

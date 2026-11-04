@@ -15,6 +15,7 @@ const STATUS_FOR: Record<VoteRejectedError["reason"], number> = {
   not_waiting: 409,
   own_gate: 403,
   not_allowed: 403,
+  window_not_allowed: 403,
 };
 
 // An approver asks the agent a question. Same rules as a vote (it closes the gate like a deny),

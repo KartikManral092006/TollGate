@@ -49,6 +49,8 @@ function gate(
     followUp: null,
     answeredIn: null,
     rule: null,
+    window: null,
+    opened: null,
     decidedAt: null,
     parksAt: null,
     parkedAt: null,

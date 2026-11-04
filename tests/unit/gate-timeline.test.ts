@@ -29,6 +29,8 @@ function gate(patch: Partial<GateView>): GateView {
     followUp: null,
     answeredIn: null,
     rule: null,
+    window: null,
+    opened: null,
     decidedAt: null,
     parksAt: null,
     parkedAt: null,

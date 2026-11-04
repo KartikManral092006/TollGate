@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WINDOW_MINUTES, type WindowMinutes } from "./windows";
 
 export const voteSchema = z
   .object({
@@ -6,11 +7,22 @@ export const voteSchema = z
     reason: z.string().trim().max(1000).optional(),
     // The card message the reply quoted, when the deny came from the composer.
     quotedMessageId: z.string().max(64).optional(),
+    // Approve the same kind of gate from this agent for a while (see windows.ts).
+    windowMinutes: z
+      .number()
+      .refine((minutes): minutes is WindowMinutes =>
+        (WINDOW_MINUTES as readonly number[]).includes(minutes),
+      )
+      .optional(),
   })
   .strict()
   .refine((vote) => vote.decision === "approve" || (vote.reason?.length ?? 0) > 0, {
     message: "A deny needs a reason: it becomes the agent's next instruction",
     path: ["reason"],
+  })
+  .refine((vote) => vote.decision === "approve" || vote.windowMinutes === undefined, {
+    message: "Only an approval can open a window",
+    path: ["windowMinutes"],
   });
 
 export const huddleSchema = z

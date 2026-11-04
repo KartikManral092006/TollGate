@@ -15,6 +15,7 @@ const STATUS_FOR: Record<VoteRejectedError["reason"], number> = {
   not_waiting: 409,
   own_gate: 403,
   not_allowed: 403,
+  window_not_allowed: 403,
 };
 
 export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/vote">) {
@@ -32,6 +33,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
       userId: auth.user.id,
       decision: body.data.decision,
       reason: body.data.reason,
+      windowMinutes: body.data.windowMinutes,
       newId: () => newAlnumId(),
     });
     mirrorGate(id);
@@ -43,6 +45,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
       approvals: outcome.evaluation.approvals,
       quorum: outcome.quorum,
       grantExpiresAt: outcome.grantExpiresAt?.toISOString() ?? null,
+      windowUntil: outcome.window?.expiresAt.toISOString() ?? null,
     });
   } catch (error) {
     if (error instanceof VoteRejectedError) {

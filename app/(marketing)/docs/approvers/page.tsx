@@ -91,6 +91,26 @@ export default function ApproversPage() {
         answers in its next attempt, and your team decides that new gate with the answer on it. Ask
         is only offered while the agent is still waiting.
       </P>
+      <H3>Approve for a while</H3>
+      <P>
+        Working alongside a teammate&apos;s agent and approving the same kind of thing again and
+        again? Above the buttons, pick <strong>Approve for 30 minutes</strong>, 1, 2 or 4 hours,
+        then approve. Until then, that person&apos;s agent gets the same kind of gate in the same
+        repo approved on arrival, for example every <C>db-migrate</C> on staging. Each one still
+        shows in the room, marked with whose window approved it.
+      </P>
+      <List>
+        <li>It covers one person&apos;s agent and one kind of gate. Anything else still asks.</li>
+        <li>
+          It&apos;s never offered for production, for gates that need two approvals, or for
+          publishing, infrastructure, deletes outside the repo, Tollgate&apos;s own settings or
+          risky MCP tools.
+        </li>
+        <li>
+          Anyone who can approve can press <strong>End now</strong> on the card it was opened from.
+          Clients can&apos;t open windows.
+        </li>
+      </List>
 
       <H2 id="talk">Talking it through</H2>
       <List>

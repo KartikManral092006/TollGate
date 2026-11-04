@@ -37,6 +37,8 @@ import {
   type GateView,
 } from "@/features/gates/shared/view";
 import { TOOL_NOUN } from "@/features/gates/shared/presets";
+import { canOpenWindow } from "@/features/gates/shared/windows";
+import { WindowLines, WindowPicker } from "@/features/room/components/approval-window";
 import { joinNames, PrecedentNote } from "@/features/insights/components/precedent-note";
 import { RiskSignals } from "@/features/insights/components/risk-signals";
 import { SuggestedApprovers } from "@/features/insights/components/suggested-approvers";
@@ -48,7 +50,12 @@ import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
 
-export type Viewer = { id: string; canVote: boolean };
+export type Viewer = {
+  id: string;
+  canVote: boolean;
+  // Owners and approvers can approve the same kind of gate for a while (windows.ts).
+  canOpenWindows?: boolean;
+};
 
 const DOT: Record<GateDisplayStatus, string> = {
   pending: "bg-gate-pending",
@@ -188,6 +195,7 @@ export function GateCard({
   onAsk,
   onRing,
   onWhy,
+  onEndWindow,
   footer,
   invite,
   welcome = false,
@@ -217,8 +225,10 @@ export function GateCard({
   seenBy?: string[];
   // Plain-language explanation: the team's AI provider, or the built-in rules.
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
-  onApprove: (gate: GateView, note?: string) => Promise<void>;
+  onApprove: (gate: GateView, note?: string, windowMinutes?: number) => Promise<void>;
   onDeny: (gate: GateView) => void;
+  // End an approval window opened from this gate before its time.
+  onEndWindow?: (windowId: string) => void;
   // Ask the agent a question instead of deciding; only while its hook is still waiting.
   onAsk?: (gate: GateView) => void;
   // Ring a suggested approver; only when calls are available.
@@ -260,11 +270,18 @@ export function GateCard({
 
   // An optional one-line note with the approval, shown to the rest of the quorum.
   const [note, setNote] = useState<string | null>(null);
+  // "Approve for 2 hours": minutes, or null to ask each time.
+  const [windowMinutes, setWindowMinutes] = useState<number | null>(null);
+  const offerWindow = canAct && viewer.canOpenWindows === true && canOpenWindow(gate);
 
   async function approve() {
     setBusy(true);
     try {
-      await onApprove(gate, note?.trim() || undefined);
+      await onApprove(
+        gate,
+        note?.trim() || undefined,
+        offerWindow && windowMinutes !== null ? windowMinutes : undefined,
+      );
     } finally {
       setBusy(false);
     }
@@ -662,6 +679,7 @@ export function GateCard({
             </span>
           </p>
         )}
+        <WindowLines gate={gate} onEnd={viewer.canOpenWindows ? onEndWindow : undefined} />
 
         {open && gate.insights && gate.insights.approvers.length > 0 && (
           <SuggestedApprovers
@@ -707,6 +725,9 @@ export function GateCard({
             </motion.div>
           )}
         </AnimatePresence>
+        {offerWindow && (
+          <WindowPicker gate={gate} value={windowMinutes} onChange={setWindowMinutes} />
+        )}
         {canAct && (
           // Full-width, thumb-sized on phones; a compact row on the right on wider screens.
           <div
