@@ -1,6 +1,16 @@
 "use client";
 
-import { Bell, ListChecks } from "lucide-react";
+import { AtSign, Bell, BellOff, BellRing, Check, ListChecks } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { ChatNotify } from "@/features/room/client/use-chat-notify";
 import Link from "next/link";
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -16,6 +26,12 @@ const LIVE_LABEL: Record<LiveState, string> = {
   offline: "Auto-refreshing",
 };
 
+const NOTIFY_CHOICES: { value: ChatNotify; label: string; icon: typeof Bell }[] = [
+  { value: "all", label: "Every message", icon: BellRing },
+  { value: "mentions", label: "Only when I'm @mentioned", icon: AtSign },
+  { value: "none", label: "Nothing (muted)", icon: BellOff },
+];
+
 // The room's own bar: the team, whether the thread is live, what's waiting, who's in it.
 // Navigation lives in the sidebar.
 export function RoomHeader({
@@ -25,6 +41,8 @@ export function RoomHeader({
   live,
   openCount,
   onEnableAlerts,
+  chatNotify,
+  onChatNotify,
 }: {
   teamId: string;
   name: string;
@@ -33,7 +51,12 @@ export function RoomHeader({
   openCount: number;
   // Shown while browser notifications haven't been allowed yet.
   onEnableAlerts?: () => void;
+  // How the team's chat notifies you (Nexconn do-not-disturb); gate alerts are separate.
+  chatNotify?: ChatNotify | null;
+  onChatNotify?: (next: ChatNotify) => void;
 }) {
+  const NotifyIcon =
+    chatNotify === "none" ? BellOff : chatNotify === "mentions" ? AtSign : BellRing;
   return (
     <header className="flex shrink-0 items-center gap-3 border-b bg-background/90 px-4 py-3 backdrop-blur sm:px-6 lg:px-10">
       <div className="min-w-0 flex-1">
@@ -70,6 +93,37 @@ export function RoomHeader({
         <Link href={`/teams/${teamId}/review`} className={buttonVariants({ size: "sm" })}>
           <ListChecks /> Review
         </Link>
+      )}
+      {onChatNotify && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Chat notifications"
+                title="Chat notifications"
+              />
+            }
+          >
+            <NotifyIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Notify me about chat messages</DropdownMenuLabel>
+              {NOTIFY_CHOICES.map((choice) => (
+                <DropdownMenuItem key={choice.value} onClick={() => onChatNotify(choice.value)}>
+                  <choice.icon /> {choice.label}
+                  {chatNotify === choice.value && <Check className="ms-auto" aria-label="On" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+              Gates always notify you, whatever you choose here.
+            </p>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
       {onEnableAlerts && (
         <Button variant="outline" size="sm" onClick={onEnableAlerts} className="gap-1.5">
