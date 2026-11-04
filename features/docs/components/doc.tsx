@@ -1,5 +1,4 @@
 import { ArrowLeft, ArrowRight, Info, TriangleAlert } from "lucide-react";
-import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import {
   CodeBlock,
@@ -138,31 +137,6 @@ export function Callout({
         <div className="mt-0.5 text-white/70 [&_p]:my-1">{children}</div>
       </div>
     </aside>
-  );
-}
-
-export function Figure({
-  src,
-  alt,
-  caption,
-  narrow = false,
-}: {
-  src: StaticImageData;
-  alt: string;
-  caption: string;
-  narrow?: boolean;
-}) {
-  return (
-    <figure className={cn("my-8", narrow ? "max-w-xs" : "max-w-2xl")}>
-      <Image
-        src={src}
-        alt={alt}
-        placeholder="blur"
-        sizes={narrow ? "320px" : "(min-width: 1024px) 672px, 100vw"}
-        className="rounded-xl border border-white/10"
-      />
-      <figcaption className="mt-2 text-xs text-white/45">{caption}</figcaption>
-    </figure>
   );
 }
 

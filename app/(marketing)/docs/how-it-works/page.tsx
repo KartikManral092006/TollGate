@@ -1,16 +1,5 @@
 import type { Metadata } from "next";
-import {
-  C,
-  Callout,
-  DocTitle,
-  Figure,
-  H2,
-  List,
-  P,
-  PrevNext,
-  Table,
-} from "@/features/docs/components/doc";
-import pipeline from "@/features/docs/images/pipeline.jpg";
+import { C, Callout, DocTitle, H2, List, P, PrevNext, Table } from "@/features/docs/components/doc";
 
 export const metadata: Metadata = {
   title: "How it works · Tollgate docs",
@@ -22,12 +11,11 @@ export default function HowItWorksPage() {
   return (
     <article>
       <DocTitle href="/docs/how-it-works" />
-
-      <Figure
-        src={pipeline}
-        alt="A command's journey: caught by the hook, secrets redacted, a card in the team room, denied with a reason, back to the agent"
-        caption="One command's trip from the agent to your team and back."
-      />
+      <P>
+        In short: the hook catches a risky command, hides its secrets, posts it as a card in your
+        team room, and waits. Your team&apos;s decision, or the reason for a deny, goes back to the
+        agent.
+      </P>
 
       <H2 id="hook">The hook</H2>
       <P>

@@ -5,7 +5,6 @@ import {
   Callout,
   Command,
   DocTitle,
-  Figure,
   H2,
   List,
   Output,
@@ -14,7 +13,6 @@ import {
   Step,
   Steps,
 } from "@/features/docs/components/doc";
-import invitePreview from "@/features/docs/images/invite-preview.jpg";
 
 export const metadata: Metadata = {
   title: "Quickstart · Tollgate docs",
@@ -101,13 +99,6 @@ export default function QuickstartPage() {
           </p>
         </Step>
       </Steps>
-
-      <Figure
-        src={invitePreview}
-        narrow
-        alt="The invite page on a phone: who invited you, the team, and the waiting gate's repo and command"
-        caption="What the invited person sees before signing in."
-      />
 
       <Callout title="Use the exact command from Settings">
         It contains your server address and your token. A token only works on the server that made
