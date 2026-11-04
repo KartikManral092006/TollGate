@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { HealthTimeout, reasonOf } from "@/lib/health";
 import { logger } from "@/lib/logger";
 import { lastRedisError, redis } from "@/lib/redis";
@@ -47,6 +48,9 @@ export async function GET() {
       status: healthy ? "ok" : "degraded",
       db: database.status,
       redis: cache.status,
+      // Configuration only: probing Nexconn itself on every health check would spend API calls.
+      // A team without it still works from Postgres, so it doesn't make the app degraded.
+      nexconn: env.NEXCONN_APP_KEY && env.NEXCONN_APP_SECRET ? "configured" : "missing",
       ...(database.reason ? { dbReason: database.reason } : {}),
       ...(cache.reason ? { redisReason: cache.reason } : {}),
     },
