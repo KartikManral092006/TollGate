@@ -34,12 +34,15 @@ export function RoomRail({
   gates,
   members,
   online,
+  reachable = new Set(),
   viewerId,
 }: {
   gates: GateView[];
   members: Member[];
   // Members with an open room or gate page right now.
   online: Set<string>;
+  // Connected to Tollgate somewhere else (Nexconn online status), not in this room.
+  reachable?: Set<string>;
   viewerId: string;
 }) {
   const waiting = gates
@@ -120,11 +123,20 @@ export function RoomRail({
             <li key={member.id} className="flex items-center gap-2.5">
               <span className="relative">
                 <PersonAvatar id={member.id} name={member.name} size="sm" />
-                {(online.has(member.id) || member.id === viewerId) && (
+                {online.has(member.id) || member.id === viewerId ? (
                   <span
                     className="absolute -end-0.5 -bottom-0.5 size-2.5 rounded-full bg-gate-approved ring-2 ring-background"
-                    aria-label="Online"
+                    aria-label="In this room"
+                    title="In this room"
                   />
+                ) : (
+                  reachable.has(member.id) && (
+                    <span
+                      className="absolute -end-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-gate-approved bg-background"
+                      aria-label="Online in Tollgate"
+                      title="Online in Tollgate, not in this room"
+                    />
+                  )
                 )}
               </span>
               <span className="min-w-0 flex-1 truncate text-sm">{member.name}</span>

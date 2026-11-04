@@ -166,6 +166,23 @@ function addHandlers(chat: ChatModule) {
     }),
   );
 
+  NCEngine.addUserHandler(
+    "tollgate",
+    new chat.UserHandler({
+      onSubscriptionChanged({ events }) {
+        for (const event of events) {
+          for (const detail of event.details ?? []) {
+            nexconnEvents.emit("onlineStatus", {
+              userId: event.userId,
+              platform: detail.platform,
+              online: detail.eventValue === 1,
+            });
+          }
+        }
+      },
+    }),
+  );
+
   NCEngine.addTranslateHandler(
     "tollgate",
     new chat.TranslateHandler({

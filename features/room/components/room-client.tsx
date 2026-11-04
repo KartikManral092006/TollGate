@@ -33,6 +33,7 @@ import { SessionStrip } from "@/features/room/components/session-strip";
 import { useReportSeen } from "@/features/room/client/use-report-seen";
 import { useMentionReceipts } from "@/features/room/client/use-mention-receipts";
 import { useTranslate } from "@/features/room/client/use-translate";
+import { useNexconnOnline } from "@/features/presence/client/use-nexconn-online";
 import { Composer } from "@/features/room/components/composer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
@@ -177,6 +178,11 @@ export function RoomClient({
   );
   const people = usePresence(team.id, { viewing, typing: actions.composing?.id ?? null });
   const online = useMemo(() => new Set(people.map((p) => p.userId)), [people]);
+  const others = useMemo(
+    () => members.filter((m) => m.id !== viewer.id).map((m) => m.id),
+    [members, viewer.id],
+  );
+  const reachable = useNexconnOnline({ userIds: others, live, callsEnabled });
   const presenceOf = (gateId: string) => {
     const ids = presenceFor(gateId, people, viewer.id);
     return {
@@ -440,7 +446,13 @@ export function RoomClient({
             </div>
           </div>
         </div>
-        <RoomRail gates={gates} members={members} online={online} viewerId={viewer.id} />
+        <RoomRail
+          gates={gates}
+          members={members}
+          online={online}
+          reachable={reachable}
+          viewerId={viewer.id}
+        />
       </div>
 
       <IncomingCallSheet
