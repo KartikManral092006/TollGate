@@ -30,6 +30,7 @@ import { SetupGuide } from "@/features/onboarding/components/setup-guide";
 import type { SetupState } from "@/features/onboarding/shared/steps";
 import { ChatLineView } from "@/features/room/components/chat-line";
 import { SessionStrip } from "@/features/room/components/session-strip";
+import { useReportSeen } from "@/features/room/client/use-report-seen";
 import { Composer } from "@/features/room/components/composer";
 import { GateCard, type Viewer } from "@/features/room/components/gate-card";
 import { RoomHeader, type Member } from "@/features/room/components/room-header";
@@ -151,6 +152,7 @@ export function RoomClient({
     repliesFor: (gate) => replies.get(gate.id) ?? [],
   });
   const viewing = useViewingGate(gates);
+  useReportSeen({ gates, viewing, viewerId: viewer.id });
   const people = usePresence(team.id, { viewing, typing: actions.composing?.id ?? null });
   const online = useMemo(() => new Set(people.map((p) => p.userId)), [people]);
   const presenceOf = (gateId: string) => {
@@ -291,6 +293,9 @@ export function RoomClient({
                                   item.gate.id === highlightGateId || item.gate.id === flashId
                                 }
                                 replies={replies.get(item.gate.id)}
+                                seenBy={(item.gate.seenBy ?? [])
+                                  .filter((look) => look.userId !== viewer.id)
+                                  .map((look) => look.name)}
                                 onReply={live === "live" ? setReplying : undefined}
                                 welcome={welcome && item.gate.id === highlightGateId}
                                 invite={

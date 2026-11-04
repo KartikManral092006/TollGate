@@ -44,6 +44,10 @@ export type GateView = {
   requester: { id: string; name: string };
   // The Claude Code session that raised it, for grouping a run's gates in the room.
   session?: string | null;
+  // The bot's TG:Gate card in the team's group.
+  messageId?: string | null;
+  // Teammates who have looked at the card, first look first.
+  seenBy?: { userId: string; name: string }[];
   votes: GateVoteView[];
   denyReason: string | null;
   // An approver asked instead of deciding; the gate closed and the agent got the question.
@@ -105,6 +109,8 @@ export type GateRow = {
   } | null;
   decidedAt: DateLike | null;
   sessionId?: string | null;
+  messageId?: string | null;
+  seen?: { userId: string; seenAt: DateLike; user: { name: string } }[];
   parksAt?: DateLike | null;
   parkedAt: DateLike | null;
   createdAt: DateLike;
@@ -163,6 +169,11 @@ export function toGateView(row: GateRow): GateView {
     approvals: row.votes.filter((vote) => vote.decision === "approve").length,
     requester: { id: row.requester.id, name: displayName(row.requester.name, row.requester.id) },
     session: row.sessionId ?? null,
+    messageId: row.messageId ?? null,
+    seenBy: (row.seen ?? []).map((look) => ({
+      userId: look.userId,
+      name: displayName(look.user.name, look.userId),
+    })),
     votes: row.votes.map((vote) => ({
       userId: vote.userId,
       name: displayName(vote.user.name, vote.userId),

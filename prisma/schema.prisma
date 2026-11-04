@@ -34,6 +34,7 @@ model User {
   gatesRequested Gate[]
   policyRules    PolicyRule[]
   votes          Vote[]
+  gatesSeen      GateSeen[]
   callsStarted   CallSession[]
 
   @@map("users")
@@ -267,6 +268,7 @@ model Gate {
   requester    User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
   votes        Vote[]
   invites      Invite[]
+  seen         GateSeen[]
   grant        Grant?
   calls        CallSession[]
   followUpOf   Gate?         @relation("GateFollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)
@@ -391,4 +393,19 @@ model AgentSession {
 
   @@unique([teamId, sessionId])
   @@map("agent_sessions")
+}
+
+// Who has looked at a gate's card (not the requester). "Seen by" on the card, and which
+// parked gates nobody saw. Native read receipts can't do this: only a message's sender may
+// read them, and the bot that posts cards never connects.
+model GateSeen {
+  gateId String
+  userId String
+  seenAt DateTime @default(now())
+  gate   Gate     @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([gateId, userId])
+  @@index([userId])
+  @@map("gate_seen")
 }

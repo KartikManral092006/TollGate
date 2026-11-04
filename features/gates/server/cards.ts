@@ -97,6 +97,7 @@ export async function mirrorGateState(deps: CardDeps, gateId: string): Promise<v
         select: { decision: true, user: { select: { nexconnUserId: true } } },
       },
       grant: { select: { expiresAt: true } },
+      _count: { select: { seen: true } },
     },
   });
   if (!gate?.messageId) return;
@@ -121,6 +122,7 @@ export async function mirrorGateState(deps: CardDeps, gateId: string): Promise<v
       votes,
       decidedBy: decider?.nexconnUserId ?? null,
       grantExpiresAt: gate.grant?.expiresAt ?? null,
+      seen: gate._count.seen,
     }),
   });
 }

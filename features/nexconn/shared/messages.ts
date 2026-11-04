@@ -126,6 +126,8 @@ export type GateMetadataInput = {
   votes: { userId: string; decision: "approve" | "deny" }[];
   decidedBy?: string | null;
   grantExpiresAt?: Date | null;
+  // How many teammates have looked at the card; a change makes every room refresh.
+  seen?: number;
 };
 
 export function gateMetadata(input: GateMetadataInput): Record<string, string> {
@@ -139,6 +141,7 @@ export function gateMetadata(input: GateMetadataInput): Record<string, string> {
   });
   if (input.decidedBy) values.by = input.decidedBy;
   if (input.grantExpiresAt) values.exp = String(input.grantExpiresAt.getTime());
+  if (input.seen) values.sn = String(input.seen);
   return toMetadata(values);
 }
 

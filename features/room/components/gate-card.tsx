@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CheckCheck,
   ChevronDown,
   Eye,
   EyeOff,
@@ -164,6 +165,7 @@ export function GateCard({
   welcome = false,
   replies = [],
   onReply,
+  seenBy = [],
   contextOpen = false,
   presence,
 }: {
@@ -183,6 +185,8 @@ export function GateCard({
   replies?: { id: string; name: string; text: string }[];
   // Start a reply on this gate in the room's composer.
   onReply?: (gate: GateView) => void;
+  // Teammates (by name) whose Nexconn client has shown them this card: a read receipt.
+  seenBy?: string[];
   // Plain-language explanation: the team's AI provider, or the built-in rules.
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
   onApprove: (gate: GateView, note?: string) => Promise<void>;
@@ -340,6 +344,17 @@ export function GateCard({
             </motion.p>
           )}
         </AnimatePresence>
+        {open && seenBy.length > 0 && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="-mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"
+          >
+            <CheckCheck className="size-3.5" aria-hidden />
+            Seen by {joinNames(seenBy)}
+            {gate.votes.length === 0 ? ", no vote yet" : ""}
+          </motion.p>
+        )}
 
         {gate.followUp && (
           <p className="flex items-start gap-2 text-sm text-muted-foreground">
