@@ -27,7 +27,8 @@ model User {
   accounts      Account[]
 
   teamsCreated   Team[]
-  memberships    Membership[]
+  memberships    Membership[]  @relation("MembershipUser")
+  invited        Membership[]  @relation("MembershipInviter")
   invitesCreated Invite[]
   hookTokens     HookToken[]
   gatesRequested Gate[]
@@ -161,8 +162,10 @@ model Membership {
   role            TeamRole  @default(approver)
   joinedAt        DateTime  @default(now())
   nexconnJoinedAt DateTime? // set once the user is in the team's Nexconn group
+  invitedById     String? // whose invite link they joined through (shown in Members)
   team            Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation("MembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy       User?     @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
 
   @@id([teamId, userId])
   @@index([userId, joinedAt(sort: Desc)])
@@ -176,6 +179,7 @@ model Invite {
   tokenHash   String    @unique
   role        TeamRole  @default(approver) // approver | guest
   createdById String?
+  gateId      String? // made to get this gate decided: single use, 48 h
   maxUses     Int       @default(10)
   uses        Int       @default(0) // changed only in the accept transaction
   expiresAt   DateTime
@@ -183,6 +187,7 @@ model Invite {
   createdAt   DateTime  @default(now())
   team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  gate        Gate?     @relation(fields: [gateId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
   @@map("invites")
@@ -260,6 +265,7 @@ model Gate {
   repo         RepoLink      @relation(fields: [repoId], references: [id], onDelete: Cascade)
   requester    User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
   votes        Vote[]
+  invites      Invite[]
   grant        Grant?
   calls        CallSession[]
   followUpOf   Gate?         @relation("GateFollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)

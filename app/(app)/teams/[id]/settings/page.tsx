@@ -41,6 +41,7 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
         id: m.user.id,
         name: displayName(m.user.name, m.user.id),
         role: m.role,
+        invitedBy: m.invitedBy ? displayName(m.invitedBy.name, m.invitedBy.id) : null,
       }))}
       repos={settings.repos}
       invites={settings.invites}

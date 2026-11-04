@@ -60,7 +60,10 @@ export function SignInForm(props: {
   githubEnabled: boolean;
   devEmailLog: boolean;
   initialError: string | null;
+  // The invite page signs people in under its own heading, so it has no h1 of its own here.
+  heading?: { text: string; level: "h1" | "h2" };
 }) {
+  const Heading = props.heading?.level ?? "h1";
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [provider, setProvider] = useState<"google" | "github">("google");
@@ -132,7 +135,9 @@ export function SignInForm(props: {
     <Card className="w-full max-w-sm border-0 bg-transparent shadow-none ring-0">
       <CardHeader className="px-0">
         <CardTitle>
-          <h1 className="text-3xl font-extrabold tracking-tight">Sign in</h1>
+          <Heading className="text-3xl font-extrabold tracking-tight">
+            {props.heading?.text ?? "Sign in"}
+          </Heading>
         </CardTitle>
         <CardDescription>
           No password: we email you a sign-in link. New here? The same link creates your account.
