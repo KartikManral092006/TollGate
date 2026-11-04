@@ -9,6 +9,7 @@ import {
 import { BorderBeam } from "@/components/fx/border-beam";
 import { Marquee } from "@/components/fx/marquee";
 import { ShimmerLink } from "@/components/fx/shimmer-button";
+import { GITHUB_REPO } from "@/components/github-mark";
 import { FeatureStory } from "@/features/landing/components/feature-story";
 import { LandingFooter } from "@/features/landing/components/footer";
 import { Hero } from "@/features/landing/components/hero";
@@ -191,7 +192,7 @@ export default function LandingPage() {
                       Get started <ArrowRight className="size-4" />
                     </ShimmerLink>
                     <a
-                      href="https://github.com/KartikManral092006/TollGate"
+                      href={GITHUB_REPO}
                       className="inline-flex h-12 items-center justify-center rounded-xl border border-white/15 px-6 font-semibold text-white transition-colors hover:bg-white/5"
                     >
                       Source on GitHub

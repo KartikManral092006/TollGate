@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GITHUB_REPO, GitHubMark } from "@/components/github-mark";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,16 @@ export function SiteHeader({ current }: { current?: "docs" }) {
           <Link href="/#demo" className={cn(link, "hidden sm:block")}>
             Try it
           </Link>
+          <a
+            href={GITHUB_REPO}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Tollgate is open source: view it on GitHub"
+            className="ms-1 inline-flex items-center gap-2 rounded-lg border border-white/15 px-2.5 py-2 text-white/80 transition-colors hover:border-white/30 hover:text-white sm:px-3"
+          >
+            <GitHubMark />
+            <span className="hidden sm:inline">GitHub</span>
+          </a>
           <Link
             href="/sign-in"
             className="ms-1 rounded-lg bg-white px-3.5 py-2 font-semibold text-[#101417] transition-colors hover:bg-white/90"

@@ -3,12 +3,11 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { GITHUB_REPO } from "@/components/github-mark";
 import { Logo } from "@/components/logo";
 import { gsap, SplitText, useGSAP } from "@/features/landing/motion/gsap";
 import { CopyField } from "@/features/settings/components/copy-field";
 import { cn } from "@/lib/utils";
-
-const REPO = "https://github.com/KartikManral092006/TollGate";
 
 const COLUMNS: { title: string; links: { label: string; href: string; external?: boolean }[] }[] = [
   {
@@ -24,21 +23,13 @@ const COLUMNS: { title: string; links: { label: string; href: string; external?:
   {
     title: "Developers",
     links: [
-      { label: "Source on GitHub", href: REPO, external: true },
+      { label: "Source on GitHub", href: GITHUB_REPO, external: true },
       {
         label: "tollgate-cli on npm",
         href: "https://www.npmjs.com/package/tollgate-cli",
         external: true,
       },
       { label: "Claude Code hooks", href: "https://code.claude.com/docs/en/hooks", external: true },
-    ],
-  },
-  {
-    title: "Built with",
-    links: [
-      { label: "Nexconn Chat SDK", href: "https://nexconn.ai", external: true },
-      { label: "Nexconn Call SDK", href: "https://nexconn.ai", external: true },
-      { label: "Claude Code", href: "https://code.claude.com/docs/en/overview", external: true },
     ],
   },
 ];
@@ -142,7 +133,7 @@ export function LandingFooter() {
       />
 
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-16 sm:px-6">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-[1.3fr_repeat(3,minmax(0,1fr))] lg:gap-12">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-[1.6fr_repeat(2,minmax(0,1fr))] lg:gap-12">
           <div data-footer-col className="col-span-2 flex flex-col gap-5 lg:col-span-1">
             <Logo className="text-white" />
             <p className="max-w-sm text-sm leading-relaxed text-white/60">
@@ -225,8 +216,8 @@ export function LandingFooter() {
         </div>
 
         <div className="flex flex-col gap-2 border-t border-white/10 py-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 Tollgate. It can only stop commands, never run them.</p>
-          <p>Built for the Nexconn × Reskill Build Challenge 2026</p>
+          <p>© 2026 Kartik Manral. Tollgate&apos;s source is public on GitHub.</p>
+          <p>It can only stop commands, never run them.</p>
         </div>
       </div>
     </footer>
