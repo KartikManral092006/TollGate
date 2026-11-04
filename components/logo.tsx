@@ -1,7 +1,31 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-// A striped toll-gate arm: the product's mark everywhere.
+// The mark: a road stop-sign octagon with a shell prompt cut into it. Agent commands stop
+// here until the team says go. The same drawing is app/icon.svg.
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="8 8 84 84" aria-hidden className={cn("size-7 shrink-0", className)}>
+      <polygon
+        points="65.3,13 87,34.7 87,65.3 65.3,87 34.7,87 13,65.3 13,34.7 34.7,13"
+        fill="#c8102e"
+        stroke="#c8102e"
+        strokeWidth="7"
+        strokeLinejoin="round"
+      />
+      <polyline
+        points="33,35 49,50 33,65"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="8.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line x1="55" y1="65" x2="69" y2="65" stroke="#fff" strokeWidth="8.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Logo({ href = "/", className }: { href?: string; className?: string }) {
   return (
     <Link
@@ -11,10 +35,7 @@ export function Logo({ href = "/", className }: { href?: string; className?: str
         className,
       )}
     >
-      <span
-        aria-hidden
-        className="h-3 w-9 rounded-full bg-[repeating-linear-gradient(-45deg,#c8102e_0_6px,#ffffff_6px_12px)] ring-1 ring-black/15"
-      />
+      <LogoMark />
       Tollgate
     </Link>
   );
