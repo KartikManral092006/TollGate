@@ -227,3 +227,18 @@
     background-position: 0 48px;
   }
 }
+
+/* The landing hero's "scroll" hint: a dot sliding down a mouse outline. */
+@keyframes fx-scroll-dot {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
+}

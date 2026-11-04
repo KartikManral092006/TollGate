@@ -10,7 +10,7 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from "motion/react";
+import { AnimatePresence, motion, useScroll, useSpring } from "motion/react";
 import { useRef, useState } from "react";
 import { BorderBeam } from "@/components/fx/border-beam";
 import {
@@ -23,6 +23,7 @@ import {
   Signals,
 } from "@/features/landing/components/feature-demos";
 import { cn } from "@/lib/utils";
+import { usePrefersReducedMotion } from "@/features/landing/motion/use-prefers-reduced";
 
 type Chapter = {
   icon: LucideIcon;
@@ -98,7 +99,7 @@ const CHAPTERS: Chapter[] = [
 // demo, and no pinning.
 export function FeatureStory() {
   const ref = useRef<HTMLDivElement>(null);
-  const reduced = useReducedMotion();
+  const reduced = usePrefersReducedMotion();
   const [active, setActive] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 35%", "end 65%"] });
