@@ -105,6 +105,51 @@ function ConfirmRevoke({
   );
 }
 
+function initCommand(data: Record<string, unknown>): string {
+  return `npx tollgate-cli init --server ${String(data.serverUrl)} --token ${String(data.token)}`;
+}
+
+// A freshly minted token's command. The token is shown this once.
+function IssuedCommand({
+  repo,
+  command,
+  onDone,
+}: {
+  repo: string;
+  command: string;
+  onDone: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex max-w-2xl flex-col gap-3 border-s-4 border-gate-approved ps-4"
+    >
+      <p className="text-sm font-semibold text-gate-approved-fg">
+        Token created for {repo}. Run this in the repo:
+      </p>
+      <CodeBlock size="sm" className="border-0 bg-asphalt text-white dark:bg-asphalt">
+        <CodeBlockContent wrap className="pe-11! text-xs break-all">
+          {command}
+        </CodeBlockContent>
+        <CodeBlockActions>
+          <CodeBlockCopyButton
+            value={command}
+            className="bg-white/10! text-white/80 ring-white/20! hover:bg-white/20! hover:text-white"
+          />
+        </CodeBlockActions>
+      </CodeBlock>
+      <p className="text-xs text-muted-foreground">
+        Shown once. If you lose it, create another token and revoke this one. Then restart Claude
+        Code and run <code className="font-mono">npx tollgate-cli test</code>.
+      </p>
+      <Button variant="outline" size="sm" className="self-start" onClick={onDone}>
+        Done
+      </Button>
+    </motion.div>
+  );
+}
+
 function LinkRepo({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -132,7 +177,7 @@ function LinkRepo({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
       }
       setIssued({
         repo: name.trim(),
-        command: `npx tollgate-cli init --server ${String(data.serverUrl)} --token ${String(data.token)}`,
+        command: initCommand(data),
       });
       setName("");
       router.refresh();
@@ -142,35 +187,7 @@ function LinkRepo({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
   }
 
   if (issued) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex max-w-2xl flex-col gap-3 border-s-4 border-gate-approved ps-4"
-      >
-        <p className="text-sm font-semibold text-gate-approved-fg">
-          Token created for {issued.repo}. Run this in the repo:
-        </p>
-        <CodeBlock size="sm" className="border-0 bg-asphalt text-white dark:bg-asphalt">
-          <CodeBlockContent wrap className="pe-11! text-xs break-all">
-            {issued.command}
-          </CodeBlockContent>
-          <CodeBlockActions>
-            <CodeBlockCopyButton
-              value={issued.command}
-              className="bg-white/10! text-white/80 ring-white/20! hover:bg-white/20! hover:text-white"
-            />
-          </CodeBlockActions>
-        </CodeBlock>
-        <p className="text-xs text-muted-foreground">
-          Shown once. If you lose it, create another token and revoke this one. Then restart Claude
-          Code and run <code className="font-mono">npx tollgate-cli test</code>.
-        </p>
-        <Button variant="outline" size="sm" className="self-start" onClick={() => setIssued(null)}>
-          Done
-        </Button>
-      </motion.div>
-    );
+    return <IssuedCommand {...issued} onDone={() => setIssued(null)} />;
   }
 
   return (
@@ -219,6 +236,26 @@ function LinkRepo({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
 
 function Repos({ teamId, repos, isOwner }: { teamId: string; repos: RepoRow[]; isOwner: boolean }) {
   const router = useRouter();
+  const [minting, setMinting] = useState<string | null>(null);
+  const [issued, setIssued] = useState<{ repoId: string; repo: string; command: string } | null>(
+    null,
+  );
+
+  // Another token for a repo that's already linked: no need to type its name again.
+  async function newToken(repo: RepoRow) {
+    setMinting(repo.id);
+    try {
+      const { ok, data } = await postJson(`/api/teams/${teamId}/repos/${repo.id}/tokens`, {});
+      if (!ok) {
+        toast.error("Couldn't create a token.");
+        return;
+      }
+      setIssued({ repoId: repo.id, repo: repo.name, command: initCommand(data) });
+      router.refresh();
+    } finally {
+      setMinting(null);
+    }
+  }
 
   async function revoke(tokenId: string) {
     const { ok } = await postJson(`/api/teams/${teamId}/tokens/${tokenId}`, {}, "DELETE");
@@ -238,12 +275,31 @@ function Repos({ teamId, repos, isOwner }: { teamId: string; repos: RepoRow[]; i
     <div className="flex flex-col gap-6">
       {repos.map((repo) => (
         <div key={repo.id} className="flex flex-col gap-2">
-          <h3 className="flex items-center gap-2 font-mono text-sm font-semibold">
-            {repo.name}
-            <Badge variant={repo.mode === "delegate" ? "default" : "secondary"}>
-              {repo.mode === "delegate" ? "Delegate" : "Guard"}
-            </Badge>
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="flex min-w-0 items-center gap-2 font-mono text-sm font-semibold">
+              <span className="truncate">{repo.name}</span>
+              <Badge variant={repo.mode === "delegate" ? "default" : "secondary"}>
+                {repo.mode === "delegate" ? "Delegate" : "Guard"}
+              </Badge>
+            </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ms-auto shrink-0"
+              onClick={() => void newToken(repo)}
+              disabled={minting !== null}
+            >
+              {minting === repo.id ? <Loader2 className="animate-spin" /> : <Terminal />}
+              New token
+            </Button>
+          </div>
+          {issued?.repoId === repo.id && (
+            <IssuedCommand
+              repo={issued.repo}
+              command={issued.command}
+              onDone={() => setIssued(null)}
+            />
+          )}
           {repo.tokens.length === 0 ? (
             <p className="text-xs text-muted-foreground">No active tokens.</p>
           ) : (
