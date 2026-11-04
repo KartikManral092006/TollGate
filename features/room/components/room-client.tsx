@@ -89,7 +89,7 @@ export function RoomClient({
   // Arrived from an invite made for the highlighted gate.
   welcome?: boolean;
 }) {
-  const { gates, lines, live, refresh, send, selfNexconnId } = useRoomLive({
+  const { gates, lines, live, refresh, send, edit, remove, selfNexconnId } = useRoomLive({
     teamId: team.id,
     channelId: team.channelId,
     initialGates,
@@ -373,6 +373,8 @@ export function RoomClient({
                                   item.line.mentions.includes(selfNexconnId)
                                 }
                                 readBy={item.line.readBy.map(nameOf)}
+                                onEdit={edit}
+                                onDelete={remove}
                               />
                             )}
                           </MessageScrollerItem>

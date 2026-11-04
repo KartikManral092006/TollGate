@@ -60,6 +60,8 @@ export function describeMessage(message: ChatMessage) {
     content: message.content,
     metadata: Object.fromEntries(message.metadata ?? new Map()),
     directedUserIds: message.directedUserIds ?? [],
+    updateInfo: message.updateInfo ?? null,
+    hasChanged: message.hasChanged,
   };
 }
 
@@ -137,6 +139,20 @@ function addHandlers(chat: ChatModule) {
       },
       onMessageBlocked({ info }) {
         nexconnEvents.emit("messageBlocked", info);
+      },
+      onMessagesUpdated({ messages }) {
+        for (const message of messages as ChatMessage[]) {
+          store.received.set(message.messageId, message);
+          nexconnEvents.emit("messageUpdated", describeMessage(message));
+        }
+      },
+      onMessageDeleted({ messages }) {
+        for (const info of messages) {
+          nexconnEvents.emit("messageDeleted", {
+            channelId: info.channelIdentifier.channelId,
+            messageId: info.messageId,
+          });
+        }
       },
       onMessageReceiptResponse({ responses }) {
         for (const response of responses) {

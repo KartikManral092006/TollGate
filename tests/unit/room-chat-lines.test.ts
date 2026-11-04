@@ -25,6 +25,7 @@ const line = (id: string, sentTime: number, overrides: Partial<ChatLine> = {}): 
   mentions: [],
   readBy: [],
   teamOnly: false,
+  edited: false,
   ...overrides,
 });
 
@@ -105,7 +106,14 @@ describe("chatLineFromMessage", () => {
       mentions: [],
       readBy: [],
       teamOnly: false,
+      edited: false,
     });
+    expect(
+      chatLineFromMessage(
+        { ...message, updateInfo: { content: { text: "fixed typo" }, status: 0, timestamp: 2 } },
+        "me",
+      ),
+    ).toMatchObject({ text: "fixed typo", edited: true });
     expect(chatLineFromMessage({ ...message, directedUserIds: ["U1", "U2"] }, "me")?.teamOnly).toBe(
       true,
     );

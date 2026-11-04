@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mergeGates, type GateView } from "@/features/gates/shared/view";
-import { nexconnEvents, startNexconn } from "@/features/nexconn/client/engine";
+import {
+  getReceivedMessage,
+  nexconnEvents,
+  startNexconn,
+  type ChatMessage,
+} from "@/features/nexconn/client/engine";
 import { TG } from "@/features/nexconn/shared/messages";
 import {
   chatLineFromMessage,
@@ -37,6 +42,8 @@ export function useRoomLive(input: {
   const [live, setLive] = useState<LiveState>("connecting");
   const [selfNexconnId, setSelfNexconnId] = useState<string | null>(null);
   const selfRef = useRef<string | null>(null);
+  // The SDK's own message objects (history and your sends): editing and deleting need them.
+  const messages = useRef(new Map<string, ChatMessage>());
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -81,6 +88,25 @@ export function useRoomLive(input: {
         );
         return;
       }
+      if (event.kind === "messageUpdated") {
+        const updated = chatLineFromMessage(
+          event.data as Parameters<typeof chatLineFromMessage>[0],
+          selfRef.current,
+        );
+        if (updated) {
+          setLines((current) =>
+            current.map((line) =>
+              line.id === updated.id ? { ...updated, readBy: line.readBy } : line,
+            ),
+          );
+        }
+        return;
+      }
+      if (event.kind === "messageDeleted") {
+        const { messageId } = event.data as { messageId: string };
+        setLines((current) => current.filter((line) => line.id !== messageId));
+        return;
+      }
       if (event.kind === "metadataUpdated") {
         scheduleRefresh();
         return;
@@ -118,6 +144,9 @@ export function useRoomLive(input: {
         });
         const result = await query.loadNextPage();
         if (cancelled || !result.isOk || !result.data) return;
+        for (const message of result.data.data) {
+          messages.current.set(message.messageId, message as ChatMessage);
+        }
         const history = result.data.data
           .map((message) => chatLineFromMessage(message, session.userId))
           .filter((line): line is ChatLine => line !== null);
@@ -192,6 +221,7 @@ export function useRoomLive(input: {
         mentions: mention?.ids ?? [],
         readBy: [],
         teamOnly: Boolean(onlyTo?.length),
+        edited: false,
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
@@ -216,6 +246,7 @@ export function useRoomLive(input: {
         const result = await channel.sendMessage(params);
         if (!result.isOk || !result.data) throw new Error(`send failed: ${result.code}`);
         const sent = result.data;
+        messages.current.set(sent.messageId, sent as unknown as ChatMessage);
         setLines((current) =>
           mergeChat(
             current.filter((line) => line.id !== tempId),
@@ -233,5 +264,57 @@ export function useRoomLive(input: {
     [channelId, callsEnabled],
   );
 
-  return { gates, lines, live, selfNexconnId, refresh, send, setGates };
+  function withoutText(content: Record<string, unknown>) {
+    const { text: _text, ...rest } = content;
+    return rest;
+  }
+
+  // Your own message, changed for everyone. Its gate prefix, gate tag and mentions are kept.
+  const edit = useCallback(
+    async (messageId: string, raw: string): Promise<boolean> => {
+      const message = messages.current.get(messageId) ?? getReceivedMessage(messageId);
+      const line = lines.find((l) => l.id === messageId);
+      const body = normalizeChatText(raw);
+      if (!message || !line || !body) return false;
+      const text = normalizeChatText(line.gateCode ? replyText(line.gateCode, body) : body);
+      try {
+        const { chat } = await startNexconn({ withChatUI: false, withCall: callsEnabled });
+        const result = await chat.BaseChannel.updateMessage({
+          messageId,
+          // The engine's field name: with `text` (what sending takes) the edit saves as empty.
+          content: { ...withoutText(message.content), content: text },
+          channelIdentifier: new chat.GroupChannelIdentifier(channelId),
+        });
+        if (!result.isOk) return false;
+        setLines((current) =>
+          current.map((l) => (l.id === messageId ? { ...l, text, edited: true } : l)),
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [lines, channelId, callsEnabled],
+  );
+
+  // Your own message, deleted for everyone (it's gone from history too).
+  const remove = useCallback(
+    async (messageId: string): Promise<boolean> => {
+      const message = messages.current.get(messageId) ?? getReceivedMessage(messageId);
+      if (!message) return false;
+      try {
+        const { chat } = await startNexconn({ withChatUI: false, withCall: callsEnabled });
+        const result = await new chat.GroupChannel(channelId).deleteMessageForAll(message);
+        if (!result.isOk) return false;
+        messages.current.delete(messageId);
+        setLines((current) => current.filter((l) => l.id !== messageId));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [channelId, callsEnabled],
+  );
+
+  return { gates, lines, live, selfNexconnId, refresh, send, edit, remove, setGates };
 }
