@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { GITHUB_REPO } from "@/components/github-mark";
 import { Logo } from "@/components/logo";
-import { gsap, SplitText, useGSAP } from "@/features/landing/motion/gsap";
 import { CopyField } from "@/features/settings/components/copy-field";
 import { cn } from "@/lib/utils";
 
@@ -69,56 +68,29 @@ export function LandingFooter() {
   const health = useHealth();
   const status = HEALTH_COPY[health];
 
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia();
-      // Without motion, the gate is simply open.
-      mm.add("(prefers-reduced-motion: reduce)", () => {
-        gsap.set("[data-arm]", { rotate: -62 });
-        gsap.set("[data-lamp]", { backgroundColor: "#2ee59d" });
-      });
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        const split = SplitText.create("[data-wordmark]", { type: "chars", mask: "chars" });
-        const finale = gsap.timeline({
-          // Across the whole footer: the wordmark rises as it comes in, and the arm lifts
-          // as the page reaches its very end.
-          scrollTrigger: {
-            trigger: root.current,
-            start: "top bottom",
-            end: "bottom bottom",
-            scrub: 0.8,
-          },
+  // The animation (and GSAP with it) loads only once the footer is within ~600 px of view.
+  useEffect(() => {
+    const element = root.current;
+    if (!element) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        observer.disconnect();
+        void import("@/features/landing/components/footer-motion").then(({ animateFooter }) => {
+          if (!cancelled) cleanup = animateFooter(element);
         });
-        finale
-          .from(split.chars, { yPercent: 105, ease: "power3.out", stagger: 0.06, duration: 1 })
-          .fromTo(
-            "[data-arm]",
-            { rotate: 0 },
-            { rotate: -62, ease: "power2.inOut", duration: 1.2 },
-            ">-0.2",
-          )
-          .to(
-            "[data-lamp]",
-            {
-              backgroundColor: "#2ee59d",
-              boxShadow: "0 0 24px 4px rgb(46 229 157 / 0.7)",
-              duration: 0.3,
-            },
-            ">-0.35",
-          );
-
-        gsap.from("[data-footer-col]", {
-          y: 30,
-          autoAlpha: 0,
-          duration: 0.9,
-          ease: "expo.out",
-          stagger: 0.08,
-          scrollTrigger: { trigger: root.current, start: "top 85%", once: true },
-        });
-      });
-    },
-    { scope: root },
-  );
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(element);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      cleanup?.();
+    };
+  }, []);
 
   return (
     <footer ref={root} className="relative overflow-hidden border-t border-white/10 bg-[#080b0d]">
