@@ -292,6 +292,8 @@ model Gate {
   @@index([repoId, cmdHash])
   @@index([teamId, sessionId])
   @@index([followUpOfId])
+  // The per-minute sweep: expire and remind parked gates without scanning every gate.
+  @@index([status, parkedAt])
   @@map("gates")
 }
 

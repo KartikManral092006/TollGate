@@ -8,6 +8,10 @@ import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
 
 const SWEEP_EVERY_SECONDS = 60;
+// Every hook poll and room refresh calls maybeSweep. Asking Redis for the lock on each of
+// them would add a command per request, so an instance asks at most this often.
+const LOCAL_CHECK_EVERY_MS = 20_000;
+let lastLocalCheck = 0;
 const LATE_REMINDER_MS = 60 * 60 * 1000;
 // Gates parked longer ago than this never get the follow-up (e.g. right after a deploy).
 const LATE_REMINDER_WINDOW_MS = 3 * 60 * 60 * 1000;
@@ -17,6 +21,8 @@ const LATE_REMINDER_WINDOW_MS = 3 * 60 * 60 * 1000;
 // decided in 24 h and closes calls whose
 // browsers vanished. A Redis lock makes it run once per minute across all instances.
 export async function maybeSweep(now: Date = new Date()): Promise<void> {
+  if (now.getTime() - lastLocalCheck < LOCAL_CHECK_EVERY_MS) return;
+  lastLocalCheck = now.getTime();
   try {
     const due = await redis.set("sweep:lock", "1", "EX", SWEEP_EVERY_SECONDS, "NX");
     if (due !== "OK") return;
