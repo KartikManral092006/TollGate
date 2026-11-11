@@ -1,9 +1,9 @@
 import { connection, type NextRequest } from "next/server";
 import { unreadCount } from "@/features/activity/shared/activity";
 import { loadActivity } from "@/features/activity/server/activity";
-import { requireWriter } from "@/features/teams/server/http";
+import { requireReader, requireWriter } from "@/features/teams/server/http";
 import { db } from "@/lib/db";
-import { json, requireUser } from "@/lib/http";
+import { json } from "@/lib/http";
 import { redis } from "@/lib/redis";
 
 const seenKey = (userId: string) => `activity:seen:${userId}`;
@@ -11,7 +11,7 @@ const seenKey = (userId: string) => `activity:seen:${userId}`;
 // Your feed and how much of it is new since you last opened it.
 export async function GET(request: NextRequest) {
   await connection();
-  const auth = await requireUser(request);
+  const auth = await requireReader(request, { name: "activity", rule: { window: 60, max: 60 } });
   if (!auth.ok) return auth.response;
   const [events, seen] = await Promise.all([
     loadActivity(db, auth.user.id),

@@ -31,9 +31,22 @@ async function check(name: string, probe: () => Promise<unknown>): Promise<Check
   }
 }
 
+type Health = { body: Record<string, unknown>; status: number };
+
+// The landing page footer calls this on every visit. Each instance reuses one result for a
+// few seconds, so traffic to the landing page can't turn into a query per visitor.
+const REUSE_MS = 10_000;
+let recent: { at: number; health: Promise<Health> } | null = null;
+
 export async function GET() {
   await connection();
+  const now = Date.now();
+  if (!recent || now - recent.at > REUSE_MS) recent = { at: now, health: probe() };
+  const { body, status } = await recent.health;
+  return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+}
 
+async function probe(): Promise<Health> {
   const [database, cache] = await Promise.all([
     check("db", () => db.$queryRaw`SELECT 1`),
     check("redis", () => redis.ping()),
@@ -43,8 +56,8 @@ export async function GET() {
 
   const healthy = database.status === "ok" && cache.status === "ok";
 
-  return Response.json(
-    {
+  return {
+    body: {
       status: healthy ? "ok" : "degraded",
       db: database.status,
       redis: cache.status,
@@ -54,6 +67,6 @@ export async function GET() {
       ...(database.reason ? { dbReason: database.reason } : {}),
       ...(cache.reason ? { redisReason: cache.reason } : {}),
     },
-    { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } },
-  );
+    status: healthy ? 200 : 503,
+  };
 }

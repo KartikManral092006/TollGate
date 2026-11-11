@@ -1,10 +1,9 @@
 import { connection } from "next/server";
 import { removeRule } from "@/features/insights/server/policy";
-import { requireMember } from "@/features/teams/server/http";
+import { requireMember, requireWriter } from "@/features/teams/server/http";
 import { ID_RE } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
-import { json, requireUser } from "@/lib/http";
-import { checkSameOriginJson } from "@/lib/request-guard";
+import { json } from "@/lib/http";
 
 // Owner only: the next matching gate waits for people again.
 export async function DELETE(
@@ -12,9 +11,7 @@ export async function DELETE(
   ctx: RouteContext<"/api/teams/[id]/rules/[ruleId]">,
 ) {
   await connection();
-  const guard = checkSameOriginJson(request);
-  if (!guard.ok) return json({ error: guard.reason }, guard.status);
-  const auth = await requireUser(request);
+  const auth = await requireWriter(request, { name: "rule-delete", rule: { window: 60, max: 30 } });
   if (!auth.ok) return auth.response;
   const { id, ruleId } = await ctx.params;
   if (!ID_RE.test(ruleId)) return json({ error: "not_found" }, 404);

@@ -24,6 +24,19 @@ export async function requireWriter(
   return auth;
 }
 
+// Session + rate limit, for browser reads. The limits sit well above what open tabs poll
+// (the room at most every 4 s), so they only stop runaway loops and scripted scraping.
+export async function requireReader(
+  request: Request,
+  limit: { name: string; rule: RateRule },
+): Promise<{ ok: true; user: SessionUser } | Fail> {
+  const auth = await requireUser(request);
+  if (!auth.ok) return auth;
+  const decision = await consumeRate(`read:${limit.name}:${auth.user.id}`, limit.rule);
+  if (!decision.allowed) return { ok: false, response: rateLimited(decision) };
+  return auth;
+}
+
 // Non-members get 404, not 403, so team IDs can't be probed.
 export async function requireMember(
   teamId: string,
