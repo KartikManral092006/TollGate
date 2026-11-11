@@ -1,5 +1,10 @@
 import { connection } from "next/server";
-import { readBody, requireMember, requireWriter } from "@/features/teams/server/http";
+import {
+  readBody,
+  requireMember,
+  requireReader,
+  requireWriter,
+} from "@/features/teams/server/http";
 import {
   AiConfigError,
   loadAiConfig,
@@ -8,7 +13,7 @@ import {
 } from "@/features/why/server/config";
 import { aiConfigSchema } from "@/features/why/shared/providers";
 import { db } from "@/lib/db";
-import { json, requireUser } from "@/lib/http";
+import { json } from "@/lib/http";
 import { redis } from "@/lib/redis";
 
 const CONFIG_ERRORS: Record<AiConfigError["reason"], [number, string]> = {
@@ -20,7 +25,7 @@ const CONFIG_ERRORS: Record<AiConfigError["reason"], [number, string]> = {
 // Members can see which provider the team uses; never the key.
 export async function GET(request: Request, ctx: RouteContext<"/api/teams/[id]/ai">) {
   await connection();
-  const auth = await requireUser(request);
+  const auth = await requireReader(request, { name: "ai", rule: { window: 60, max: 30 } });
   if (!auth.ok) return auth.response;
   const { id } = await ctx.params;
   const member = await requireMember(id, auth.user.id);
