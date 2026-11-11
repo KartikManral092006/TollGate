@@ -39,7 +39,10 @@ export function ActivityBell({ className }: { className?: string }) {
 
   useEffect(() => {
     const first = setTimeout(() => void load(), 0);
-    const timer = setInterval(() => void load(), 60_000);
+    // Background tabs skip the check; focusing the window loads at once.
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 60_000);
     const onFocus = () => void load();
     window.addEventListener("focus", onFocus);
     return () => {

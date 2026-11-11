@@ -25,6 +25,9 @@ const HISTORY_SIZE = 50;
 const POLL_OFFLINE_MS = 4000;
 const POLL_LIVE_MS = 30_000;
 const REFRESH_DEBOUNCE_MS = 150;
+// Every open room gets the same Nexconn event at the same moment. A little random delay
+// spreads their refetches out instead of hitting the server all in the same millisecond.
+const REFRESH_JITTER_MS = 350;
 
 // Postgres is the truth for gates; Nexconn makes the room live. Any TG:* message or metadata
 // change on this team's channel triggers a refetch of the gate list, so a missed or
@@ -59,10 +62,13 @@ export function useRoomLive(input: {
 
   const scheduleRefresh = useCallback(() => {
     if (refreshTimer.current) return;
-    refreshTimer.current = setTimeout(() => {
-      refreshTimer.current = null;
-      void refresh();
-    }, REFRESH_DEBOUNCE_MS);
+    refreshTimer.current = setTimeout(
+      () => {
+        refreshTimer.current = null;
+        void refresh();
+      },
+      REFRESH_DEBOUNCE_MS + Math.random() * REFRESH_JITTER_MS,
+    );
   }, [refresh]);
 
   useEffect(() => {
@@ -184,7 +190,10 @@ export function useRoomLive(input: {
 
   useEffect(() => {
     const every = live === "live" ? POLL_LIVE_MS : POLL_OFFLINE_MS;
-    const timer = setInterval(() => void refresh(), every);
+    // A background tab doesn't poll; it catches up the moment it's shown again.
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, every);
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh();
     };

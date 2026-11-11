@@ -143,8 +143,17 @@ export function SetupGuide({
 
   useEffect(() => {
     if (state.complete || hidden) return;
-    const timer = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [state.complete, hidden, refresh]);
 
   if (hidden || (state.complete && initial.complete)) return null;
