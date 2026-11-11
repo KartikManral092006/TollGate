@@ -45,17 +45,26 @@ export async function authenticateHookToken(
   const token = bearerToken(authorization);
   if (!token || !isWellFormedSecret(token, "tg")) return null;
 
+  // One joined query, as every waiting hook calls this every 2 s: the token, its repo, and
+  // the creator's membership of the team that owns this token's repo (empty once they left).
+  const tokenHash = hashSecret(token);
   const row = await db.hookToken.findUnique({
-    where: { tokenHash: hashSecret(token) },
-    include: { repo: true },
+    where: { tokenHash },
+    include: {
+      repo: true,
+      createdBy: {
+        select: {
+          memberships: {
+            where: { team: { repos: { some: { tokens: { some: { tokenHash } } } } } },
+            select: { role: true },
+            take: 1,
+          },
+        },
+      },
+    },
   });
   if (!row || row.revokedAt) return null;
-
-  const member = await db.membership.findUnique({
-    where: { teamId_userId: { teamId: row.repo.teamId, userId: row.createdById } },
-    select: { role: true },
-  });
-  if (!member) return null;
+  if (row.createdBy.memberships.length === 0) return null;
 
   if (!row.lastUsedAt || now.getTime() - row.lastUsedAt.getTime() > LAST_USED_RESOLUTION_MS) {
     await db.hookToken.update({ where: { id: row.id }, data: { lastUsedAt: now } });
