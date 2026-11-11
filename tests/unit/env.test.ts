@@ -100,6 +100,7 @@ describe("client IP settings", () => {
     const production = {
       VERCEL_ENV: "production",
       VERCEL_PROJECT_PRODUCTION_URL: "toll-gate-mo7d.vercel.app",
+      CONTACT_EMAIL: "privacy@example.com",
     };
     expect(parseServerEnv({ ...valid, ...production }).NEXT_PUBLIC_APP_URL).toBe(
       "https://toll-gate-mo7d.vercel.app",
@@ -127,7 +128,24 @@ describe("client IP settings", () => {
         ...valid,
         VERCEL_ENV: "production",
         NEXT_PUBLIC_APP_URL: "https://toll-gate-mo7d.vercel.app",
+        CONTACT_EMAIL: "privacy@example.com",
       }),
     ).not.toThrow();
+  });
+
+  it("requires a contact email in a Vercel production build only", () => {
+    const production = {
+      ...valid,
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_APP_URL: "https://toll-gate-mo7d.vercel.app",
+    };
+    expect(() => parseServerEnv(production)).toThrow(/CONTACT_EMAIL: is required/);
+    expect(() => parseServerEnv({ ...production, CONTACT_EMAIL: "not-an-email" })).toThrow(
+      /CONTACT_EMAIL/,
+    );
+    expect(() => parseServerEnv({ ...production, VERCEL_ENV: "preview" })).not.toThrow();
+    expect(
+      parseServerEnv({ ...production, CONTACT_EMAIL: "privacy@example.com" }).CONTACT_EMAIL,
+    ).toBe("privacy@example.com");
   });
 });

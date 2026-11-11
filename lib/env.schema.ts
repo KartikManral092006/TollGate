@@ -24,6 +24,8 @@ const serverEnvObject = z.object({
   ),
   EMAIL_API_KEY: optional(z.string().min(1)),
   EMAIL_FROM: optional(z.email()),
+  // Public address for privacy and support requests, shown on /privacy and /terms.
+  CONTACT_EMAIL: optional(z.email()),
   NEXCONN_APP_KEY: optional(z.string().min(1)),
   NEXCONN_APP_SECRET: optional(z.string().min(1)),
   NEXCONN_AREA: z.enum(["SG", "NA", "SA"]).default("SG"),
@@ -64,6 +66,15 @@ export const serverEnvSchema = serverEnvObject.superRefine((env, ctx) => {
       path: ["NEXT_PUBLIC_APP_URL"],
       message:
         "points to localhost in a Vercel production build; set it to the production URL (https://<project>.vercel.app) and redeploy",
+    });
+  }
+  // /privacy and /terms tell people where to send data and deletion requests.
+  if (env.VERCEL_ENV === "production" && !env.CONTACT_EMAIL) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["CONTACT_EMAIL"],
+      message:
+        "is required in a Vercel production build: the privacy policy and terms list it for data requests",
     });
   }
   if (env.EMAIL_API_KEY && !env.EMAIL_FROM) {

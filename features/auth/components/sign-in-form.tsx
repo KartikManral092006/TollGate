@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -229,6 +230,17 @@ export function SignInForm(props: {
 
         <p aria-live="polite" className="min-h-5 text-sm text-destructive">
           {error}
+        </p>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          By continuing, you agree to the{" "}
+          <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </CardContent>
     </Card>

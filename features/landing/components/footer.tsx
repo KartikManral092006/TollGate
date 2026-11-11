@@ -189,7 +189,17 @@ export function LandingFooter() {
 
         <div className="flex flex-col gap-2 border-t border-white/10 py-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 Kartik Manral. Tollgate&apos;s source is public on GitHub.</p>
-          <p>It can only stop commands, never run them.</p>
+          <nav aria-label="Legal" className="flex items-center gap-4">
+            <Link href="/privacy" className="transition-colors hover:text-white">
+              Privacy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-white">
+              Terms
+            </Link>
+            <span className="hidden text-white/35 md:inline">
+              It can only stop commands, never run them.
+            </span>
+          </nav>
         </div>
       </div>
     </footer>
