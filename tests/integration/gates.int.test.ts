@@ -8,6 +8,7 @@ import {
   claimLateReminders,
   endWindow,
   expireParkedGates,
+  GATE_INCLUDE,
   getGateForRepo,
   markGateSeen,
   parkGate,
@@ -854,5 +855,21 @@ describe.skipIf(!safe)("gates, votes, grants, tokens, calls, invites (Postgres)"
       status: "approved",
       policyRuleId: null,
     });
+  });
+  // relationJoins is a Prisma preview feature: the joined load must return exactly what the
+  // one-query-per-relation load did, for every gate the tests above created (votes, seen,
+  // follow-ups, grants, rules, windows, calls).
+  it("loads gate views identically with joins and with one query per relation", async () => {
+    const load = (strategy: "join" | "query") =>
+      db.gate.findMany({
+        where: { teamId },
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        include: GATE_INCLUDE,
+        relationLoadStrategy: strategy,
+      });
+    const [joined, separate] = await Promise.all([load("join"), load("query")]);
+    expect(joined.length).toBeGreaterThan(10);
+    expect(joined.some((gate) => gate.votes.length > 0 && gate.seen.length > 0)).toBe(true);
+    expect(joined).toEqual(separate);
   });
 });

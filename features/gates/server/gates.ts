@@ -486,7 +486,7 @@ export async function claimLateReminders(
 }
 
 // Everything a gate view needs (features/gates/shared/view toGateView).
-const GATE_INCLUDE = {
+export const GATE_INCLUDE = {
   requester: { select: { id: true, name: true } },
   repo: { select: { name: true, mode: true } },
   votes: {

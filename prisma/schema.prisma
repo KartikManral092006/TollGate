@@ -2,7 +2,10 @@ generator client {
   provider        = "prisma-client"
   output          = "../lib/generated/prisma"
   // Preview since 7.4.0: lets @@unique take `where`. Re-test on any Prisma upgrade.
-  previewFeatures = ["partialIndexes"]
+  // relationJoins: nested includes load in one SQL query (LATERAL joins) instead of one query
+  // per relation level. A room refresh went from ~31 queries to a handful. Still preview in
+  // 7.10.1; covered by the integration tests against real Postgres.
+  previewFeatures = ["partialIndexes", "relationJoins"]
 }
 
 datasource db {
