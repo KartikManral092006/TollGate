@@ -9,6 +9,9 @@ import { median } from "@/features/gates/shared/metrics";
 export const WINDOW_DAYS = 30;
 export const MIN_DECISIONS = 10;
 const FAST_MS = 3000;
+// Approved runs that then failed say the approvals weren't catching problems: more than this
+// share of the runs the CLI reported, and nothing is offered.
+export const MAX_FAILED_SHARE = 0.1;
 // Mistakes here can't be redeployed away, or would switch the gate itself off: always a
 // human decision.
 const NEVER = new Set(["destructive-fs", "infra", "publish", "guard-config", "mcp-risky"]);
@@ -26,6 +29,8 @@ export type PolicyHistoryGate = {
   decidedAt: string | null;
   // Milliseconds from the gate's creation to each approval.
   approvalMs: number[];
+  // What happened when it ran, when the CLI reported it (0.3+).
+  outcome?: "succeeded" | "failed" | "interrupted" | null;
 };
 
 export type ExistingRule = {
@@ -56,6 +61,12 @@ export function canHaveRule(preset: string, env: string): boolean {
   return env !== "prod" && !NEVER.has(preset);
 }
 
+export function failedShare(gates: Pick<PolicyHistoryGate, "outcome">[]): number {
+  const reported = gates.filter((g) => g.outcome === "succeeded" || g.outcome === "failed");
+  if (reported.length === 0) return 0;
+  return reported.filter((g) => g.outcome === "failed").length / reported.length;
+}
+
 export function suggestPolicies(
   history: PolicyHistoryGate[],
   rules: ExistingRule[],
@@ -72,6 +83,7 @@ export function suggestPolicies(
   for (const gates of groups.values()) {
     const { repoId, repo, preset, env } = gates[0]!;
     if (gates.length < MIN_DECISIONS || gates.some((g) => g.status === "denied")) continue;
+    if (failedShare(gates) > MAX_FAILED_SHARE) continue;
 
     const rule = rules.find((r) => r.repoId === repoId && r.preset === preset && r.env === env);
     if (rule?.action === "auto_approve") continue;

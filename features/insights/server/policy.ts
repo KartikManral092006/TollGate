@@ -62,6 +62,7 @@ export async function loadPolicyState(db: PrismaClient, teamId: string): Promise
         quorum: true,
         createdAt: true,
         decidedAt: true,
+        outcome: true,
         repo: { select: { name: true } },
         votes: { where: { decision: "approve" }, select: { createdAt: true } },
       },
@@ -78,6 +79,7 @@ export async function loadPolicyState(db: PrismaClient, teamId: string): Promise
     createdAt: g.createdAt.toISOString(),
     decidedAt: g.decidedAt?.toISOString() ?? null,
     approvalMs: g.votes.map((v) => v.createdAt.getTime() - g.createdAt.getTime()),
+    outcome: g.outcome as PolicyHistoryGate["outcome"],
   }));
   const rules = repos.flatMap((repo) =>
     repo.rules.map((rule) => ({ ...rule, repoId: repo.id, repo: repo.name })),

@@ -17,6 +17,7 @@ import {
   type GateView,
 } from "@/features/gates/shared/view";
 import { STATUS } from "@/features/room/components/gate-status";
+import { RunResult, runSummary } from "@/features/room/components/run-result";
 import { useNow } from "@/features/room/components/park-countdown";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
@@ -110,6 +111,16 @@ function Outcome({ gate }: { gate: GateView }) {
         {STATUS[shown].label}
       </span>
       {by && <span className="ps-4 text-xs text-muted-foreground">by {by}</span>}
+      {gate.ran && (
+        <span
+          className={cn(
+            "ps-4 text-xs",
+            gate.ran.outcome === "failed" ? "text-gate-denied-fg" : "text-muted-foreground",
+          )}
+        >
+          {runSummary(gate, gate.ran)}
+        </span>
+      )}
     </span>
   );
 }
@@ -134,6 +145,7 @@ function Details({ gate, teamId }: { gate: GateView; teamId: string }) {
             &ldquo;{gate.intent}&rdquo;
           </p>
         )}
+        <RunResult gate={gate} />
         <p className="text-xs text-muted-foreground">
           {gate.repo}
           {gate.branch ? ` on ${gate.branch}` : ""}, {gate.preset}, quorum {gate.quorum}

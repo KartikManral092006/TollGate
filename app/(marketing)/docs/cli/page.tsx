@@ -58,7 +58,8 @@ export default function CliPage() {
       <H2 id="hook">hook</H2>
       <P>
         <C>tollgate hook</C> is what Claude Code runs before each Bash command, file edit and MCP
-        tool call. You don&apos;t run it yourself.
+        tool call, and again in the background after a gated one runs, to report how it went. You
+        don&apos;t run it yourself.
       </P>
 
       <H2 id="files">Files</H2>
