@@ -8,6 +8,7 @@ import { displayName, toGateView } from "@/features/gates/shared/view";
 import { withInsights } from "@/features/insights/server/insights";
 import { loadSetupState } from "@/features/onboarding/server/setup";
 import { RoomClient } from "@/features/room/components/room-client";
+import { loadFreeze } from "@/features/teams/server/freeze";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { roleCanOpenWindow } from "@/features/gates/shared/windows";
 import { canVote, ID_RE } from "@/features/teams/shared/schemas";
@@ -31,10 +32,11 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
   const membership = await getMembership(db, id, user.id);
   if (!membership) notFound();
 
-  const [members, gates, setup] = await Promise.all([
+  const [members, gates, setup, freeze] = await Promise.all([
     listMembers(db, id),
     listTeamGates(db, id),
     loadSetupState(db, id, user.id),
+    loadFreeze(db, id),
   ]);
   const views = await withInsights(db, id, gates.map(toGateView));
   const highlight =
@@ -58,6 +60,7 @@ export default async function TeamRoomPage({ params, searchParams }: PageProps<"
         role: member.role,
       }))}
       initialGates={views}
+      initialFreeze={freeze}
       highlightGateId={highlight}
       callsEnabled={env.CALLS_ENABLED === "1"}
       setup={setup}

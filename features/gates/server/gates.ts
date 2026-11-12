@@ -20,7 +20,11 @@ import {
 import { redact, truncate } from "@/features/gates/shared/redact";
 import { canOpenWindow, roleCanOpenWindow, WINDOW_MINUTES } from "@/features/gates/shared/windows";
 import { applyRule } from "@/features/insights/shared/policy";
+import { frozenQuorum, isFrozen } from "@/features/teams/shared/freeze";
 import { canVote, type TeamRoleValue } from "@/features/teams/shared/schemas";
+
+// Who can vote on a gate (features/teams/shared/schemas canVote).
+const VOTING_ROLES = ["owner", "approver", "guest"] as const;
 
 // What a hook that doesn't report its wait uses: 300 s timeout minus the 15 s park margin.
 export const DEFAULT_WAIT_SEC = 285;
@@ -116,14 +120,17 @@ export async function createGate(
   const steps = principal.shareTask ? (input.steps ?? []).map((step) => redact(step)) : [];
   const now = ids.now?.() ?? new Date();
 
+  // During a freeze nothing is approved on arrival: no rules, no windows.
+  const frozen = principal.frozen;
   // A team rule only applies when the server's own presets recognised the command, so a local
   // .tollgate.json can't name its way into one.
-  const rule = serverMatch
-    ? await db.policyRule.findUnique({
-        where: { repoId_preset_env: { repoId: principal.repoId, preset, env } },
-        select: { id: true, action: true },
-      })
-    : null;
+  const rule =
+    serverMatch && !frozen
+      ? await db.policyRule.findUnique({
+          where: { repoId_preset_env: { repoId: principal.repoId, preset, env } },
+          select: { id: true, action: true },
+        })
+      : null;
   const policy = applyRule(rule, {
     env,
     commandLooksProd: detectEnv(command.text) === "prod",
@@ -135,6 +142,7 @@ export async function createGate(
   // arrival, under the same limits it was opened with. Like a rule, only for presets the
   // server itself recognised.
   const window =
+    !frozen &&
     serverMatch &&
     !policy.autoApprove &&
     detectEnv(command.text) !== "prod" &&
@@ -153,6 +161,20 @@ export async function createGate(
         })
       : null;
   const autoApprove = policy.autoApprove || window !== null;
+  // Production asks for more while frozen, but never more than the people who can vote on it.
+  const quorum = frozen
+    ? frozenQuorum({
+        quorum: policy.quorum,
+        env,
+        voters: await db.membership.count({
+          where: {
+            teamId: principal.teamId,
+            role: { in: [...VOTING_ROLES] },
+            userId: { not: principal.requesterId },
+          },
+        }),
+      })
+    : policy.quorum;
 
   return db.$transaction(async (tx) => {
     const [row] = await tx.$queryRaw<{ code: number }[]>`
@@ -198,7 +220,8 @@ export async function createGate(
           (task?.count ?? 0) +
           steps.reduce((sum, step) => sum + step.count, 0),
         cmdHash: input.cmdHash,
-        quorum: policy.quorum,
+        quorum,
+        frozen,
         followUpOfId: asked?.id ?? null,
         policyRuleId: ruleApplied ? rule.id : null,
         windowId: window?.id ?? null,
@@ -309,9 +332,10 @@ export async function castVote(
         messageId: string | null;
         preset: string;
         env: string;
+        frozen: boolean;
       }[]
     >`SELECT id, "teamId", "repoId", code, "requesterId", status, quorum, "cmdHash", "messageId",
-        preset, env
+        preset, env, frozen
       FROM gates WHERE id = ${input.gateId} FOR UPDATE`;
     if (!gate) throw new VoteRejectedError("not_found");
 
@@ -329,9 +353,15 @@ export async function castVote(
     });
     if (rejection) throw new VoteRejectedError(rejection);
     const windowMinutes = input.windowMinutes ?? null;
+    // No new approval windows while the team is frozen.
+    const team = await tx.team.findUnique({
+      where: { id: gate.teamId },
+      select: { freezeUntil: true },
+    });
     if (
       windowMinutes !== null &&
-      (input.decision !== "approve" ||
+      ((team && isFrozen(team, now)) ||
+        input.decision !== "approve" ||
         input.question ||
         !(WINDOW_MINUTES as readonly number[]).includes(windowMinutes) ||
         !roleCanOpenWindow(membership.role) ||
@@ -365,11 +395,22 @@ export async function castVote(
       orderBy: { createdAt: "asc" },
       select: { userId: true, decision: true, reason: true },
     });
+    // A production gate raised during a freeze: an owner's approval alone is enough.
+    const owners =
+      gate.frozen && gate.env === "prod"
+        ? (
+            await tx.membership.findMany({
+              where: { teamId: gate.teamId, role: "owner" },
+              select: { userId: true },
+            })
+          ).map((owner) => owner.userId)
+        : [];
     const evaluation = evaluate({
       status: gate.status,
       quorum: gate.quorum,
       requesterId: gate.requesterId,
       votes,
+      soloApprovers: owners,
     });
 
     let grantExpiresAt: Date | null = null;

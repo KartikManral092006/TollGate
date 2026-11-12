@@ -153,6 +153,12 @@ model Team {
   nextGateCode        Int              @default(1) // TG-n; taken in the gate-create transaction
   // Approvers see the developer's last instruction to the agent and its last few steps (CLI 0.3+).
   shareAgentTask      Boolean          @default(false)
+  // Freeze or incident mode (features/teams/shared/freeze.ts): on while freezeUntil is ahead.
+  freezeKind          String? // incident | freeze
+  freezeReason        String?          @db.VarChar(200)
+  freezeUntil         DateTime?
+  freezeStartedAt     DateTime?
+  freezeById          String?
   createdById         String?
   createdBy           User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt           DateTime         @default(now())
@@ -257,6 +263,8 @@ model Gate {
   cwd           String // redacted
   branch        String?
   context       String           @db.VarChar(2048) // redacted, truncated
+  // Raised while the team was frozen: no rules or windows, stricter production quorum.
+  frozen        Boolean          @default(false)
   preview       String?          @db.VarChar(2000) // what it will do, from read-only checks on the developer's machine (CLI 0.3+); redacted
   intent        String?          @db.VarChar(300) // the agent's own description of the command; redacted
   via           String?          @db.VarChar(1400) // "pnpm db:deploy → prisma migrate deploy" lines; redacted

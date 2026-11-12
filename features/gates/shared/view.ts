@@ -101,6 +101,8 @@ export type GateView = {
   insights?: GateInsights | null;
   // What happened when the approved call ran (CLI 0.3+); null until the hook reports it.
   ran?: GateRunView | null;
+  // Raised during a freeze or incident mode: no rules or windows, stricter production.
+  frozen?: boolean;
   // A bypassed gate's after-the-fact review, once someone has looked at it.
   review?: { by: string; at: string; note: string | null } | null;
 };
@@ -166,6 +168,7 @@ export type GateRow = {
   seen?: { userId: string; seenAt: DateLike; user: { name: string } }[];
   parksAt?: DateLike | null;
   parkedAt: DateLike | null;
+  frozen?: boolean;
   reviewedAt?: DateLike | null;
   reviewNote?: string | null;
   reviewedBy?: { name: string } | null;
@@ -305,6 +308,7 @@ export function toGateView(row: GateRow): GateView {
       })),
     createdAt: iso(row.createdAt),
     ran: runView(row),
+    frozen: row.frozen ?? false,
     review: row.reviewedAt
       ? {
           by: row.reviewedBy?.name.trim() || "A teammate",

@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@/lib/generated/prisma/client";
+import { isFrozen } from "@/features/teams/shared/freeze";
 import { hashSecret, isWellFormedSecret, mintSecret, secretPrefix } from "@/lib/secret-token";
 
 const LAST_USED_RESOLUTION_MS = 60_000;
@@ -30,6 +31,8 @@ export type HookPrincipal = {
   requesterId: string;
   // The team shows approvers the developer's last instruction to the agent (opt-in).
   shareTask: boolean;
+  // The team is in a freeze or incident mode right now (features/teams/shared/freeze.ts).
+  frozen: boolean;
 };
 
 export function bearerToken(header: string | null): string | null {
@@ -53,7 +56,7 @@ export async function authenticateHookToken(
   const row = await db.hookToken.findUnique({
     where: { tokenHash },
     include: {
-      repo: { include: { team: { select: { shareAgentTask: true } } } },
+      repo: { include: { team: { select: { shareAgentTask: true, freezeUntil: true } } } },
       createdBy: {
         select: {
           memberships: {
@@ -81,6 +84,7 @@ export async function authenticateHookToken(
     presets: row.repo.presets,
     requesterId: row.createdById,
     shareTask: row.repo.team.shareAgentTask,
+    frozen: isFrozen(row.repo.team, now),
   };
 }
 

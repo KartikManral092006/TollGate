@@ -5,6 +5,7 @@ import { verifySession } from "@/features/auth/server/session";
 import { displayName } from "@/features/gates/shared/view";
 import { loadPolicyState } from "@/features/insights/server/policy";
 import { SettingsClient } from "@/features/settings/components/settings-client";
+import { loadFreeze } from "@/features/teams/server/freeze";
 import { loadSettings } from "@/features/teams/server/settings";
 import { getMembership, listMembers } from "@/features/teams/server/teams";
 import { ID_RE } from "@/features/teams/shared/schemas";
@@ -26,11 +27,12 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
   const membership = await getMembership(db, id, user.id);
   if (!membership) notFound();
 
-  const [members, settings, ai, policy] = await Promise.all([
+  const [members, settings, ai, policy, freeze] = await Promise.all([
     listMembers(db, id),
     loadSettings(db, id, user.id),
     loadAiConfig(db, id),
     loadPolicyState(db, id),
+    loadFreeze(db, id),
   ]);
   return (
     <SettingsClient
@@ -48,6 +50,7 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
       ai={toAiConfigView(ai)}
       policy={policy}
       sharing={{ shareAgentTask: membership.team.shareAgentTask }}
+      freeze={freeze}
     />
   );
 }

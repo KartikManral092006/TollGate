@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { FreezeView } from "@/features/teams/shared/freeze";
 import { mergeGates, type GateView } from "@/features/gates/shared/view";
 import {
   getReceivedMessage,
@@ -38,9 +39,12 @@ export function useRoomLive(input: {
   channelId: string;
   initialGates: GateView[];
   callsEnabled: boolean;
+  // Freeze or incident mode, refreshed with the gates.
+  initialFreeze?: FreezeView | null;
 }) {
   const { teamId, channelId, callsEnabled } = input;
   const [gates, setGates] = useState(input.initialGates);
+  const [freeze, setFreeze] = useState<FreezeView | null>(input.initialFreeze ?? null);
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [live, setLive] = useState<LiveState>("connecting");
   const [selfNexconnId, setSelfNexconnId] = useState<string | null>(null);
@@ -53,8 +57,9 @@ export function useRoomLive(input: {
     try {
       const response = await fetch(`/api/teams/${teamId}/gates`, { cache: "no-store" });
       if (!response.ok) return;
-      const body = (await response.json()) as { gates: GateView[] };
+      const body = (await response.json()) as { gates: GateView[]; freeze?: FreezeView | null };
       setGates((current) => mergeGates(current, body.gates));
+      if (body.freeze !== undefined) setFreeze(body.freeze);
     } catch {
       // offline for a moment; the next poll or event catches up
     }
@@ -395,7 +400,20 @@ export function useRoomLive(input: {
     [channelId, callsEnabled],
   );
 
-  return { gates, lines, live, selfNexconnId, refresh, send, sendFile, edit, remove, setGates };
+  return {
+    gates,
+    lines,
+    live,
+    selfNexconnId,
+    refresh,
+    send,
+    sendFile,
+    edit,
+    remove,
+    setGates,
+    freeze,
+    setFreeze,
+  };
 }
 
 // A small JPEG preview (base64, no data: prefix) that Nexconn carries inside the message,

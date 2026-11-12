@@ -14,6 +14,7 @@ import {
   NotebookPen,
   Plug,
   ShieldCheck,
+  Snowflake,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
@@ -713,6 +714,15 @@ export function GateCard({
                 : "Needs one approval by a team rule"}{" "}
               for {gate.rule.preset} on {gate.rule.env} in {gate.repo}
               {gate.rule.by ? `, added by ${gate.rule.by}` : ""}.
+            </span>
+          </p>
+        )}
+        {gate.frozen && (
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Snowflake className="mt-px size-3.5 shrink-0" aria-hidden />
+            <span>
+              Raised during a freeze: no rules or approval windows
+              {gate.env === "prod" ? "; production needs two approvals or one from an owner" : ""}.
             </span>
           </p>
         )}
