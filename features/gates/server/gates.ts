@@ -41,21 +41,19 @@ export function repoPresets(raw: unknown): Preset[] {
 
 type Ids = { newId: () => string; now?: () => Date };
 
+type GateFields = Pick<
+  CreateGateInput,
+  "command" | "cwd" | "context" | "intent" | "via" | "tool" | "quorum" | "env" | "preset"
+>;
+
 // The hook already redacted; the server redacts again (never trust the client) and applies
-// its own presets, so a local .tollgate.json can't lower the quorum.
-export async function createGate(
-  db: PrismaClient,
-  principal: HookPrincipal,
-  input: CreateGateInput,
-  ids: Ids,
-) {
+// its own presets, so a local .tollgate.json can't lower the quorum. Shared by gates and
+// reported bypasses.
+export function classifyGate(principal: HookPrincipal, input: GateFields) {
   const command = redact(input.command);
   const cwd = redact(input.cwd);
   const context = redact(input.context);
   const intent = input.intent ? redact(input.intent) : null;
-  // Only kept when the team shares the agent's task, whatever a client sends.
-  const task = principal.shareTask && input.task?.trim() ? redact(input.task.trim()) : null;
-  const steps = principal.shareTask ? (input.steps ?? []).map((step) => redact(step)) : [];
   const via = (input.via ?? []).map((line) => ({
     from: redact(line.from),
     runs: redact(line.runs),
@@ -73,6 +71,49 @@ export async function createGate(
   const presetQuorum = authoritativeQuorum(serverMatch, input.quorum);
   const env = serverMatch?.env === "prod" ? "prod" : (input.env ?? serverMatch?.env ?? "other");
   const preset = serverMatch?.preset.name ?? input.preset;
+  return {
+    command,
+    cwd,
+    context,
+    intent,
+    via,
+    serverMatch,
+    presetQuorum,
+    env,
+    preset,
+    // The stored columns, truncated to fit.
+    columns: {
+      preset,
+      tool: input.tool,
+      env,
+      command: truncate(command.text, 4000),
+      cwd: truncate(cwd.text, 500),
+      context: truncate(context.text, 2048),
+      intent: intent ? truncate(intent.text, 300) : null,
+      via: via.length
+        ? truncate(via.map((line) => `${line.from.text} → ${line.runs.text}`).join("\n"), 1400)
+        : null,
+    },
+    redactions:
+      command.count +
+      cwd.count +
+      context.count +
+      (intent?.count ?? 0) +
+      via.reduce((sum, line) => sum + line.from.count + line.runs.count, 0),
+  };
+}
+
+export async function createGate(
+  db: PrismaClient,
+  principal: HookPrincipal,
+  input: CreateGateInput,
+  ids: Ids,
+) {
+  const classified = classifyGate(principal, input);
+  const { command, serverMatch, presetQuorum, env, preset } = classified;
+  // Only kept when the team shares the agent's task, whatever a client sends.
+  const task = principal.shareTask && input.task?.trim() ? redact(input.task.trim()) : null;
+  const steps = principal.shareTask ? (input.steps ?? []).map((step) => redact(step)) : [];
   const now = ids.now?.() ?? new Date();
 
   // A team rule only applies when the server's own presets recognised the command, so a local
@@ -142,19 +183,10 @@ export async function createGate(
         teamId: principal.teamId,
         repoId: principal.repoId,
         requesterId: principal.requesterId,
-        preset,
-        tool: input.tool,
-        env,
-        command: truncate(command.text, 4000),
-        cwd: truncate(cwd.text, 500),
+        ...classified.columns,
         branch: input.branch ? truncate(redact(input.branch).text, 200) : null,
-        context: truncate(context.text, 2048),
-        intent: intent ? truncate(intent.text, 300) : null,
         task: task ? truncate(task.text, TASK_MAX) : null,
         steps: steps.length ? truncate(steps.map((step) => step.text).join("\n"), 1000) : null,
-        via: via.length
-          ? truncate(via.map((line) => `${line.from.text} → ${line.runs.text}`).join("\n"), 1400)
-          : null,
         sessionId: input.sessionId ? truncate(input.sessionId, 200) : null,
         // Older hooks don't say how long they wait: the default timeout minus the park margin.
         parksAt: autoApprove
@@ -162,13 +194,9 @@ export async function createGate(
           : new Date(now.getTime() + (input.waitSec ?? DEFAULT_WAIT_SEC) * 1000),
         redactions:
           input.redactions +
-          command.count +
-          cwd.count +
-          context.count +
-          (intent?.count ?? 0) +
+          classified.redactions +
           (task?.count ?? 0) +
-          steps.reduce((sum, step) => sum + step.count, 0) +
-          via.reduce((sum, line) => sum + line.from.count + line.runs.count, 0),
+          steps.reduce((sum, step) => sum + step.count, 0),
         cmdHash: input.cmdHash,
         quorum: policy.quorum,
         followUpOfId: asked?.id ?? null,
@@ -525,6 +553,7 @@ export const GATE_INCLUDE = {
   policyRule: {
     select: { action: true, preset: true, env: true, createdBy: { select: { name: true } } },
   },
+  reviewedBy: { select: { name: true } },
   // The window that approved this gate on arrival, and the one opened from it.
   window: { select: { expiresAt: true, createdBy: { select: { name: true } } } },
   windowsOpened: {

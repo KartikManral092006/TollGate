@@ -12,6 +12,7 @@ const SEGMENT: Record<GateView["status"], string> = {
   approved: "bg-gate-approved",
   denied: "bg-gate-denied",
   expired: "bg-muted-foreground/40",
+  bypassed: "bg-gate-denied",
 };
 
 // One Claude Code session's run of gates, above its first one: who, where, and a segment per

@@ -116,6 +116,7 @@ function deps(options: { shareTask?: boolean; linked?: boolean } = {}) {
     getGate: vi.fn(),
     park: vi.fn(),
     reportOutcome: vi.fn(async () => ({})),
+    reportBypass: vi.fn(async () => ({})),
   };
   const hookDeps: HookDeps = {
     loadConfig: () =>
@@ -139,6 +140,7 @@ function deps(options: { shareTask?: boolean; linked?: boolean } = {}) {
     sleep: async () => undefined,
     audit: vi.fn(),
     progress: vi.fn(),
+    newId: () => "B".repeat(32),
     notes: {
       read: (id) => readNotes(dir, id),
       saveTask: (id, text) => saveTask(dir, id, text, 1),

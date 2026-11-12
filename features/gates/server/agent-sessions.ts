@@ -29,7 +29,7 @@ export async function sessionTally(
   const count = (...statuses: string[]) =>
     rows.filter((row) => statuses.includes(row.status)).reduce((n, row) => n + row._count._all, 0);
   return {
-    raised: count("pending", "parked", "approved", "denied", "expired"),
+    raised: count("pending", "parked", "approved", "denied", "expired", "bypassed"),
     waiting: count("pending", "parked"),
     approved: count("approved"),
     denied: count("denied"),

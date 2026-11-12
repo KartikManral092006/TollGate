@@ -22,7 +22,8 @@ export async function recordOutcome(
     where: {
       repoId: input.repoId,
       cmdHash: input.report.cmdHash,
-      status: "approved",
+      // A bypass ran too; its outcome matters even more.
+      status: { in: ["approved", "bypassed"] },
       outcomeAt: null,
       decidedAt: { gte: new Date(now.getTime() - OUTCOME_WINDOW_MS) },
     },

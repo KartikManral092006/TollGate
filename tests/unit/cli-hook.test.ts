@@ -58,6 +58,7 @@ function setup(options: {
     getGate: vi.fn(async () => (statuses.length > 1 ? statuses.shift()! : statuses[0]!)),
     park: vi.fn(async () => ({ status: "parked" })),
     reportOutcome: vi.fn(async () => ({ ok: true })),
+    reportBypass: vi.fn(async () => ({ ok: true })),
   };
   const deps: HookDeps = {
     loadConfig: () => (options.config === undefined ? config : options.config),
@@ -74,6 +75,7 @@ function setup(options: {
     },
     audit: vi.fn(),
     progress: vi.fn(),
+    newId: () => "B".repeat(32),
   };
   return { deps, api, tick: () => clock };
 }

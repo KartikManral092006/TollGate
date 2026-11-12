@@ -49,6 +49,7 @@ import { EnvBadge, STATUS } from "@/features/room/components/gate-status";
 import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { AgentTask } from "@/features/room/components/agent-task";
+import { BypassReview } from "@/features/room/components/bypass-review";
 import { RunResult } from "@/features/room/components/run-result";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,7 @@ const DOT: Record<GateDisplayStatus, string> = {
   denied: "bg-gate-denied",
   parked: "bg-gate-parked",
   expired: "bg-gate-parked",
+  bypassed: "bg-gate-denied",
 };
 
 const TEXT: Record<GateDisplayStatus, string> = {
@@ -76,6 +78,7 @@ const TEXT: Record<GateDisplayStatus, string> = {
   denied: "text-gate-denied-fg",
   parked: "text-muted-foreground",
   expired: "text-muted-foreground",
+  bypassed: "text-gate-denied-fg",
 };
 
 function QuorumDots({ approvals, quorum }: { approvals: number; quorum: number }) {
@@ -168,6 +171,13 @@ const WANTS: Record<GateView["tool"], string> = {
   bash: "wants to run",
   edit: "wants to change a file:",
   mcp: "wants to call a tool:",
+};
+
+// A bypassed gate already happened.
+const RAN: Record<GateView["tool"], string> = {
+  bash: "ran",
+  edit: "changed a file:",
+  mcp: "called a tool:",
 };
 
 // What the agent wants, at a glance: ❯ for a command, a pen for a file edit, a plug for an MCP
@@ -330,7 +340,9 @@ export function GateCard({
               >
                 {mine ? "Your agent" : `${gate.requester.name}'s agent`}
               </Link>{" "}
-              <span className="text-muted-foreground">{WANTS[gate.tool]}</span>{" "}
+              <span className="text-muted-foreground">
+                {gate.status === "bypassed" ? RAN[gate.tool] : WANTS[gate.tool]}
+              </span>{" "}
               <span className="font-mono font-bold">TG-{gate.code}</span>
             </p>
             <AnimatePresence mode="popLayout" initial={false}>
@@ -446,6 +458,7 @@ export function GateCard({
           )
         )}
 
+        <BypassReview gate={gate} viewer={viewer} />
         <AgentTask gate={gate} />
 
         {open && gate.insights && <RiskSignals signals={gate.insights.signals} />}
@@ -543,9 +556,11 @@ export function GateCard({
                 : "Reply"}
             </button>
           )}
-          <span className="ms-auto">
-            <QuorumDots approvals={gate.approvals} quorum={gate.quorum} />
-          </span>
+          {gate.status !== "bypassed" && (
+            <span className="ms-auto">
+              <QuorumDots approvals={gate.approvals} quorum={gate.quorum} />
+            </span>
+          )}
         </div>
 
         <AnimatePresence initial={false}>

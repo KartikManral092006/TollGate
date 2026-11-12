@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -28,6 +29,7 @@ import {
   type HookInput,
 } from "./hook";
 import { hookCommandFor, installBundle, writeRepoFiles } from "./init";
+import { addToOutbox, flushOutbox, readOutbox } from "./outbox";
 import { readNotes, recordStep, saveTask } from "./session";
 
 declare const TOLLGATE_VERSION: string;
@@ -65,6 +67,14 @@ function hookDeps(): HookDeps {
       process.stderr.write(`tollgate: ${event} ${JSON.stringify(detail)}\n`);
     },
     progress: (message) => process.stderr.write(`${message}\n`),
+    newId: () => {
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      return Array.from(randomBytes(32), (byte) => alphabet[byte % alphabet.length]).join("");
+    },
+    outbox: {
+      add: (item) => addToOutbox(tollgateHome(), item),
+      flush: (send) => flushOutbox(tollgateHome(), send, Date.now()),
+    },
     notes: {
       read: (sessionId) => readNotes(tollgateHome(), sessionId),
       saveTask: (sessionId, text) => saveTask(tollgateHome(), sessionId, text, Date.now()),
@@ -188,6 +198,12 @@ async function runStatus(): Promise<void> {
   }
   const token = loadToken(root);
   process.stdout.write(`Repo ${config.repo} at ${root}\nServer ${config.server}\n`);
+  const queued = readOutbox(tollgateHome()).length;
+  if (queued > 0) {
+    process.stdout.write(
+      `${queued} bypass ${queued === 1 ? "report" : "reports"} waiting to reach the server (sent after the next call)\n`,
+    );
+  }
   process.stdout.write(`Presets ${config.presets.map((p) => p.name).join(", ")}\n`);
   if (!token) {
     process.stdout.write("Token: missing on this machine (risky commands will be blocked).\n");

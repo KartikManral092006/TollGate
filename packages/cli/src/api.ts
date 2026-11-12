@@ -54,6 +54,7 @@ export function createApi(config: RepoConfig, token: string): HookApi {
     getGate: (id) => call<HookGateStatus>(`/api/hook/gates/${id}`),
     park: (id) => call(`/api/hook/gates/${id}/park`, { method: "POST" }),
     reportOutcome: (body) => call("/api/hook/outcomes", { method: "POST", body }),
+    reportBypass: (body) => call("/api/hook/bypasses", { method: "POST", body }),
   };
 }
 

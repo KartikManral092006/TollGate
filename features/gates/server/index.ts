@@ -12,6 +12,7 @@ import { sendEmail } from "@/features/email/server/resend";
 import { syncAgentSession } from "@/features/gates/server/agent-sessions";
 import { getNexconn, NexconnNotConfiguredError } from "@/features/nexconn/server";
 import {
+  notifyBypass,
   notifyGateParked,
   notifyGateWaiting,
   notifyParkedDecision,
@@ -86,6 +87,16 @@ export function announceGate(gateId: string) {
     await syncAgentSession(deps, gateId, newAlnumId);
   });
   inBackground("gate notice", { gateId }, () => notifyGateWaiting(notifyDeps(), gateId));
+}
+
+// A reported bypass: its card in the room, and a notice to the people who could have decided.
+export function announceBypass(gateId: string) {
+  inBackground("bypass card", { gateId }, async () => {
+    const deps = cardDeps();
+    await postGateCard(deps, gateId);
+    await syncAgentSession(deps, gateId, newAlnumId);
+  });
+  inBackground("bypass notice", { gateId }, () => notifyBypass(notifyDeps(), gateId));
 }
 
 // The agent stopped waiting and nobody had decided: nudge the voters who haven't voted.

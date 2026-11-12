@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { AllClear } from "@/components/road/all-clear";
-import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
+import { isOpenStatus, needsReview, type GateView } from "@/features/gates/shared/view";
 import { EnvBadge } from "@/features/room/components/gate-status";
 import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
@@ -48,6 +48,10 @@ export function RoomRail({
 }) {
   const waiting = gates
     .filter((gate) => isOpenStatus(gate.status))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  // Calls that went through with TOLLGATE_BYPASS=1 and nobody has looked at yet.
+  const unreviewed = gates
+    .filter(needsReview)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   return (
@@ -116,6 +120,43 @@ export function RoomRail({
           </ul>
         )}
       </section>
+
+      {unreviewed.length > 0 && (
+        <section className="border-t px-5 py-5">
+          <h2 className="flex items-baseline gap-2 text-sm font-bold text-gate-denied-fg">
+            Bypassed, needs review
+            <span className="text-xs font-normal tabular-nums">{unreviewed.length}</span>
+          </h2>
+          <ul className="mt-2 flex flex-col">
+            {unreviewed.map((gate) => (
+              <li key={gate.id}>
+                <button
+                  type="button"
+                  onClick={() => jumpTo(gate.id)}
+                  className="flex w-full items-start gap-3 rounded-md px-2 py-2.5 text-start transition-colors outline-none hover:bg-muted focus-visible:bg-muted"
+                >
+                  <span
+                    aria-hidden
+                    className="mt-1.5 size-2 shrink-0 rounded-full bg-gate-denied"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold">TG-{gate.code}</span>
+                      <EnvBadge env={gate.env} />
+                    </span>
+                    <span className="block truncate font-mono text-xs text-muted-foreground">
+                      {gate.command}
+                    </span>
+                    <span className="block text-xs text-muted-foreground" suppressHydrationWarning>
+                      {gate.requester.name}, {timeAgo(gate.createdAt)}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="border-t px-5 py-5">
         <h2 className="text-sm font-bold">People</h2>
