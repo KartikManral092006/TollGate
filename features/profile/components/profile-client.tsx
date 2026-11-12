@@ -51,7 +51,7 @@ function Stat({
   label: string;
   value: number | null;
   format: (n: number) => string;
-  hint: string;
+  hint?: string;
 }) {
   return (
     <div className="flex flex-col gap-1 border-b py-5 odd:pe-4 even:ps-4 lg:border-b-0 lg:px-8 lg:first:ps-0 lg:odd:pe-8 lg:even:ps-8">
@@ -59,7 +59,7 @@ function Stat({
       <dd className="text-3xl leading-none font-extrabold tracking-tight tabular-nums">
         {value === null ? "–" : <NumberTicker value={value} format={format} />}
       </dd>
-      <dd className="text-xs text-muted-foreground">{hint}</dd>
+      {hint && <dd className="text-xs text-muted-foreground">{hint}</dd>}
     </div>
   );
 }
@@ -130,9 +130,7 @@ function TimelineRow({
               <status.icon className="size-3" aria-hidden />
               {status.label}
             </span>
-            <span className="text-xs text-muted-foreground">
-              {gate.teamName}, {gate.env}
-            </span>
+            <span className="text-xs text-muted-foreground">{gate.teamName}</span>
           </span>
           <code className="truncate rounded bg-asphalt px-2 py-1 font-mono text-xs text-white">
             <span className="text-white/45 select-none">❯ </span>
@@ -149,7 +147,6 @@ function TimelineRow({
   const { vote } = item;
   const approved = vote.decision === "approve";
   const Icon = approved ? CircleCheck : CircleX;
-  const tookSec = (Date.parse(vote.at) - Date.parse(vote.gateCreatedAt)) / 1000;
   return (
     <Link
       href={`/teams/${vote.teamId}/gates/${vote.gateId}`}
@@ -173,10 +170,7 @@ function TimelineRow({
             {vote.requester.id === viewerId ? "your" : `${vote.requester.name}'s`} TG-
             {vote.gateCode}
           </span>
-          <span className="text-xs text-muted-foreground">
-            {vote.teamName}, {vote.env}
-            {tookSec >= 0 ? `, ${duration(tookSec)} after it arrived` : ""}
-          </span>
+          <span className="text-xs text-muted-foreground">{vote.teamName}</span>
         </span>
         <code className="truncate font-mono text-xs text-muted-foreground">{vote.command}</code>
         {vote.reason && <span className="text-sm text-muted-foreground">“{vote.reason}”</span>}
@@ -229,7 +223,6 @@ export function ProfileClient({ profile }: { profile: ProfileView }) {
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-2xl leading-tight font-extrabold tracking-tight lg:text-3xl">
                 {user.name}
-                {isSelf && <span className="font-semibold text-white/70"> (you)</span>}
               </h1>
               <p className="mt-1 text-sm text-white/80">
                 <span suppressHydrationWarning>On Tollgate since {memberSince}</span>
@@ -268,9 +261,9 @@ export function ProfileClient({ profile }: { profile: ProfileView }) {
             value={stats.raised}
             format={asCount}
             hint={
-              stats.raised === 0
-                ? `Risky commands ${isSelf ? "your" : "their"} agent asked to run`
-                : `${stats.raisedApproved} approved, ${stats.raisedDenied} denied${stats.raisedOpen ? `, ${stats.raisedOpen} open` : ""}`
+              stats.raised > 0
+                ? `${stats.raisedApproved} approved, ${stats.raisedDenied} denied`
+                : undefined
             }
           />
           <Stat
@@ -278,22 +271,15 @@ export function ProfileClient({ profile }: { profile: ProfileView }) {
             value={stats.reviews}
             format={asCount}
             hint={
-              stats.reviews === 0
-                ? "Votes on teammates' gates"
-                : `${stats.approvals} approved, ${stats.denials} denied`
+              stats.reviews > 0 ? `${stats.approvals} approved, ${stats.denials} denied` : undefined
             }
           />
-          <Stat
-            label="Median response"
-            value={stats.medianResponseSec}
-            format={duration}
-            hint="From a gate arriving to the vote"
-          />
+          <Stat label="Median response" value={stats.medianResponseSec} format={duration} />
           <Stat
             label="Quick approvals"
             value={stats.quickApprovalRate}
             format={asPercent}
-            hint="Approved in under 3 s. Lower is better"
+            hint="Under 3 s"
           />
         </dl>
 
@@ -304,31 +290,23 @@ export function ProfileClient({ profile }: { profile: ProfileView }) {
               <p className="text-sm text-muted-foreground">
                 {isSelf ? (
                   <>
-                    Gates your agent raises and the votes you give will show up here. Link a repo in
-                    a team&apos;s Settings, then run{" "}
-                    <code className="font-mono text-foreground">npx -y tollgate-cli test</code> to
-                    raise your first one.
+                    Run <code className="font-mono text-foreground">npx -y tollgate-cli test</code>{" "}
+                    in a linked repo to raise your first gate.
                   </>
                 ) : (
-                  `${firstName} hasn't raised or reviewed a gate in the teams you share yet.`
+                  `No gates or reviews from ${firstName} yet.`
                 )}
               </p>
             </div>
           </Section>
         ) : (
           <>
-            <Section
-              title="Activity"
-              description={`Gates ${isSelf ? "your" : "their"} agent raised and reviews ${isSelf ? "you" : "they"} gave, day by day for the last 26 weeks.`}
-            >
+            <Section title="Activity">
               <ActivityCalendar times={times} />
             </Section>
 
             {gates.length > 0 && (
-              <Section
-                title={`What ${isSelf ? "your" : "their"} agent asks for`}
-                description="The presets that stopped it most, and the repos it was working in."
-              >
+              <Section title="Most gated">
                 <div className="grid gap-8 sm:grid-cols-2">
                   <div>
                     <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Presets</h3>
@@ -342,14 +320,7 @@ export function ProfileClient({ profile }: { profile: ProfileView }) {
               </Section>
             )}
 
-            <Section
-              title="Recent activity"
-              description={
-                isSelf
-                  ? "Newest first. Open one to see it in the room."
-                  : `${firstName}'s activity in the teams you share. Open one to see it in the room.`
-              }
-            >
+            <Section title="Recent activity">
               <ul className="divide-y border-y">
                 {items.slice(0, shown).map((item) => (
                   <li key={item.kind === "raised" ? `g${item.gate.id}` : `v${item.vote.gateId}`}>
@@ -365,63 +336,21 @@ export function ProfileClient({ profile }: { profile: ProfileView }) {
               )}
               {profile.truncated && shown >= items.length && (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Showing the latest 1,000 gates and reviews. Each team&apos;s Audit log has the
-                  full history.
+                  Older activity is in each team&apos;s Audit log.
                 </p>
               )}
             </Section>
           </>
         )}
 
-        <Section
-          title={isSelf ? "Your teams" : "Teams you share"}
-          description={
-            isSelf
-              ? "Every team you're in and your role there."
-              : `Where you and ${firstName} overlap.`
-          }
-        >
-          <ul className="divide-y border-y">
-            {teams.map((team) => (
-              <li key={team.id}>
-                <Link
-                  href={`/teams/${team.id}`}
-                  className="group flex items-center gap-3 py-3 text-sm outline-none focus-visible:bg-muted"
-                >
-                  <span className="min-w-0 flex-1 truncate font-medium transition-colors group-hover:text-primary">
-                    {team.name}
-                  </span>
-                  <span className="text-muted-foreground" suppressHydrationWarning>
-                    {ROLE_LABEL[team.role] ?? team.role}, joined{" "}
-                    {new Date(team.joinedAt).toLocaleDateString([], {
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                  <ChevronRight
-                    className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1"
-                    aria-hidden
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Section>
-
         {profile.tokens && (
-          <Section
-            title="Linked machines"
-            description="The hook tokens you made. Each one lets the agent on one machine raise gates for one repo. Only you can see this."
-          >
+          <Section title="Linked machines" description="Only you can see this.">
             <LinkedMachines tokens={profile.tokens} />
           </Section>
         )}
 
         {profile.sessions && (
-          <Section
-            title="Signed-in browsers"
-            description="Where you're signed in to Tollgate. Sign out any you don't recognise. Only you can see this."
-          >
+          <Section title="Signed-in browsers" description="Only you can see this.">
             <SignedInBrowsers sessions={profile.sessions} />
           </Section>
         )}

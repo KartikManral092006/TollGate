@@ -175,7 +175,7 @@ export function LinkedMachines({ tokens }: { tokens: ProfileToken[] }) {
               <span className="font-normal text-muted-foreground">in {token.teamName}</span>
             </span>
             <span className="truncate text-xs text-muted-foreground" suppressHydrationWarning>
-              <code className="font-mono">{token.prefix}…</code>, made {timeAgo(token.createdAt)},{" "}
+              <code className="font-mono">{token.prefix}…</code>,{" "}
               {token.lastUsedAt ? `last used ${timeAgo(token.lastUsedAt)}` : "never used"}
             </span>
           </span>
