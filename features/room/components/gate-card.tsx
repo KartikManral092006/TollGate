@@ -85,21 +85,22 @@ const TEXT: Record<GateDisplayStatus, string> = {
 
 function QuorumDots({ approvals, quorum }: { approvals: number; quorum: number }) {
   return (
-    <span
-      className="inline-flex items-center gap-1"
-      aria-label={`${approvals} of ${quorum} approvals`}
-    >
+    <span className="inline-flex items-center gap-1">
       {Array.from({ length: quorum }, (_, i) => (
         <span
           key={i}
+          aria-hidden
           className={cn(
             "size-2 rounded-full transition-colors duration-300",
             i < approvals ? "bg-gate-approved" : "bg-border",
           )}
         />
       ))}
-      <span className="ms-1 text-xs text-muted-foreground tabular-nums">
+      <span aria-hidden className="ms-1 text-xs text-muted-foreground tabular-nums">
         {Math.min(approvals, quorum)}/{quorum}
+      </span>
+      <span className="sr-only">
+        {Math.min(approvals, quorum)} of {quorum} {quorum === 1 ? "approval" : "approvals"}
       </span>
     </span>
   );

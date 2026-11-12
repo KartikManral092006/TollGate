@@ -86,8 +86,9 @@ function CodeBlockCopyButton({
   size = "icon-xs",
   className,
   onClick,
+  labelled = false,
   ...props
-}: React.ComponentProps<typeof Button> & { value: string }) {
+}: React.ComponentProps<typeof Button> & { value: string; labelled?: boolean }) {
   const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
@@ -118,6 +119,7 @@ function CodeBlockCopyButton({
         {...props}
       >
         {copied ? <CheckIcon /> : <CopyIcon />}
+        {labelled && (copied ? "Copied" : "Copy")}
       </Button>
       <span aria-live="polite" className="sr-only">
         {copied ? "Copied" : ""}

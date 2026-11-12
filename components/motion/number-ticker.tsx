@@ -37,8 +37,12 @@ export function NumberTicker({
   }, [value, inView, reduced, format]);
 
   return (
-    <span ref={ref} className={className} aria-label={format(value)}>
-      {format(value)}
+    // Screen readers get the final number once, not every frame of the count-up.
+    <span className={className}>
+      <span ref={ref} aria-hidden>
+        {format(value)}
+      </span>
+      <span className="sr-only">{format(value)}</span>
     </span>
   );
 }

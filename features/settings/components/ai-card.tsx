@@ -164,13 +164,13 @@ export function AiSettings({
       ) : (
         <>
           <div className="flex flex-col gap-1.5">
-            <Label>Provider</Label>
+            <Label id="ai-provider-label">Provider</Label>
             <Select
               items={items}
               value={preset.id}
               onValueChange={(value) => choose(String(value))}
             >
-              <SelectTrigger className="h-10 w-full">
+              <SelectTrigger className="h-10 w-full" aria-labelledby="ai-provider-label">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -92,7 +92,7 @@ export function Pipeline() {
         const tl = gsap.timeline({ defaults: { ease: "power2.inOut" } });
         const steps = q("[data-step]");
         const focus = (index: number, position: string | number) => {
-          tl.to(steps, { opacity: 0.32, duration: 0.3 }, position);
+          tl.to(steps, { opacity: 0.45, duration: 0.3 }, position);
           tl.to(steps[index] ?? [], { opacity: 1, duration: 0.3 }, position);
           tl.to(
             q(`[data-station="${index}"]`),
@@ -209,7 +209,9 @@ export function Pipeline() {
               },
             });
           } else {
+            // No motion: the finished picture, with every step readable, not just the last.
             tl.progress(1).pause();
+            gsap.set(q("[data-step]"), { opacity: 1 });
           }
         },
       );
@@ -231,7 +233,7 @@ export function Pipeline() {
           <ol className="mt-8 flex flex-col gap-5">
             {STEPS.map((step, index) => (
               <li key={step.title} data-step className="flex gap-4">
-                <span className="mt-0.5 font-mono text-sm text-white/40 tabular-nums">
+                <span className="mt-0.5 font-mono text-sm text-white/60 tabular-nums">
                   0{index + 1}
                 </span>
                 <div>

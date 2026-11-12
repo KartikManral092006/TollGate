@@ -172,16 +172,18 @@ export function RoomRail({
                 {online.has(member.id) || member.id === viewerId ? (
                   <span
                     className="absolute -end-0.5 -bottom-0.5 size-2.5 rounded-full bg-gate-approved ring-2 ring-background"
-                    aria-label="In this room"
                     title="In this room"
-                  />
+                  >
+                    <span className="sr-only">In this room</span>
+                  </span>
                 ) : (
                   reachable.has(member.id) && (
                     <span
                       className="absolute -end-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-gate-approved bg-background"
-                      aria-label="Online in Tollgate"
                       title="Online in Tollgate, not in this room"
-                    />
+                    >
+                      <span className="sr-only">Online in Tollgate</span>
+                    </span>
                   )
                 )}
               </span>
