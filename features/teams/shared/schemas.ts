@@ -5,6 +5,9 @@ export const ID_RE = TEAM_ID_RE;
 
 export const createTeamSchema = z.object({ name: z.string().trim().min(1).max(64) }).strict();
 
+// Renaming a team: the same rules as a new team's name.
+export const renameTeamSchema = createTeamSchema;
+
 // Deleting a team: the owner types its name to confirm.
 export const deleteTeamSchema = z.object({ name: z.string().max(200) }).strict();
 

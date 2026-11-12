@@ -1,6 +1,6 @@
 "use client";
 
-import { DoorOpen, Loader2, Trash2 } from "lucide-react";
+import { Check, DoorOpen, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -32,6 +32,55 @@ async function send(url: string, method: string, body: unknown) {
   });
   const data = (await response.json().catch(() => ({}))) as { error?: string };
   return { ok: response.ok, error: data.error };
+}
+
+// The owner renames the team. Everyone sees the new name at once; the team's chat follows.
+export function TeamName({ teamId, initial }: { teamId: string; initial: string }) {
+  const router = useRouter();
+  const [name, setName] = useState(initial);
+  const [saved, setSaved] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const trimmed = name.trim();
+  const dirty = trimmed !== saved.trim() && trimmed.length > 0;
+
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    if (!dirty) return;
+    setBusy(true);
+    try {
+      const { ok } = await send(`/api/teams/${teamId}`, "PATCH", { name: trimmed });
+      if (!ok) {
+        toast.error("Couldn't rename the team. Try again.");
+        return;
+      }
+      setSaved(trimmed);
+      setName(trimmed);
+      toast.success(`The team is now called ${trimmed}.`);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="flex max-w-xl flex-col gap-1.5">
+      <Label htmlFor="team-name-edit">Team name</Label>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          id="team-name-edit"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          maxLength={64}
+          required
+          className="h-10 text-base sm:h-9 sm:text-sm"
+        />
+        <Button type="submit" className="h-10 sm:h-9" disabled={!dirty || busy}>
+          {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}
+          Save
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 // The owner deletes the whole team after typing its name. Everyone else can leave it, so a

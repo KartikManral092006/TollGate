@@ -6,6 +6,7 @@ import {
   joinGroup,
   sendGroupMessage,
   sendGroupStreamChunk,
+  updateGroupName,
 } from "@/features/nexconn/server/api";
 import { NexconnApiError, type NexconnClient } from "@/features/nexconn/server/client";
 
@@ -115,5 +116,17 @@ describe("sendGroupStreamChunk", () => {
       }),
     ).resolves.toEqual({});
     expect(client.call.mock.calls[0]![1]).toMatchObject({ messageType: "RC:StreamMsg" });
+  });
+});
+
+describe("updateGroupName", () => {
+  it("sends the name inside groupProfile, capped at 64 characters", async () => {
+    const client = clientReturning(() => undefined);
+    await updateGroupName(client, { channelId: "tgABC", name: "x".repeat(80) });
+    expect(client.call).toHaveBeenCalledWith(
+      "/v4/group-channel/profile/update",
+      { channelId: "tgABC", groupProfile: { name: "x".repeat(64) } },
+      { retryOnFailover: true },
+    );
   });
 });

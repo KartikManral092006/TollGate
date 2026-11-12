@@ -75,6 +75,19 @@ export async function leaveGroup(
   }
 }
 
+// Renames a team's chat group (docs.nexconn.ai: /v4/group-channel/profile/update; the name is at
+// most 64 characters). Only the keys sent change.
+export async function updateGroupName(
+  client: NexconnClient,
+  input: { channelId: string; name: string },
+): Promise<void> {
+  await client.call(
+    "/v4/group-channel/profile/update",
+    { channelId: input.channelId, groupProfile: { name: input.name.slice(0, 64) } },
+    { retryOnFailover: true },
+  );
+}
+
 // Removes a deleted team's chat group (Nexconn server API: /v4/group-channel/dismiss). Already
 // gone is done.
 export async function dismissGroup(

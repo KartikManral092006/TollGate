@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { authenticateHookToken, mintHookToken } from "@/features/gates/server/hook-tokens";
 import { deleteTeam } from "@/features/teams/server/delete-team";
 import { leaveTeam } from "@/features/teams/server/members";
+import { renameTeam } from "@/features/teams/server/rename-team";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { newAlnumId } from "@/lib/ids";
 
@@ -194,5 +195,17 @@ describe.skipIf(!safe)("deleting and leaving a team (Postgres)", () => {
     // The team and its history stay for everyone else.
     expect(await db.gate.count({ where: { teamId } })).toBe(2);
     expect(await db.membership.count({ where: { teamId } })).toBe(2);
+  });
+
+  it("lets only the owner rename a team, and reports whether it changed", async () => {
+    const { teamId } = await fullTeam("Typo teem");
+    await expect(renameTeam(db, { teamId, actorId: ana, name: "Hijacked" })).rejects.toMatchObject({
+      reason: "not_owner",
+    });
+    const renamed = await renameTeam(db, { teamId, actorId: owner, name: "  Typo team " });
+    expect(renamed).toMatchObject({ name: "Typo team", changed: true, hadChatGroup: false });
+    expect((await db.team.findUnique({ where: { id: teamId } }))?.name).toBe("Typo team");
+    const again = await renameTeam(db, { teamId, actorId: owner, name: "Typo team" });
+    expect(again.changed).toBe(false);
   });
 });
