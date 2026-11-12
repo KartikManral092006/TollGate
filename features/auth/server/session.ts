@@ -14,15 +14,31 @@ export type SessionUser = {
   language: string;
 };
 
-export async function getSessionUserFromHeaders(
-  requestHeaders: Headers,
-): Promise<SessionUser | null> {
+function readSession(requestHeaders: Headers) {
   // Refresh is off here: a Server Component cannot write the refreshed cookie, so the DB
   // expiry would move without it. SessionRefresher refreshes through the route handler.
-  const session = await getAuth().api.getSession({
+  return getAuth().api.getSession({
     headers: requestHeaders,
     query: { disableRefresh: true },
   });
+}
+
+export async function getSessionUserFromHeaders(
+  requestHeaders: Headers,
+): Promise<SessionUser | null> {
+  return toSessionUser(await readSession(requestHeaders));
+}
+
+// Same as above, plus the session row's id (to tell "this browser" from your others).
+export async function getSessionFromHeaders(
+  requestHeaders: Headers,
+): Promise<{ user: SessionUser; sessionId: string } | null> {
+  const session = await readSession(requestHeaders);
+  const user = toSessionUser(session);
+  return session && user ? { user, sessionId: session.session.id } : null;
+}
+
+function toSessionUser(session: Awaited<ReturnType<typeof readSession>>): SessionUser | null {
   if (!session) return null;
   const { user } = session;
   return {
@@ -35,9 +51,15 @@ export async function getSessionUserFromHeaders(
   };
 }
 
+const getCurrentSession = cache(async () => getSessionFromHeaders(await headers()));
+
 // Callers in pages must have awaited connection() first (Cache Components).
-export const getOptionalSession = cache(async (): Promise<SessionUser | null> =>
-  getSessionUserFromHeaders(await headers()),
+export const getOptionalSession = cache(
+  async (): Promise<SessionUser | null> => (await getCurrentSession())?.user ?? null,
+);
+
+export const getCurrentSessionId = cache(
+  async (): Promise<string | null> => (await getCurrentSession())?.sessionId ?? null,
 );
 
 // The real check behind every protected page; proxy.ts only looks for the cookie.
