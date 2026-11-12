@@ -43,7 +43,10 @@ describe("streamWhyToRoom", () => {
       input,
     );
     expect(id).toBe("M1");
-    const bodies = call.mock.calls.map((args) => (args as unknown[])[1] as { content: Record<string, unknown> } & Record<string, unknown>);
+    const bodies = call.mock.calls.map(
+      (args) =>
+        (args as unknown[])[1] as { content: Record<string, unknown> } & Record<string, unknown>,
+    );
     expect(bodies).toHaveLength(3);
     expect(bodies[0]).toMatchObject({
       fromUserId: "tollgatebot",
