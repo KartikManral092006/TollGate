@@ -2,6 +2,7 @@
 // server; plain JSON, so it survives the trip to the browser unchanged.
 
 import { GATE_TOOLS, type GateTool } from "@/features/gates/shared/presets";
+import { GATE_OUTCOMES, type GateOutcome } from "@/features/gates/shared/outcomes";
 import type { GateInsights } from "@/features/insights/shared/types";
 
 // Rows from before file and MCP gates have no tool column value but "bash".
@@ -92,6 +93,17 @@ export type GateView = {
   createdAt: string;
   // Decision aids from the team's history; only on open gates (features/insights).
   insights?: GateInsights | null;
+  // What happened when the approved call ran (CLI 0.3+); null until the hook reports it.
+  ran?: GateRunView | null;
+};
+
+export type GateRunView = {
+  outcome: GateOutcome;
+  at: string;
+  exitCode: number | null;
+  durationMs: number | null;
+  // The output's tail, redacted.
+  output: string | null;
 };
 
 type DateLike = Date | string;
@@ -143,6 +155,11 @@ export type GateRow = {
   seen?: { userId: string; seenAt: DateLike; user: { name: string } }[];
   parksAt?: DateLike | null;
   parkedAt: DateLike | null;
+  outcome?: string | null;
+  outcomeAt?: DateLike | null;
+  exitCode?: number | null;
+  durationMs?: number | null;
+  output?: string | null;
   createdAt: DateLike;
   requester: { id: string; name: string };
   repo: { name: string; mode: "guard" | "delegate" };
@@ -177,6 +194,18 @@ function followUpView(asked: GateRow["followUpOf"]): GateView["followUp"] {
     code: asked.code,
     question: asked.question,
     askedBy: asker ? displayName(asker.user.name, asker.userId) : "A teammate",
+  };
+}
+
+function runView(row: GateRow): GateRunView | null {
+  const outcome = GATE_OUTCOMES.find((value) => value === row.outcome);
+  if (!outcome || !row.outcomeAt) return null;
+  return {
+    outcome,
+    at: iso(row.outcomeAt),
+    exitCode: row.exitCode ?? null,
+    durationMs: row.durationMs ?? null,
+    output: row.output ?? null,
   };
 }
 
@@ -258,6 +287,7 @@ export function toGateView(row: GateRow): GateView {
         participants: call.participants.length,
       })),
     createdAt: iso(row.createdAt),
+    ran: runView(row),
   };
 }
 

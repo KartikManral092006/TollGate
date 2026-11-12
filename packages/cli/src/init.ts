@@ -13,6 +13,7 @@ type HookEntry = {
   timeout?: number;
   statusMessage?: string;
   onFailure?: "block";
+  async?: boolean;
 };
 type Matcher = { matcher?: string; hooks?: HookEntry[] };
 type Settings = { hooks?: Record<string, Matcher[] | undefined> } & Record<string, unknown>;
@@ -25,6 +26,22 @@ export function isTollgateHook(command: string): boolean {
   return /tollgate/.test(command) && /\bhook\b/.test(command);
 }
 
+// After a gated call runs, the same hook reports how it went (CLI 0.3+). Async: Claude Code
+// carries on while it reports, and it can never block anything.
+export const REPORT_EVENTS = ["PostToolUse", "PostToolUseFailure"] as const;
+const REPORT_TIMEOUT_SEC = 15;
+
+const EVENTS = ["PreToolUse", ...REPORT_EVENTS] as const;
+
+function withoutTollgate(matchers: Matcher[] | undefined): Matcher[] {
+  return (matchers ?? [])
+    .map((matcher) => ({
+      ...matcher,
+      hooks: (matcher.hooks ?? []).filter((hook) => !isTollgateHook(hook.command)),
+    }))
+    .filter((matcher) => matcher.hooks.length > 0);
+}
+
 // Idempotent: removes any earlier Tollgate hook, keeps every other hook untouched.
 export function mergeHookSettings(
   existing: Settings,
@@ -32,14 +49,9 @@ export function mergeHookSettings(
   timeoutSec: number,
 ): Settings {
   const hooks = { ...(existing.hooks ?? {}) };
-  const kept = (hooks.PreToolUse ?? [])
-    .map((matcher) => ({
-      ...matcher,
-      hooks: (matcher.hooks ?? []).filter((hook) => !isTollgateHook(hook.command)),
-    }))
-    .filter((matcher) => matcher.hooks.length > 0);
+  for (const event of EVENTS) hooks[event] = withoutTollgate(hooks[event]);
   hooks.PreToolUse = [
-    ...kept,
+    ...hooks.PreToolUse!,
     {
       matcher: HOOK_MATCHER,
       hooks: [
@@ -56,6 +68,17 @@ export function mergeHookSettings(
       ],
     },
   ];
+  for (const event of REPORT_EVENTS) {
+    hooks[event] = [
+      ...hooks[event]!,
+      {
+        matcher: HOOK_MATCHER,
+        hooks: [
+          { type: "command", command: hookCommand, timeout: REPORT_TIMEOUT_SEC, async: true },
+        ],
+      },
+    ];
+  }
   return { ...existing, hooks };
 }
 

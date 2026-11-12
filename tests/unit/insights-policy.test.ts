@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyRule,
   canHaveRule,
+  failedShare,
   suggestPolicies,
   suggestionKey,
   type PolicyHistoryGate,
@@ -47,6 +48,21 @@ describe("suggestPolicies", () => {
     expect(suggestPolicies([...decided(12), ...decided(1, { status: "denied" })], [], {})).toEqual(
       [],
     );
+  });
+
+  it("offers nothing when too many approved runs then failed", () => {
+    const runs = (n: number, outcome: PolicyHistoryGate["outcome"]) => decided(n, { outcome });
+    // 1 of 12 reported runs failed: under a tenth, still offered.
+    expect(suggestPolicies([...runs(11, "succeeded"), ...runs(1, "failed")], [], {})).toHaveLength(
+      1,
+    );
+    // 2 of 10 failed: the approvals weren't catching problems.
+    expect(suggestPolicies([...runs(8, "succeeded"), ...runs(2, "failed")], [], {})).toEqual([]);
+    // Unreported runs (older CLIs) and interruptions don't count either way.
+    expect(
+      suggestPolicies([...runs(9, null), ...runs(1, "failed"), ...runs(5, "interrupted")], [], {}),
+    ).toEqual([]);
+    expect(failedShare(runs(10, null))).toBe(0);
   });
 
   it("offers one approval before auto-approval when two were needed", () => {

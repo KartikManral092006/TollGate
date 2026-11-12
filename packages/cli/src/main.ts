@@ -21,6 +21,7 @@ import {
   decide,
   PARK_MARGIN_SEC,
   renderDecision,
+  reportRun,
   type Decision,
   type HookDeps,
   type HookInput,
@@ -84,6 +85,11 @@ async function runHook(): Promise<void> {
     input = JSON.parse(await readStdin()) as HookInput;
   } catch {
     return; // not a hook payload: no opinion
+  }
+  // After the call ran (registered as async hooks): report how it went, print nothing.
+  if (input.hook_event_name === "PostToolUse" || input.hook_event_name === "PostToolUseFailure") {
+    await reportRun(input, hookDeps());
+    return;
   }
   const config = loadConfig(input.cwd || process.cwd());
   const timeoutSec = config?.hookTimeoutSec ?? 300;

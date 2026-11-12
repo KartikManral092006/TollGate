@@ -11,6 +11,8 @@ Your team approves before your coding agent does something you can't undo.
 
 Every other command runs untouched; the hook adds about 50 ms.
 
+After an approved command runs, the same hook (registered in the background for `PostToolUse` and `PostToolUseFailure`) tells the room how it went: succeeded or failed, the exit code, how long it took and the last 15 lines of output with secrets removed. Linked with an older version? Run `init` again to register it.
+
 It also gates what an agent could do instead of running the command:
 
 - **File edits** to Tollgate's own setup (`.claude/settings*.json`, `.tollgate.json`, the token), deploy and CI files (`.github/workflows/`, `.gitlab-ci.yml`, `vercel`/`netlify`/`fly`/`railway` config) and `.env` files. The card shows the change; `.env` values are hidden.

@@ -270,6 +270,12 @@ model Gate {
   followUpOfId  String? // the asked gate this retry answers
   policyRuleId  String? // approved on arrival by this team rule
   messageId     String? // Nexconn message for metadata updates
+  // What happened when the approved call ran, reported by the CLI's PostToolUse hooks (0.3+).
+  outcome       String? // succeeded | failed | interrupted
+  outcomeAt     DateTime?
+  exitCode      Int? // from "Exit code N" on a failed Bash call
+  durationMs    Int?
+  output        String?          @db.VarChar(1000) // the output's tail; redacted
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   team          Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)

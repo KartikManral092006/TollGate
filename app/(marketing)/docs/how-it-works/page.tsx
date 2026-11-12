@@ -25,6 +25,14 @@ export default function HowItWorksPage() {
         your machine. Anything that doesn&apos;t match runs as usual, without anything being sent
         anywhere.
       </P>
+      <P>
+        It also registers the same hook, in the background, for <C>PostToolUse</C> and{" "}
+        <C>PostToolUseFailure</C>. After a gated call runs, it tells the room how it went (see{" "}
+        <a href="#after-it-runs" className="underline underline-offset-4">
+          After it runs
+        </a>
+        ). Ungated calls are ignored there too.
+      </P>
 
       <H2 id="edits-and-tools">Edits and tools, not only commands</H2>
       <P>
@@ -111,6 +119,23 @@ export default function HowItWorksPage() {
           ["Nobody decided in time", "Parked; the agent moves on and can retry later", "Same"],
         ]}
       />
+
+      <H2 id="after-it-runs">After it runs</H2>
+      <P>
+        Once an approved call has run, the card shows whether it succeeded or failed, the exit code
+        of a failed command, how long it took, and the last 15 lines of its output (at most 1,000
+        characters) with secrets removed the same way. A failure opens its output on the card. The
+        audit log and its CSV export include the result too.
+      </P>
+      <P>
+        Nothing is sent for calls that weren&apos;t gated, an MCP tool&apos;s result is never sent,
+        and an edit only reports whether it worked. A kind of command whose approved runs often fail
+        (more than one in ten) is never offered as a rule to approve automatically.
+      </P>
+      <P>
+        Linked before CLI 0.3? Run <C>npx -y tollgate-cli@latest init</C> again in the repo to
+        register the after-the-call hooks, then restart Claude Code.
+      </P>
 
       <H2 id="fails-closed">If Tollgate can&apos;t be reached</H2>
       <P>

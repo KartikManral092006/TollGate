@@ -118,6 +118,19 @@ describe("csv", () => {
     expect(header).toContain("code,status,env");
     expect(row).toContain("TG-17,denied,prod");
     expect(row).toContain("back up first");
+    const ran = gatesToCsv([
+      gate({
+        status: "approved",
+        ran: {
+          outcome: "failed",
+          at: "2026-11-04T10:00:00Z",
+          exitCode: 2,
+          durationMs: 10,
+          output: null,
+        },
+      }),
+    ]).split("\r\n")[1]!;
+    expect(ran.endsWith(",failed,2")).toBe(true);
   });
 });
 
@@ -138,5 +151,25 @@ describe("dailySeries", () => {
     expect(series.days).toEqual(["2026-11-02", "2026-11-03", "2026-11-04"]);
     expect(series.gates).toEqual([1, 0, 2]);
     expect(series.denyRate).toEqual([null, null, 0.5]);
+  });
+});
+
+describe("run results", () => {
+  it("formats durations and summarises outcomes in plain words", async () => {
+    const { formatDuration, runSummary } = await import("@/features/room/components/run-result");
+    expect(formatDuration(420)).toBe("420 ms");
+    expect(formatDuration(4210)).toBe("4.2 s");
+    expect(formatDuration(38_211)).toBe("38 s");
+    expect(formatDuration(125_000)).toBe("2 min 5 s");
+    const ran = { at: "", durationMs: null, output: null };
+    expect(runSummary({ tool: "bash" }, { ...ran, outcome: "failed", exitCode: 1 })).toBe(
+      "Ran and failed (exit 1)",
+    );
+    expect(runSummary({ tool: "edit" }, { ...ran, outcome: "succeeded", exitCode: null })).toBe(
+      "Changed the file and succeeded",
+    );
+    expect(runSummary({ tool: "mcp" }, { ...ran, outcome: "interrupted", exitCode: null })).toBe(
+      "Stopped before it finished",
+    );
   });
 });

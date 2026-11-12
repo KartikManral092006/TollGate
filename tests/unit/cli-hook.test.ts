@@ -3,12 +3,20 @@ import { DEFAULT_PRESETS } from "@/features/gates/shared/presets";
 import type { HookGateStatus } from "@/features/gates/shared/hook-api";
 import {
   decide,
+  describeRun,
+  outputTail,
   renderDecision,
+  reportRun,
   type HookApi,
   type HookDeps,
   type RepoConfig,
 } from "@/packages/cli/src/hook";
-import { HOOK_MATCHER, isTollgateHook, mergeHookSettings } from "@/packages/cli/src/init";
+import {
+  HOOK_MATCHER,
+  isTollgateHook,
+  mergeHookSettings,
+  REPORT_EVENTS,
+} from "@/packages/cli/src/init";
 
 const config: RepoConfig = {
   repoRoot: "/w/acme",
@@ -49,6 +57,7 @@ function setup(options: {
     }),
     getGate: vi.fn(async () => (statuses.length > 1 ? statuses.shift()! : statuses[0]!)),
     park: vi.fn(async () => ({ status: "parked" })),
+    reportOutcome: vi.fn(async () => ({ ok: true })),
   };
   const deps: HookDeps = {
     loadConfig: () => (options.config === undefined ? config : options.config),
@@ -388,6 +397,23 @@ describe("mergeHookSettings", () => {
     expect(again).toEqual(merged);
   });
 
+  it("reports after the call with async hooks, once, keeping the user's own", () => {
+    const existing = {
+      hooks: {
+        PostToolUse: [{ matcher: "Write", hooks: [{ type: "command", command: "./fmt.sh" }] }],
+      },
+    };
+    const command = 'node "/new/tollgate.mjs" hook';
+    const merged = mergeHookSettings(mergeHookSettings(existing, command, 300), command, 300);
+    for (const event of REPORT_EVENTS) {
+      const ours = merged.hooks![event]!.filter((m) => m.hooks!.some((h) => h.command === command));
+      expect(ours).toHaveLength(1);
+      expect(ours[0]).toMatchObject({ matcher: HOOK_MATCHER });
+      expect(ours[0]!.hooks![0]).toMatchObject({ async: true, timeout: 15 });
+    }
+    expect(merged.hooks!.PostToolUse![0]).toEqual(existing.hooks.PostToolUse[0]);
+  });
+
   it("registers for commands, file edits and MCP tools", () => {
     const matcher = new RegExp(`^(${HOOK_MATCHER})$`);
     for (const tool of [
@@ -407,5 +433,93 @@ describe("mergeHookSettings", () => {
     expect(isTollgateHook('node "/Users/a/.config/tollgate/bin/tollgate.mjs" hook')).toBe(true);
     expect(isTollgateHook("npx tollgate-cli hook")).toBe(true);
     expect(isTollgateHook("./lint.sh")).toBe(false);
+  });
+});
+
+describe("after the call", () => {
+  const post = (command: string, patch: Record<string, unknown>) => ({
+    ...bash(command),
+    hook_event_name: "PostToolUse",
+    ...patch,
+  });
+
+  it("reads success, failure, exit code and interruption from Claude Code's events", () => {
+    expect(
+      describeRun(
+        post("vercel --prod", {
+          tool_response: { stdout: "Deployed to https://acme.vercel.app", stderr: "" },
+          duration_ms: 4210.6,
+        }),
+        "bash",
+        [],
+      ),
+    ).toEqual({
+      outcome: "succeeded",
+      exitCode: null,
+      durationMs: 4211,
+      output: "Deployed to https://acme.vercel.app",
+    });
+    expect(
+      describeRun(
+        {
+          ...bash("prisma migrate deploy"),
+          hook_event_name: "PostToolUseFailure",
+          error: "Exit code 1\nError: P3009 migrate found failed migrations",
+        },
+        "bash",
+        [],
+      ),
+    ).toMatchObject({
+      outcome: "failed",
+      exitCode: 1,
+      output: "Error: P3009 migrate found failed migrations",
+    });
+    expect(
+      describeRun(
+        {
+          ...bash("x"),
+          hook_event_name: "PostToolUseFailure",
+          error: "Aborted",
+          is_interrupt: true,
+        },
+        "bash",
+        [],
+      ),
+    ).toMatchObject({ outcome: "interrupted", exitCode: null });
+    // An MCP result is the tool's data, not a log: never sent.
+    expect(
+      describeRun(post("x", { tool_response: { stdout: "card 4242" } }), "mcp", []),
+    ).toMatchObject({ outcome: "succeeded", output: null });
+  });
+
+  it("keeps only the redacted tail of the output", () => {
+    const lines = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`);
+    const tail = outputTail([...lines, "token=supersecretvalue"].join("\n"), ["supersecretvalue"])!;
+    expect(tail.split("\n")).toHaveLength(15);
+    expect(tail).not.toContain("supersecretvalue");
+    expect(tail.startsWith("line 27")).toBe(true);
+    expect(outputTail("x".repeat(5000), [])!.length).toBeLessThanOrEqual(1000);
+    expect(outputTail("   \n", [])).toBeNull();
+  });
+
+  it("reports gated calls only, bound to the same command hash as the gate", async () => {
+    const { deps, api } = setup({});
+    expect(await reportRun(post("npm test", { tool_response: {} }), deps)).toBe(false);
+    expect(await reportRun(post("vercel --prod", { tool_response: {} }), deps)).toBe(true);
+    await decide(bash("vercel --prod"), deps);
+    const created = vi.mocked(api.createGate).mock.calls[0]![0] as { cmdHash: string };
+    expect(vi.mocked(api.reportOutcome).mock.calls[0]![0]).toMatchObject({
+      cmdHash: created.cmdHash,
+      outcome: "succeeded",
+    });
+  });
+
+  it("never throws, whatever the server does", async () => {
+    const { deps, api } = setup({});
+    vi.mocked(api.reportOutcome).mockRejectedValueOnce(new Error("ECONNREFUSED"));
+    expect(await reportRun(post("vercel --prod", { tool_response: {} }), deps)).toBe(false);
+    expect(await reportRun(post("vercel --prod", {}), { ...deps, loadToken: () => null })).toBe(
+      false,
+    );
   });
 });

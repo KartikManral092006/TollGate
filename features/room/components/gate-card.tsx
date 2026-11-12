@@ -48,6 +48,7 @@ import { ContextView } from "@/features/room/components/context-view";
 import { EnvBadge, STATUS } from "@/features/room/components/gate-status";
 import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
+import { RunResult } from "@/features/room/components/run-result";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
 
@@ -695,6 +696,7 @@ export function GateCard({
           </p>
         )}
         <WindowLines gate={gate} onEnd={viewer.canOpenWindows ? onEndWindow : undefined} />
+        <RunResult gate={gate} />
 
         {open && gate.insights && gate.insights.approvers.length > 0 && (
           <SuggestedApprovers

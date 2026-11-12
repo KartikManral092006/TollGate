@@ -97,6 +97,8 @@ const CSV_COLUMNS = [
   "created_at",
   "decided_at",
   "redactions",
+  "ran",
+  "exit_code",
 ] as const;
 
 // RFC 4180 quoting, plus a leading ' on values a spreadsheet would run as a formula.
@@ -127,6 +129,8 @@ export function gatesToCsv(gates: GateView[]): string {
       g.createdAt,
       g.decidedAt,
       g.redactions,
+      g.ran?.outcome ?? null,
+      g.ran?.exitCode ?? null,
     ]
       .map(csvCell)
       .join(","),

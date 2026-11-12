@@ -1,8 +1,14 @@
-import { commandHash, type HookGateStatus } from "../../../features/gates/shared/hook-api";
+import {
+  commandHash,
+  type HookGateStatus,
+  type ReportOutcomeInput,
+} from "../../../features/gates/shared/hook-api";
+import { OUTPUT_TAIL_MAX, type GateOutcome } from "../../../features/gates/shared/outcomes";
 import {
   matchCommand,
   withDefaultPresets,
   TOOL_NOUN as NOUN,
+  type CommandMatch,
   type GateTool,
   type Preset,
 } from "../../../features/gates/shared/presets";
@@ -20,6 +26,13 @@ export type HookInput = {
   tool_input?: { command?: unknown; description?: unknown } & Record<string, unknown>;
   cwd?: string;
   session_id?: string;
+  // PostToolUse: the tool's result (Bash: stdout, stderr, interrupted).
+  tool_response?: unknown;
+  // PostToolUseFailure: the error text (Bash: "Exit code N" then the output) and whether it
+  // was an abort.
+  error?: unknown;
+  is_interrupt?: unknown;
+  duration_ms?: unknown;
 };
 
 export type Decision =
@@ -42,6 +55,7 @@ export type HookApi = {
   createGate(body: Record<string, unknown>): Promise<HookGateStatus>;
   getGate(id: string): Promise<HookGateStatus>;
   park(id: string): Promise<{ status: string }>;
+  reportOutcome(body: ReportOutcomeInput): Promise<unknown>;
 };
 
 export type HookDeps = {
@@ -93,24 +107,38 @@ export function failClosedMessage(server: string, error: unknown, tool: GateTool
   return `Tollgate could not reach ${server} (${detail}), so this risky ${NOUN[tool]} was blocked to be safe. Tell the user; do not try to work around it.`;
 }
 
-export async function decide(input: HookInput, deps: HookDeps): Promise<Decision> {
+type GatedCall = {
+  config: RepoConfig;
+  call: ToolCall;
+  match: CommandMatch;
+  cwd: string;
+  command: string;
+  isBash: boolean;
+};
+
+// Whether this tool call is one the repo's presets gate. Shared by the decision before the
+// call and the report after it, so both see exactly the same calls.
+function findGatedCall(
+  input: HookInput,
+  deps: HookDeps,
+): GatedCall | { none: true; note?: string } {
   const toolName = input.tool_name ?? "";
   const isBash = toolName === "Bash";
   if (!isBash && !EDIT_TOOLS.has(toolName) && !toolName.startsWith("mcp__")) {
-    return { kind: "none" };
+    return { none: true };
   }
   const command =
     isBash && typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
   const cwd = input.cwd || process.cwd();
-  if (isBash && !command.trim()) return { kind: "none" };
+  if (isBash && !command.trim()) return { none: true };
 
   const config = deps.loadConfig(cwd);
-  if (!config) return { kind: "none", note: "no .tollgate.json" };
+  if (!config) return { none: true, note: "no .tollgate.json" };
 
   const call: ToolCall | null = isBash
     ? { tool: "bash", subject: command, hashSource: command, detail: "" }
     : readToolCall(toolName, input.tool_input, { cwd, repoRoot: config.repoRoot, home: deps.home });
-  if (!call) return { kind: "none" };
+  if (!call) return { none: true };
 
   const match = matchCommand(withDefaultPresets(config.presets), {
     command: call.subject,
@@ -120,7 +148,14 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
     readScripts:
       isBash && deps.readScripts ? (dir) => deps.readScripts!(dir, config.repoRoot) : undefined,
   });
-  if (!match) return { kind: "none" };
+  if (!match) return { none: true };
+  return { config, call, match, cwd, command, isBash };
+}
+
+export async function decide(input: HookInput, deps: HookDeps): Promise<Decision> {
+  const found = findGatedCall(input, deps);
+  if ("none" in found) return found.note ? { kind: "none", note: found.note } : { kind: "none" };
+  const { config, call, match, cwd, command, isBash } = found;
 
   // A human can start Claude Code with TOLLGATE_BYPASS=1 in an emergency. The agent can't
   // set it: the hook inherits Claude Code's environment, not the Bash tool's shell.
@@ -224,6 +259,78 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
     }
   } catch (error) {
     return { kind: "deny", reason: failClosedMessage(config.server, error, call.tool) };
+  }
+}
+
+// The last lines of what a call printed: enough to see why it failed, never the whole log.
+export const OUTPUT_TAIL_LINES = 15;
+
+export function outputTail(text: string, secrets: readonly string[]): string | null {
+  const lines = text.replace(/\s+$/, "").split("\n");
+  const tail = lines.slice(-OUTPUT_TAIL_LINES).join("\n");
+  const clipped =
+    tail.length > OUTPUT_TAIL_MAX - 2 ? `…${tail.slice(-(OUTPUT_TAIL_MAX - 2))}` : tail;
+  const cleaned = redact(clipped, secrets).text.trim();
+  return cleaned ? truncate(cleaned, OUTPUT_TAIL_MAX) : null;
+}
+
+const str = (value: unknown) => (typeof value === "string" ? value : "");
+
+// What PostToolUse / PostToolUseFailure says happened, in the shape the server stores. Pure.
+export function describeRun(
+  input: HookInput,
+  tool: GateTool,
+  secrets: readonly string[],
+): Omit<ReportOutcomeInput, "cmdHash"> {
+  const durationMs =
+    typeof input.duration_ms === "number" && Number.isFinite(input.duration_ms)
+      ? Math.max(0, Math.round(input.duration_ms))
+      : null;
+  if (input.hook_event_name === "PostToolUseFailure") {
+    const error = str(input.error);
+    // Bash and PowerShell failures start with "Exit code N" when the command ran and exited.
+    const exit = /^Exit code (-?\d+)\s*(?:\n|$)/.exec(error);
+    const exitCode = exit ? Number(exit[1]) : null;
+    const outcome: GateOutcome = input.is_interrupt === true ? "interrupted" : "failed";
+    return {
+      outcome,
+      exitCode: exitCode !== null && exitCode >= -1 && exitCode <= 255 ? exitCode : null,
+      durationMs,
+      output: outputTail(exit ? error.slice(exit[0].length) : error, secrets),
+    };
+  }
+  const response = (
+    input.tool_response && typeof input.tool_response === "object" ? input.tool_response : {}
+  ) as Record<string, unknown>;
+  // An MCP result or an edit's response is data the team didn't ask to see; only a command's
+  // own output is kept.
+  const printed =
+    tool === "bash" ? [str(response.stdout), str(response.stderr)].filter(Boolean).join("\n") : "";
+  return {
+    outcome: response.interrupted === true ? "interrupted" : "succeeded",
+    exitCode: null,
+    durationMs,
+    output: printed ? outputTail(printed, secrets) : null,
+  };
+}
+
+// After a gated call ran: tell the server how it went. Runs as an async hook, so it never
+// slows the agent down, prints nothing and never throws.
+export async function reportRun(input: HookInput, deps: HookDeps): Promise<boolean> {
+  const found = findGatedCall(input, deps);
+  if ("none" in found || found.config.error) return false;
+  const { config, call, cwd } = found;
+  const token = deps.loadToken(config.repoRoot);
+  if (!token) return false;
+  const report: ReportOutcomeInput = {
+    cmdHash: commandHash({ repo: config.repo, cwd, command: call.hashSource }),
+    ...describeRun(input, call.tool, deps.envSecrets(config.repoRoot)),
+  };
+  try {
+    await deps.api(config, token).reportOutcome(report);
+    return true;
+  } catch {
+    return false;
   }
 }
 

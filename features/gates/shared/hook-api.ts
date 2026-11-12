@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { GATE_OUTCOMES, OUTPUT_TAIL_MAX } from "./outcomes";
 import { GATE_TOOLS } from "./presets";
 
 // The contract between the CLI hook and /api/hook/*. Shared so both sides parse the same way.
@@ -61,3 +62,23 @@ export type HookGateStatus = {
   mode: "guard" | "delegate";
   url: string;
 };
+
+// What happened when an approved call ran (CLI 0.3+, from Claude Code's PostToolUse and
+// PostToolUseFailure hooks). Bound to the gate by the same cmdHash the grant uses.
+export const reportOutcomeSchema = z
+  .object({
+    cmdHash: z.string().regex(SHA256_RE),
+    outcome: z.enum(GATE_OUTCOMES),
+    exitCode: z.number().int().min(-1).max(255).nullable().optional(),
+    durationMs: z
+      .number()
+      .int()
+      .min(0)
+      .max(7 * 86_400_000)
+      .nullable()
+      .optional(),
+    output: z.string().max(OUTPUT_TAIL_MAX).nullable().optional(), // redacted by the hook
+  })
+  .strict();
+
+export type ReportOutcomeInput = z.infer<typeof reportOutcomeSchema>;
