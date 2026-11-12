@@ -1,9 +1,10 @@
 import { after, connection } from "next/server";
 import { getNexconn } from "@/features/nexconn/server";
-import { dismissGroup } from "@/features/nexconn/server/api";
+import { dismissGroup, updateGroupName } from "@/features/nexconn/server/api";
 import { deleteTeam, DeleteTeamError } from "@/features/teams/server/delete-team";
 import { readBody, requireMember, requireWriter } from "@/features/teams/server/http";
-import { deleteTeamSchema } from "@/features/teams/shared/schemas";
+import { renameTeam, RenameTeamError } from "@/features/teams/server/rename-team";
+import { deleteTeamSchema, renameTeamSchema } from "@/features/teams/shared/schemas";
 import { db } from "@/lib/db";
 import { json } from "@/lib/http";
 import { logger } from "@/lib/logger";
@@ -66,4 +67,47 @@ export async function DELETE(request: Request, ctx: RouteContext<"/api/teams/[id
   }
 
   return json({ ok: true, name: deleted.name });
+}
+
+// Owner only: renames the team. The new name shows in Tollgate at once; the chat group's name
+// follows after the response, so a Nexconn outage never blocks a rename.
+export async function PATCH(request: Request, ctx: RouteContext<"/api/teams/[id]">) {
+  await connection();
+  const auth = await requireWriter(request, {
+    name: "team-rename",
+    rule: { window: 3600, max: 20 },
+  });
+  if (!auth.ok) return auth.response;
+  const { id } = await ctx.params;
+  const member = await requireMember(id, auth.user.id, ["owner"]);
+  if (!member.ok) return member.response;
+  const body = await readBody(request, renameTeamSchema);
+  if (!body.ok) return body.response;
+
+  let renamed;
+  try {
+    renamed = await renameTeam(db, { teamId: id, actorId: auth.user.id, name: body.data.name });
+  } catch (error) {
+    if (error instanceof RenameTeamError) {
+      return error.reason === "not_owner"
+        ? json({ error: "forbidden" }, 403)
+        : json({ error: "not_found" }, 404);
+    }
+    throw error;
+  }
+
+  if (renamed.changed && renamed.hadChatGroup) {
+    after(async () => {
+      try {
+        await updateGroupName(getNexconn(), {
+          channelId: renamed.nexconnChannelId,
+          name: renamed.name,
+        });
+      } catch (error) {
+        logger.warn({ err: error, teamId: id }, "chat group kept the team's old name");
+      }
+    });
+  }
+
+  return json({ ok: true, name: renamed.name });
 }

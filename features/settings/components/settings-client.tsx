@@ -36,7 +36,7 @@ import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { timeAgo } from "@/features/room/shared/format";
 import { AiSettings } from "@/features/settings/components/ai-card";
 import { CopyField } from "@/features/settings/components/copy-field";
-import { TeamExit } from "@/features/settings/components/delete-team-card";
+import { TeamExit, TeamName } from "@/features/settings/components/delete-team-card";
 import { FreezeSettings } from "@/features/settings/components/freeze-card";
 import { RulesSettings } from "@/features/settings/components/rules-card";
 import type { FreezeView } from "@/features/teams/shared/freeze";
@@ -657,6 +657,7 @@ export function SettingsClient({
   const isOwner = viewer.role === "owner";
   const canLink = viewer.role !== "guest";
   const [sections] = useState<NavSection[]>(() => [
+    ...(isOwner ? [{ id: "team", label: "Team name" }] : []),
     ...(canLink ? [{ id: "link", label: "Link a repo" }] : []),
     { id: "repos", label: "Linked repos" },
     ...(isOwner ? [{ id: "invite", label: "Invite people" }] : []),
@@ -676,6 +677,15 @@ export function SettingsClient({
       <div className="flex-1 px-4 sm:px-6 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10 lg:px-10 xl:gap-16">
         <SectionNav sections={sections} active={active} />
         <div className="max-w-5xl pb-16">
+          {isOwner && (
+            <Section
+              id="team"
+              title="Team name"
+              description="Shown to everyone in the team, in the sidebar, on invites and in the team's chat."
+            >
+              <TeamName teamId={teamId} initial={teamName} />
+            </Section>
+          )}
           {canLink && (
             <Section
               id="link"

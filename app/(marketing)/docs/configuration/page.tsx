@@ -140,8 +140,12 @@ export default function ConfigurationPage() {
         </li>
       </List>
 
-      <H2 id="delete-team">Leaving or deleting a team</H2>
+      <H2 id="delete-team">Renaming, leaving or deleting a team</H2>
       <List>
+        <li>
+          <strong>Settings › Team name</strong>: the owner can rename the team. Everyone sees the
+          new name at once, and the team&apos;s chat follows.
+        </li>
         <li>
           <strong>Settings › Leave team</strong>: anyone except the owner can leave. The team drops
           off their list, their machines&apos; tokens for its repos stop working and their waiting
