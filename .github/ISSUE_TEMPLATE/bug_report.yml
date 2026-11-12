@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in Tollgate doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For a security problem, don't use this form: see SECURITY.md.
+        Please remove tokens, secrets and private repo names before posting.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where did it happen?
+      options:
+        - Web app (room, review, settings, audit)
+        - CLI or hook (tollgate-cli)
+        - Notifications or chat
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+  - type: input
+    id: cli
+    attributes:
+      label: CLI version
+      description: Output of `npx -y tollgate-cli --version`, if the CLI is involved.
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Browser, operating system, Node.js and Claude Code versions, as relevant.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Messages or logs
+      description: Error messages, the hook's output, or browser console errors. Redact secrets.
+      render: text
