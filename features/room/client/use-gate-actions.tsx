@@ -103,6 +103,28 @@ export function useGateActions({
     toast.success("Window ended. The agent's next gate of that kind asks again.");
   }
 
+  // Post a gate's explanation into the team's room, streamed in by the Tollgate bot.
+  async function shareWhy(gate: GateView): Promise<boolean> {
+    const response = await fetch(`/api/gates/${gate.id}/why/share`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }).catch(() => null);
+    if (response?.ok) {
+      toast.success(`Sharing the explanation of TG-${gate.code} in the room.`);
+      return true;
+    }
+    const error = ((await response?.json().catch(() => ({}))) ?? {}) as { error?: string };
+    toast.error(
+      error.error === "already_shared"
+        ? "Someone shared this explanation a moment ago."
+        : error.error === "chat_unavailable"
+          ? "The team's chat isn't set up yet, so it can't be shared."
+          : "Couldn't share it. Try again.",
+    );
+    return false;
+  }
+
   async function explain(gate: GateView): Promise<WhyResult | null> {
     const response = await fetch(`/api/gates/${gate.id}/why`, {
       method: "POST",
@@ -132,6 +154,7 @@ export function useGateActions({
     deny: setDenying,
     ask: setAsking,
     explain,
+    shareWhy,
     // Which gate has a drawer open, and why: the room reports it as "typing".
     composing: denying ?? asking,
     drawers,

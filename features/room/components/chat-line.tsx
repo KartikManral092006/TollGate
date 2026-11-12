@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Pencil,
   Quote as QuoteIcon,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
@@ -123,10 +124,15 @@ export function ChatLineView({
         mentionsMe && "-mx-3 border-s-2 border-s-brand bg-brand/5 px-3",
       )}
     >
-      <PersonAvatar id={line.senderId} name={line.mine ? "You" : name} />
+      <PersonAvatar id={line.senderId} name={line.why ? "Tollgate" : line.mine ? "You" : name} />
       <div className="min-w-0">
         <p className="flex items-baseline gap-2 text-sm">
-          <span className="font-semibold">{line.mine ? "You" : name}</span>
+          <span className="font-semibold">{line.why ? "Tollgate" : line.mine ? "You" : name}</span>
+          {line.why && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-1.5 text-[11px] font-medium text-brand">
+              <Sparkles className="size-3" aria-hidden /> Why? shared by {line.why.by}
+            </span>
+          )}
           {line.teamOnly && (
             <span className="inline-flex items-center gap-1 rounded-full bg-gate-pending/15 px-1.5 text-[11px] font-medium text-gate-pending-fg">
               <Lock className="size-3" aria-hidden /> Team only
@@ -209,6 +215,12 @@ export function ChatLineView({
               </span>
             ))}
           {editing === null && withMentions(body, mentionNames)}
+          {line.why && !line.why.complete && (
+            <span
+              aria-label="Still arriving"
+              className="ms-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-brand/60 align-middle"
+            />
+          )}
         </p>
         {line.attachment?.kind === "image" &&
           (line.attachment.url ? (
