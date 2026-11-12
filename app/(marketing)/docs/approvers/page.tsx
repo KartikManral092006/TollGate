@@ -126,6 +126,14 @@ export default function ApproversPage() {
           clients never receive.
         </li>
         <li>Translate a message into your language from its menu.</li>
+        <li>
+          <strong>Quote in reply</strong>, also in a message&apos;s menu, answers a specific message
+          and shows it above your reply.
+        </li>
+        <li>
+          Under a gate&apos;s <strong>Why?</strong> explanation,{" "}
+          <strong>Share with the team</strong> posts it into the room for everyone.
+        </li>
       </List>
 
       <H2 id="parked">When the agent stops waiting</H2>
