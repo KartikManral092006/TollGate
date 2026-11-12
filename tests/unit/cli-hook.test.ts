@@ -59,6 +59,7 @@ function setup(options: {
     park: vi.fn(async () => ({ status: "parked" })),
     reportOutcome: vi.fn(async () => ({ ok: true })),
     reportBypass: vi.fn(async () => ({ ok: true })),
+    attachPreview: vi.fn(async () => ({})),
   };
   const deps: HookDeps = {
     loadConfig: () => (options.config === undefined ? config : options.config),

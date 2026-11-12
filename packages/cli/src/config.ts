@@ -21,6 +21,8 @@ const configSchema = z.object({
   repo: z.string().min(1).max(200),
   presets: presetListSchema.optional(),
   hookTimeoutSec: z.number().int().min(30).max(600).optional(),
+  // Read-only impact previews on gates (default on): false skips them for this repo.
+  previews: z.boolean().optional(),
 });
 
 export type ConfigFile = z.infer<typeof configSchema>;
@@ -94,6 +96,7 @@ export function loadConfig(cwd: string): RepoConfig | null {
     repo: file.repo,
     presets: file.presets ?? DEFAULT_PRESETS,
     hookTimeoutSec: file.hookTimeoutSec ?? DEFAULT_HOOK_TIMEOUT_SEC,
+    previews: file.previews ?? true,
   };
 }
 

@@ -43,6 +43,8 @@ An approval covers that exact edit or call only. Custom presets take `"tool": "e
 | `.claude/settings.local.json` | No (added to `.gitignore`): your personal hook registration                           |
 | `~/.config/tollgate/`         | Never in a repo: your token (file mode 0600), the hook bundle and `sessions/` (below) |
 
+**What it will do.** Once the card is up, the hook runs read-only checks and adds the result: the commit a deploy ships (and any uncommitted or unpushed work), the exact `name@version` a publish releases, how many files an `rm -rf` deletes, pending Prisma migrations, a Terraform plan (`-lock=false`, or `terraform show` for a saved plan). Every check has a time limit; set `"previews": false` in `.tollgate.json` to skip them.
+
 **The agent's task (opt-in).** If your team's owner turns it on (Settings › What approvers see), a gate also shows your last instruction to the agent and the calls it made since (at most five: a command's first line, a file's path, an MCP tool's name). The hook keeps these notes per session in `~/.config/tollgate/sessions/` (mode 0600, linked repos only, redacted before writing, deleted after a week) from Claude Code's `UserPromptSubmit` and `PostToolUse` events.
 
 ## What the hook can see through

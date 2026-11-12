@@ -16,6 +16,7 @@ import {
 } from "../../../features/gates/shared/presets";
 import { redact, truncate } from "../../../features/gates/shared/redact";
 import type { OutboxItem, SendResult } from "./outbox";
+import { PREVIEW_MAX, PREVIEW_MIN_TIME_MS, type PreviewInput } from "./preview";
 import type { SessionNotes } from "./session";
 import { EDIT_TOOLS, readToolCall, type ToolCall } from "./tool-call";
 
@@ -52,6 +53,8 @@ export type RepoConfig = {
   repo: string;
   presets: Preset[];
   hookTimeoutSec: number;
+  // Read-only impact previews (preview.ts); on unless .tollgate.json says "previews": false.
+  previews?: boolean;
   // Set when .tollgate.json exists but can't be read: risky commands are then blocked.
   error?: string;
 };
@@ -65,6 +68,7 @@ export type HookApi = {
   park(id: string): Promise<{ status: string }>;
   reportOutcome(body: ReportOutcomeInput): Promise<unknown>;
   reportBypass(body: Record<string, unknown>): Promise<unknown>;
+  attachPreview(id: string, preview: string): Promise<unknown>;
 };
 
 export type HookDeps = {
@@ -85,6 +89,8 @@ export type HookDeps = {
   progress(message: string): void;
   // 32 letters and digits, for a bypass report's id (the server records each id once).
   newId(): string;
+  // What the command will do, from read-only checks on this machine (preview.ts).
+  preview?(input: PreviewInput): string | null;
   // Reports waiting to reach the server (outbox.ts).
   outbox?: {
     add(item: OutboxItem): void;
@@ -359,6 +365,26 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
     deps.progress(
       `Tollgate: waiting on your team · TG-${gate.code} (0/${gate.quorum}) · ${gate.url}`,
     );
+    // The card is up; now show the team what it will do. Read-only checks, while they look.
+    if (
+      gate.previews &&
+      config.previews !== false &&
+      deps.preview &&
+      (gate.status === "pending" || gate.status === "parked") &&
+      deadline - deps.now() > PREVIEW_MIN_TIME_MS
+    ) {
+      const text = deps.preview({
+        preset: match.preset.name,
+        segment: match.segment,
+        cwd,
+        repoRoot: config.repoRoot,
+      });
+      if (text) {
+        await api
+          .attachPreview(gate.id, truncate(redact(text, secrets).text, PREVIEW_MAX))
+          .catch(() => undefined);
+      }
+    }
 
     for (;;) {
       if (gate.status === "approved") {

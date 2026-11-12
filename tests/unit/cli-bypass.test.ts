@@ -32,6 +32,7 @@ function setup(options: { bypass?: boolean; token?: string | null } = {}) {
     park: vi.fn(),
     reportOutcome: vi.fn(async () => ({})),
     reportBypass: vi.fn(async () => ({ ok: true })),
+    attachPreview: vi.fn(async () => ({})),
   };
   const deps: HookDeps = {
     loadConfig: () => ({

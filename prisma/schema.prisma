@@ -257,6 +257,7 @@ model Gate {
   cwd           String // redacted
   branch        String?
   context       String           @db.VarChar(2048) // redacted, truncated
+  preview       String?          @db.VarChar(2000) // what it will do, from read-only checks on the developer's machine (CLI 0.3+); redacted
   intent        String?          @db.VarChar(300) // the agent's own description of the command; redacted
   via           String?          @db.VarChar(1400) // "pnpm db:deploy → prisma migrate deploy" lines; redacted
   sessionId     String?          @db.VarChar(200) // Claude Code session, for grouping a run's gates later

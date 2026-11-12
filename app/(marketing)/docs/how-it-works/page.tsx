@@ -128,6 +128,41 @@ export default function HowItWorksPage() {
         ]}
       />
 
+      <H2 id="impact">What it will do</H2>
+      <P>
+        Once the card is up, the hook runs a few read-only checks on your machine and adds what the
+        command will actually do, so approvers judge the effect rather than the command&apos;s text.
+        Nothing here changes anything, every check has a time limit, and a check that fails is left
+        out.
+      </P>
+      <Table
+        head={["Command", "What the card shows"]}
+        rows={[
+          [
+            "Deploys (vercel, fly, railway)",
+            "The branch and commit that go out, uncommitted changes that go with it, commits nobody pushed",
+          ],
+          [
+            "npm, pnpm, yarn, cargo publish",
+            "The exact name@version, whether it's public, a missing git tag, private packages",
+          ],
+          [<C key="rm">rm -rf</C>, "How many files each path holds, and how many git tracks"],
+          [
+            <C key="pm">prisma migrate deploy</C>,
+            "The migrations still waiting (prisma migrate status)",
+          ],
+          [
+            <C key="tf">terraform apply / destroy</C>,
+            "The plan's counts and what will be destroyed or replaced first (terraform plan -lock=false, or terraform show for a saved plan)",
+          ],
+        ]}
+      />
+      <P>
+        The result is redacted like everything else. Set <C>&quot;previews&quot;: false</C> in{" "}
+        <C>.tollgate.json</C> to skip them for a repo, for example when <C>terraform plan</C> needs
+        credentials the agent&apos;s machine shouldn&apos;t use.
+      </P>
+
       <H2 id="after-it-runs">After it runs</H2>
       <P>
         Once an approved call has run, the card shows whether it succeeded or failed, the exit code

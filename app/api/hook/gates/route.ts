@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     decidedBy: null,
     mode: auth.principal.mode,
     url: gateUrl(gate.teamId, gate.id),
+    previews: true,
   };
   return json(body, 201);
 }

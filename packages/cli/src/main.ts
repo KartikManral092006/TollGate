@@ -30,6 +30,7 @@ import {
 } from "./hook";
 import { hookCommandFor, installBundle, writeRepoFiles } from "./init";
 import { addToOutbox, flushOutbox, readOutbox } from "./outbox";
+import { buildPreview, systemPreviewDeps } from "./preview";
 import { readNotes, recordStep, saveTask } from "./session";
 
 declare const TOLLGATE_VERSION: string;
@@ -71,6 +72,7 @@ function hookDeps(): HookDeps {
       const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
       return Array.from(randomBytes(32), (byte) => alphabet[byte % alphabet.length]).join("");
     },
+    preview: (input) => buildPreview(input, systemPreviewDeps(homedir())),
     outbox: {
       add: (item) => addToOutbox(tollgateHome(), item),
       flush: (send) => flushOutbox(tollgateHome(), send, Date.now()),
