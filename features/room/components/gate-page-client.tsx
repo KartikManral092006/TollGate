@@ -137,6 +137,8 @@ export function GatePageClient({
                   <p
                     className="text-xs text-muted-foreground"
                     title={new Date(event.at).toLocaleString()}
+                    // Relative time: the server's render is older than the browser's.
+                    suppressHydrationWarning
                   >
                     {timeAgo(event.at)}, {clockTime(event.at)}
                   </p>

@@ -31,7 +31,7 @@ export function isTollgateHook(command: string): boolean {
 export const REPORT_EVENTS = ["PostToolUse", "PostToolUseFailure"] as const;
 const REPORT_TIMEOUT_SEC = 15;
 
-const EVENTS = ["PreToolUse", ...REPORT_EVENTS] as const;
+const EVENTS = ["PreToolUse", ...REPORT_EVENTS, "UserPromptSubmit"] as const;
 
 function withoutTollgate(matchers: Matcher[] | undefined): Matcher[] {
   return (matchers ?? [])
@@ -79,6 +79,14 @@ export function mergeHookSettings(
       },
     ];
   }
+  // The developer's instruction, kept on this machine for the team's opt-in "agent's task".
+  // No matcher (prompts have no tool); async, so typing never waits on it.
+  hooks.UserPromptSubmit = [
+    ...hooks.UserPromptSubmit!,
+    {
+      hooks: [{ type: "command", command: hookCommand, timeout: REPORT_TIMEOUT_SEC, async: true }],
+    },
+  ];
   return { ...existing, hooks };
 }
 

@@ -20,6 +20,7 @@ import {
 import {
   decide,
   PARK_MARGIN_SEC,
+  rememberTask,
   renderDecision,
   reportRun,
   type Decision,
@@ -27,6 +28,7 @@ import {
   type HookInput,
 } from "./hook";
 import { hookCommandFor, installBundle, writeRepoFiles } from "./init";
+import { readNotes, recordStep, saveTask } from "./session";
 
 declare const TOLLGATE_VERSION: string;
 
@@ -63,6 +65,11 @@ function hookDeps(): HookDeps {
       process.stderr.write(`tollgate: ${event} ${JSON.stringify(detail)}\n`);
     },
     progress: (message) => process.stderr.write(`${message}\n`),
+    notes: {
+      read: (sessionId) => readNotes(tollgateHome(), sessionId),
+      saveTask: (sessionId, text) => saveTask(tollgateHome(), sessionId, text, Date.now()),
+      recordStep: (sessionId, text) => recordStep(tollgateHome(), sessionId, text, Date.now()),
+    },
   };
 }
 
@@ -85,6 +92,11 @@ async function runHook(): Promise<void> {
     input = JSON.parse(await readStdin()) as HookInput;
   } catch {
     return; // not a hook payload: no opinion
+  }
+  // The developer's instruction (async): kept on this machine for the team's opt-in "task".
+  if (input.hook_event_name === "UserPromptSubmit") {
+    rememberTask(input, hookDeps());
+    return;
   }
   // After the call ran (registered as async hooks): report how it went, print nothing.
   if (input.hook_event_name === "PostToolUse" || input.hook_event_name === "PostToolUseFailure") {

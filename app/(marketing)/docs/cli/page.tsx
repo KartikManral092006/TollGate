@@ -82,6 +82,11 @@ export default function CliPage() {
             "Your token for each linked repo",
           ],
           [<C key="4">audit.log</C>, "~/.config/tollgate/", "Local record of bypasses"],
+          [
+            <C key="5">sessions/</C>,
+            "~/.config/tollgate/ (only you can read it)",
+            "Per Claude Code session: your last instruction to the agent and its last five calls, redacted. Sent only if your team shares the agent's task; deleted after a week",
+          ],
         ]}
       />
 

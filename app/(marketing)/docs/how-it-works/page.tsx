@@ -96,6 +96,14 @@ export default function HowItWorksPage() {
         migration&apos;s SQL), the agent&apos;s stated reason, and its Claude Code session id. For
         an edit, the path and the change; for an MCP call, the tool&apos;s name and arguments.
       </P>
+      <P>
+        If the team&apos;s owner turns on <strong>The agent&apos;s task</strong> (Settings › What
+        approvers see), a gate also carries your last instruction to the agent and the calls it made
+        since: at most five, as a command&apos;s first line, a file&apos;s path or an MCP
+        tool&apos;s name, never its arguments or output. The hook keeps these notes on your machine
+        from Claude Code&apos;s <C>UserPromptSubmit</C> and <C>PostToolUse</C> events, only for
+        linked repos, with secrets removed before they&apos;re written. It&apos;s off by default.
+      </P>
 
       <H2 id="waiting">While your team decides</H2>
       <P>

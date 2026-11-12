@@ -37,11 +37,13 @@ An approval covers that exact edit or call only. Custom presets take `"tool": "e
 
 `init` writes:
 
-| File                          | Commit it?                                                       |
-| ----------------------------- | ---------------------------------------------------------------- |
-| `.tollgate.json`              | Yes: server, repo and presets, shared by the team                |
-| `.claude/settings.local.json` | No (added to `.gitignore`): your personal hook registration      |
-| `~/.config/tollgate/`         | Never in a repo: your token (file mode 0600) and the hook bundle |
+| File                          | Commit it?                                                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------- |
+| `.tollgate.json`              | Yes: server, repo and presets, shared by the team                                     |
+| `.claude/settings.local.json` | No (added to `.gitignore`): your personal hook registration                           |
+| `~/.config/tollgate/`         | Never in a repo: your token (file mode 0600), the hook bundle and `sessions/` (below) |
+
+**The agent's task (opt-in).** If your team's owner turns it on (Settings › What approvers see), a gate also shows your last instruction to the agent and the calls it made since (at most five: a command's first line, a file's path, an MCP tool's name). The hook keeps these notes per session in `~/.config/tollgate/sessions/` (mode 0600, linked repos only, redacted before writing, deleted after a week) from Claude Code's `UserPromptSubmit` and `PostToolUse` events.
 
 ## What the hook can see through
 

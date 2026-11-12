@@ -1,6 +1,6 @@
 import type { GateStatus, PrismaClient, VoteDecision } from "@/lib/generated/prisma/client";
 import type { HookPrincipal } from "@/features/gates/server/hook-tokens";
-import type { CreateGateInput } from "@/features/gates/shared/hook-api";
+import { TASK_MAX, type CreateGateInput } from "@/features/gates/shared/hook-api";
 import {
   authoritativeQuorum,
   DEFAULT_PRESETS,
@@ -53,6 +53,9 @@ export async function createGate(
   const cwd = redact(input.cwd);
   const context = redact(input.context);
   const intent = input.intent ? redact(input.intent) : null;
+  // Only kept when the team shares the agent's task, whatever a client sends.
+  const task = principal.shareTask && input.task?.trim() ? redact(input.task.trim()) : null;
+  const steps = principal.shareTask ? (input.steps ?? []).map((step) => redact(step)) : [];
   const via = (input.via ?? []).map((line) => ({
     from: redact(line.from),
     runs: redact(line.runs),
@@ -147,6 +150,8 @@ export async function createGate(
         branch: input.branch ? truncate(redact(input.branch).text, 200) : null,
         context: truncate(context.text, 2048),
         intent: intent ? truncate(intent.text, 300) : null,
+        task: task ? truncate(task.text, TASK_MAX) : null,
+        steps: steps.length ? truncate(steps.map((step) => step.text).join("\n"), 1000) : null,
         via: via.length
           ? truncate(via.map((line) => `${line.from.text} → ${line.runs.text}`).join("\n"), 1400)
           : null,
@@ -161,6 +166,8 @@ export async function createGate(
           cwd.count +
           context.count +
           (intent?.count ?? 0) +
+          (task?.count ?? 0) +
+          steps.reduce((sum, step) => sum + step.count, 0) +
           via.reduce((sum, line) => sum + line.from.count + line.runs.count, 0),
         cmdHash: input.cmdHash,
         quorum: policy.quorum,

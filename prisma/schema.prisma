@@ -149,6 +149,8 @@ model Team {
   nexconnChannelId    String           @unique // "tg" + id
   nexconnGroupReadyAt DateTime? // set once the Nexconn group exists
   nextGateCode        Int              @default(1) // TG-n; taken in the gate-create transaction
+  // Approvers see the developer's last instruction to the agent and its last few steps (CLI 0.3+).
+  shareAgentTask      Boolean          @default(false)
   createdById         String?
   createdBy           User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt           DateTime         @default(now())
@@ -256,6 +258,8 @@ model Gate {
   intent        String?          @db.VarChar(300) // the agent's own description of the command; redacted
   via           String?          @db.VarChar(1400) // "pnpm db:deploy → prisma migrate deploy" lines; redacted
   sessionId     String?          @db.VarChar(200) // Claude Code session, for grouping a run's gates later
+  task          String?          @db.VarChar(500) // the developer's last instruction to the agent; redacted, opt-in
+  steps         String?          @db.VarChar(1000) // the agent's last few calls before this one, one per line; redacted
   redactions    Int
   cmdHash       String // sha256(command + cwd + repo), from the hook; binds the grant
   quorum        Int

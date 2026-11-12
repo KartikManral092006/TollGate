@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { consumeGrant } from "@/features/gates/server/gates";
 import { requireHook, requireJsonContent } from "@/features/gates/server/hook-http";
-import { consumeGrantSchema } from "@/features/gates/shared/hook-api";
+import { consumeGrantSchema, type ConsumeGrantResponse } from "@/features/gates/shared/hook-api";
 import { db } from "@/lib/db";
 import { json } from "@/lib/http";
 import { readJsonBody, TOO_LARGE } from "@/lib/request-guard";
@@ -23,7 +23,9 @@ export async function POST(request: Request) {
     repoId: auth.principal.repoId,
     cmdHash: parsed.data.cmdHash,
   });
-  return json(
-    grant ? { ok: true, gateId: grant.gateId, mode: auth.principal.mode } : { ok: false },
-  );
+  const shareTask = auth.principal.shareTask;
+  const body: ConsumeGrantResponse = grant
+    ? { ok: true, gateId: grant.gateId, mode: auth.principal.mode, shareTask }
+    : { ok: false, shareTask };
+  return json(body);
 }

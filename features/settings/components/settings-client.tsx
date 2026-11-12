@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/code-block";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { PolicyState } from "@/features/insights/server/policy";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
@@ -50,6 +51,58 @@ const ROLE_LABEL: Record<string, string> = {
   requester: "Requester",
   guest: "Client",
 };
+
+// Owner only. Off by default: the developer's own words are more personal than a command.
+function SharingSettings({
+  teamId,
+  isOwner,
+  initial,
+}: {
+  teamId: string;
+  isOwner: boolean;
+  initial: { shareAgentTask: boolean };
+}) {
+  const [on, setOn] = useState(initial.shareAgentTask);
+  const [busy, setBusy] = useState(false);
+
+  async function change(next: boolean) {
+    setBusy(true);
+    setOn(next);
+    const { ok } = await postJson(`/api/teams/${teamId}/sharing`, { shareAgentTask: next }, "PUT");
+    setBusy(false);
+    if (!ok) {
+      setOn(!next);
+      toast.error("Couldn't save that. Try again.");
+      return;
+    }
+    toast.success(
+      next ? "Approvers now see the agent's task." : "The agent's task is no longer shared.",
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <label className="flex items-start gap-3">
+        <Switch
+          checked={on}
+          onCheckedChange={(next) => void change(next)}
+          disabled={!isOwner || busy}
+          className="mt-0.5"
+          aria-describedby="share-task-help"
+        />
+        <span className="flex flex-col gap-1">
+          <span className="text-sm font-medium">The agent&apos;s task</span>
+          <span id="share-task-help" className="text-sm text-muted-foreground">
+            The developer&apos;s last instruction to the agent and the calls it made since (at most
+            five: a command&apos;s first line, a file&apos;s path, an MCP tool&apos;s name). Helps
+            approvers judge whether the command fits the job. Needs CLI 0.3 or later.
+          </span>
+        </span>
+      </label>
+      {!isOwner && <p className="text-xs text-muted-foreground">Only the owner can change this.</p>}
+    </div>
+  );
+}
 
 async function postJson(url: string, body: unknown, method = "POST") {
   const response = await fetch(url, {
@@ -584,11 +637,13 @@ export function SettingsClient({
   invites,
   ai,
   policy,
+  sharing,
 }: {
   teamId: string;
   teamName: string;
   ai: AiConfigView;
   policy: PolicyState;
+  sharing: { shareAgentTask: boolean };
   viewer: { id: string; role: string };
   members: Member[];
   repos: RepoRow[];
@@ -601,6 +656,7 @@ export function SettingsClient({
     { id: "repos", label: "Linked repos" },
     ...(isOwner ? [{ id: "invite", label: "Invite people" }] : []),
     { id: "rules", label: "Rules" },
+    { id: "sharing", label: "What approvers see" },
     { id: "ai", label: "AI explanations" },
     { id: "members", label: "Members" },
   ]);
@@ -644,6 +700,13 @@ export function SettingsClient({
             description="When your team approves the same kind of command every time, waiting adds little. Suggested after 10 approvals in 30 days with no denials; never for production, publishing, infrastructure or deletes outside the repo."
           >
             <RulesSettings teamId={teamId} isOwner={isOwner} state={policy} />
+          </Section>
+          <Section
+            id="sharing"
+            title="What approvers see"
+            description="Besides the command itself. Everything here comes from the developer's machine with secrets removed there, and again on the server."
+          >
+            <SharingSettings teamId={teamId} isOwner={isOwner} initial={sharing} />
           </Section>
           <Section
             id="ai"
