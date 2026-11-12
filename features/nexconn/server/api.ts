@@ -61,6 +61,20 @@ export async function joinGroup(
   }
 }
 
+// Takes people out of a group (docs/nexconn.md: /v4/group-channel/leave). A group that no
+// longer exists has nobody left to remove.
+export async function leaveGroup(
+  client: NexconnClient,
+  input: { channelId: string; userIds: string[] },
+): Promise<void> {
+  try {
+    await client.call("/v4/group-channel/leave", input, { retryOnFailover: true });
+  } catch (error) {
+    if (isCode(error, NexconnCode.GroupMissing)) return;
+    throw error;
+  }
+}
+
 export async function sendGroupMessage(
   client: NexconnClient,
   input: {

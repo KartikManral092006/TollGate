@@ -65,10 +65,12 @@ function ConfirmRevoke({
   title,
   description,
   onConfirm,
+  label = "Revoke",
 }: {
   title: string;
-  description: string;
+  description: React.ReactNode;
   onConfirm: () => Promise<void>;
+  label?: string;
 }) {
   const [busy, setBusy] = useState(false);
   return (
@@ -76,7 +78,7 @@ function ConfirmRevoke({
       <AlertDialogTrigger
         render={<Button variant="ghost" size="sm" className="shrink-0 text-destructive" />}
       >
-        Revoke
+        {label}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -98,7 +100,7 @@ function ConfirmRevoke({
             }}
           >
             {busy && <Loader2 className="animate-spin" />}
-            Revoke
+            {label}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -411,7 +413,33 @@ function Invites({ teamId, invites }: { teamId: string; invites: InviteRow[] }) 
   );
 }
 
-function Members({ members, viewerId }: { members: Member[]; viewerId: string }) {
+function Members({
+  teamId,
+  members,
+  viewerId,
+  isOwner,
+}: {
+  teamId: string;
+  members: Member[];
+  viewerId: string;
+  isOwner: boolean;
+}) {
+  const router = useRouter();
+
+  async function remove(member: Member) {
+    const { ok, data } = await postJson(`/api/teams/${teamId}/members/${member.id}`, {}, "DELETE");
+    if (!ok) {
+      toast.error(
+        data.error === "cannot_remove_owner"
+          ? "The team's owner can't be removed."
+          : `Couldn't remove ${member.name}. Try again.`,
+      );
+      return;
+    }
+    toast.success(`${member.name} was removed from the team.`);
+    router.refresh();
+  }
+
   return (
     <ul className="divide-y border-y">
       {members.map((member) => (
@@ -434,6 +462,21 @@ function Members({ members, viewerId }: { members: Member[]; viewerId: string })
           <span className="text-sm text-muted-foreground">
             {ROLE_LABEL[member.role] ?? member.role}
           </span>
+          {isOwner && member.id !== viewerId && member.role !== "owner" && (
+            <ConfirmRevoke
+              label="Remove"
+              title={`Remove ${member.name} from the team?`}
+              description={
+                <>
+                  They lose access right away: their machines&apos; tokens stop working, their
+                  waiting gates and votes on open gates are cancelled, and invite links they made
+                  stop working. Past decisions stay in the audit log. You can invite them again
+                  later.
+                </>
+              }
+              onConfirm={() => remove(member)}
+            />
+          )}
         </li>
       ))}
     </ul>
@@ -620,7 +663,7 @@ export function SettingsClient({
             title="Members"
             description="Owners, approvers and clients can vote. Nobody can approve their own agent's command."
           >
-            <Members members={members} viewerId={viewer.id} />
+            <Members teamId={teamId} members={members} viewerId={viewer.id} isOwner={isOwner} />
           </Section>
         </div>
       </div>
