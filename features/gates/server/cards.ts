@@ -125,6 +125,7 @@ export async function mirrorGateState(deps: CardDeps, gateId: string): Promise<v
       seen: gate._count.seen,
       outcome: gate.outcome,
       reviewed: gate.reviewedAt !== null,
+      previewed: gate.preview !== null,
     }),
   });
 }

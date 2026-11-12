@@ -18,6 +18,7 @@ import {
 } from "@/features/gates/shared/view";
 import { STATUS } from "@/features/room/components/gate-status";
 import { AgentTask } from "@/features/room/components/agent-task";
+import { ImpactPreview } from "@/features/room/components/impact-preview";
 import { RunResult, runSummary } from "@/features/room/components/run-result";
 import { useNow } from "@/features/room/components/park-countdown";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
@@ -148,6 +149,7 @@ function Details({ gate, teamId }: { gate: GateView; teamId: string }) {
             &ldquo;{gate.intent}&rdquo;
           </p>
         )}
+        <ImpactPreview gate={gate} />
         <AgentTask gate={gate} />
         <RunResult gate={gate} />
         <p className="text-xs text-muted-foreground">

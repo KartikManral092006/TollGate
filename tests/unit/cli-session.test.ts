@@ -117,6 +117,7 @@ function deps(options: { shareTask?: boolean; linked?: boolean } = {}) {
     park: vi.fn(),
     reportOutcome: vi.fn(async () => ({})),
     reportBypass: vi.fn(async () => ({})),
+    attachPreview: vi.fn(async () => ({})),
   };
   const hookDeps: HookDeps = {
     loadConfig: () =>

@@ -50,6 +50,7 @@ import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { AgentTask } from "@/features/room/components/agent-task";
 import { BypassReview } from "@/features/room/components/bypass-review";
+import { ImpactPreview } from "@/features/room/components/impact-preview";
 import { RunResult } from "@/features/room/components/run-result";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
@@ -496,6 +497,8 @@ export function GateCard({
             })}
           </div>
         )}
+
+        <ImpactPreview gate={gate} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {gate.redactions > 0 && (

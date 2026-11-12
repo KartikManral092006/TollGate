@@ -75,7 +75,11 @@ export type HookGateStatus = {
   decidedBy: string | null;
   mode: "guard" | "delegate";
   url: string;
+  // The server takes an impact preview for this gate (0.3+): POST /api/hook/gates/:id/preview.
+  previews?: boolean;
 };
+
+export const attachPreviewSchema = z.object({ preview: z.string().min(1).max(2000) }).strict();
 
 // What happened when an approved call ran (CLI 0.3+, from Claude Code's PostToolUse and
 // PostToolUseFailure hooks). Bound to the gate by the same cmdHash the grant uses.

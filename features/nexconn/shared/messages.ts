@@ -139,6 +139,8 @@ export type GateMetadataInput = {
   outcome?: string | null;
   // A bypassed gate someone on the team has reviewed.
   reviewed?: boolean;
+  // The hook attached its impact preview.
+  previewed?: boolean;
 };
 
 export function gateMetadata(input: GateMetadataInput): Record<string, string> {
@@ -155,6 +157,7 @@ export function gateMetadata(input: GateMetadataInput): Record<string, string> {
   if (input.seen) values.sn = String(input.seen);
   if (input.outcome) values.out = input.outcome.charAt(0);
   if (input.reviewed) values.rv = "1";
+  if (input.previewed) values.pv = "1";
   return toMetadata(values);
 }
 
