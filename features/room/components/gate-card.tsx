@@ -18,6 +18,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { HoldButton } from "@/components/hold-button";
@@ -303,7 +304,13 @@ export function GateCard({
     >
       {/* Who asked, and the gate's state as a line running down beside it. */}
       <div className="flex flex-col items-center gap-2 pt-0.5">
-        <PersonAvatar id={gate.requester.id} name={gate.requester.name} />
+        <Link
+          href={`/people/${gate.requester.id}`}
+          aria-label={`${gate.requester.name}'s profile`}
+          className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <PersonAvatar id={gate.requester.id} name={gate.requester.name} />
+        </Link>
         <motion.span
           aria-hidden
           layout
@@ -315,9 +322,12 @@ export function GateCard({
         <header className="flex flex-col gap-1">
           <div className="flex items-start gap-3">
             <p className="min-w-0 flex-1 text-sm">
-              <span className="font-semibold">
+              <Link
+                href={`/people/${gate.requester.id}`}
+                className="font-semibold underline-offset-4 hover:underline"
+              >
                 {mine ? "Your agent" : `${gate.requester.name}'s agent`}
-              </span>{" "}
+              </Link>{" "}
               <span className="text-muted-foreground">{WANTS[gate.tool]}</span>{" "}
               <span className="font-mono font-bold">TG-{gate.code}</span>
             </p>
@@ -597,7 +607,12 @@ export function GateCard({
               >
                 <PersonAvatar id={vote.userId} name={vote.name} size="sm" />
                 <span className="min-w-0">
-                  <span className="font-medium">{vote.name}</span>{" "}
+                  <Link
+                    href={`/people/${vote.userId}`}
+                    className="font-medium underline-offset-4 hover:underline"
+                  >
+                    {vote.name}
+                  </Link>{" "}
                   <span
                     className={
                       vote.decision === "approve"

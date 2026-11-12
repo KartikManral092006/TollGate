@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { AllClear } from "@/components/road/all-clear";
 import { isOpenStatus, type GateView } from "@/features/gates/shared/view";
 import { EnvBadge } from "@/features/room/components/gate-status";
@@ -139,7 +140,12 @@ export function RoomRail({
                   )
                 )}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm">{member.name}</span>
+              <Link
+                href={`/people/${member.id}`}
+                className="min-w-0 flex-1 truncate text-sm underline-offset-4 hover:text-primary hover:underline"
+              >
+                {member.name}
+              </Link>
               <span className="text-xs text-muted-foreground">
                 {ROLE_LABEL[member.role] ?? member.role}
               </span>

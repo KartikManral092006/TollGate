@@ -1,6 +1,7 @@
 "use client";
 
 import { KeyRound, Link2, Loader2, ShieldCheck, Terminal, Zap } from "lucide-react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -417,10 +418,13 @@ function Members({ members, viewerId }: { members: Member[]; viewerId: string })
         <li key={member.id} className="flex items-center gap-3 py-2.5">
           <PersonAvatar id={member.id} name={member.name} size="sm" />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm font-medium">
+            <Link
+              href={`/people/${member.id}`}
+              className="truncate text-sm font-medium underline-offset-4 hover:text-primary hover:underline"
+            >
               {member.name}
               {member.id === viewerId && <span className="text-muted-foreground"> (you)</span>}
-            </span>
+            </Link>
             {member.invitedBy && (
               <span className="truncate text-xs text-muted-foreground">
                 Joined via {member.invitedBy}’s invite

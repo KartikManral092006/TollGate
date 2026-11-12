@@ -67,6 +67,8 @@ export type ProfileSession = {
 export type ProfileView = {
   user: { id: string; name: string; email: string | null; memberSince: string };
   isSelf: boolean;
+  // Who is looking, so their own gates read "your TG-12".
+  viewerId: string;
   // Teams in view: all of yours on your own profile, the shared ones on a teammate's.
   teams: ProfileTeam[];
   gates: ProfileGate[];
