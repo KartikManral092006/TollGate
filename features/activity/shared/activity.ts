@@ -7,6 +7,8 @@ export type ActivityGate = {
   teamId: string;
   teamName: string;
   requester: { id: string; name: string };
+  // As stored: secrets were removed on the developer's machine and on the server.
+  command: string;
   status: string;
   question: string | null;
   createdAt: string;
@@ -31,9 +33,20 @@ export type ActivityEvent = {
   code: number;
   kind: "raised" | "approved" | "denied" | "asked" | "parked" | "auto";
   text: string;
+  // The command's first line, so the feed says what each gate is about.
+  command: string;
+  // Still waiting for a decision now (pending or parked): worth opening.
+  waiting: boolean;
   // Your agent's gate: decisions on it matter most to you.
   mine: boolean;
 };
+
+const COMMAND_PREVIEW = 120;
+
+export function commandPreview(command: string): string {
+  const line = command.split("\n")[0]?.trim() ?? "";
+  return line.length > COMMAND_PREVIEW ? `${line.slice(0, COMMAND_PREVIEW - 1)}…` : line;
+}
 
 const LIMIT = 40;
 
@@ -45,6 +58,8 @@ export function activityEvents(gates: ActivityGate[], viewerId: string): Activit
       teamName: gate.teamName,
       gateId: gate.id,
       code: gate.code,
+      command: commandPreview(gate.command),
+      waiting: gate.status === "pending" || gate.status === "parked",
       mine: gate.requester.id === viewerId,
     };
     if (!base.mine) {

@@ -14,6 +14,7 @@ function gate(patch: Partial<ActivityGate>): ActivityGate {
     teamId: "t",
     teamName: "Billing",
     requester: { id: "kartik", name: "Kartik" },
+    command: "pnpm db:deploy",
     status: "pending",
     question: null,
     createdAt: at(0),
@@ -78,5 +79,19 @@ describe("unreadCount", () => {
     const events = activityEvents([gate({ parkedAt: at(10) })], "me");
     expect(unreadCount(events, Date.parse(at(5)))).toBe(1);
     expect(unreadCount(events, 0)).toBe(2);
+  });
+});
+
+describe("activity command preview", () => {
+  it("shows the command's first line, shortened, and whether the gate still waits", () => {
+    const long = `npx prisma migrate deploy ${"x".repeat(200)}\nsecond line`;
+    const [open] = activityEvents([gate({ command: long, status: "parked" })], "me");
+    expect(open?.command.endsWith("…")).toBe(true);
+    expect(open?.command.length).toBe(120);
+    expect(open?.command).not.toContain("second line");
+    expect(open?.waiting).toBe(true);
+    const [done] = activityEvents([gate({ status: "approved" })], "me");
+    expect(done?.command).toBe("pnpm db:deploy");
+    expect(done?.waiting).toBe(false);
   });
 });

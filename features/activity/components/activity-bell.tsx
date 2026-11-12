@@ -121,8 +121,20 @@ export function ActivityBell({ className }: { className?: string }) {
                           <span className={cn("block text-sm", event.mine && "font-medium")}>
                             {event.text}
                           </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {event.teamName}, {timeAgo(event.at)}
+                          {event.command && (
+                            <span className="mt-0.5 block truncate font-mono text-xs text-foreground/75">
+                              {event.command}
+                            </span>
+                          )}
+                          <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="truncate">
+                              {event.teamName}, {timeAgo(event.at)}
+                            </span>
+                            {event.kind === "raised" && event.waiting && (
+                              <span className="shrink-0 rounded-full bg-gate-pending-bg px-1.5 font-semibold text-gate-pending-fg">
+                                Waiting
+                              </span>
+                            )}
                           </span>
                         </span>
                       </Link>
