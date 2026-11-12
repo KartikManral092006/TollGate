@@ -155,7 +155,12 @@ export default function HowItWorksPage() {
         <p>
           A person can start Claude Code with <C>TOLLGATE_BYPASS=1</C> to let gated commands
           through. The agent can&apos;t set it: the hook reads Claude Code&apos;s environment, not
-          the agent&apos;s shell. Each bypass is logged in <C>~/.config/tollgate/audit.log</C>.
+          the agent&apos;s shell. Each bypass is logged in <C>~/.config/tollgate/audit.log</C> and,
+          from CLI 0.3, reported to the team: it shows in the room as <em>Bypassed</em> with what
+          ran and how it went, approvers are notified, and it stays under &ldquo;Bypassed, needs
+          review&rdquo; until someone who can approve (not you) marks it reviewed. The report is
+          queued on your machine first, so a bypass never waits on the network; it&apos;s sent after
+          the call, and retried on later calls if the server can&apos;t be reached.
         </p>
       </Callout>
 

@@ -75,7 +75,7 @@ After upgrading from 0.2.3 or earlier, run `init` again: it re-registers the hoo
 
 - **Fails closed.** If the server can't be reached, a risky command is blocked, with a message saying why.
 - **Always answers before Claude Code's hook timeout.** Claude Code runs the command if a hook times out, so Tollgate parks the gate 15 s early and has a watchdog as well.
-- **Emergency bypass.** Start Claude Code with `TOLLGATE_BYPASS=1`. Every bypass is logged to `~/.config/tollgate/audit.log`. The agent can't set this itself: the hook reads Claude Code's environment, not the Bash tool's shell.
+- **Emergency bypass.** Start Claude Code with `TOLLGATE_BYPASS=1`. Every bypass is logged to `~/.config/tollgate/audit.log` and reported to your team: it shows in the room as _Bypassed_, approvers are notified, and it waits for someone else to mark it reviewed. The report is queued in `~/.config/tollgate/outbox.jsonl` and sent after the call, so a bypass never waits on the network. The agent can't set this itself: the hook reads Claude Code's environment, not the Bash tool's shell.
 - **Delegate mode** (opt-in per repo, owner only) makes a team approval skip Claude Code's own prompt for that exact command.
 
 Requires Node 20.19 or later.

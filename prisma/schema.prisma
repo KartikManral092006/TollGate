@@ -34,7 +34,8 @@ model User {
   invited        Membership[]     @relation("MembershipInviter")
   invitesCreated Invite[]
   hookTokens     HookToken[]
-  gatesRequested Gate[]
+  gatesRequested Gate[]           @relation("GateRequester")
+  gatesReviewed  Gate[]           @relation("GateReviewer")
   policyRules    PolicyRule[]
   windowsFor     ApprovalWindow[] @relation("WindowRequester")
   windowsOpened  ApprovalWindow[] @relation("WindowCreator")
@@ -111,6 +112,7 @@ enum GateStatus {
   denied
   parked
   expired
+  bypassed // ran without the team: someone started Claude Code with TOLLGATE_BYPASS=1
 }
 
 enum VoteDecision {
@@ -284,7 +286,12 @@ model Gate {
   updatedAt     DateTime         @updatedAt
   team          Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
   repo          RepoLink         @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  requester     User             @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  requester     User             @relation("GateRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  // A bypassed gate's after-the-fact review: someone on the team looked at what ran.
+  reviewedAt    DateTime?
+  reviewedById  String?
+  reviewNote    String?          @db.VarChar(500)
+  reviewedBy    User?            @relation("GateReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   votes         Vote[]
   invites       Invite[]
   seen          GateSeen[]

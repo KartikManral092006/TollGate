@@ -4,6 +4,7 @@ import {
   Clock3,
   MessageCircleQuestion,
   PauseCircle,
+  ShieldOff,
   TimerOff,
   type LucideIcon,
 } from "lucide-react";
@@ -54,6 +55,13 @@ export const STATUS: Record<GateDisplayStatus, StatusMeta> = {
     icon: TimerOff,
     stripe: "bg-gate-parked",
     chip: "bg-gate-parked-bg text-gate-parked-fg",
+  },
+  // Started with TOLLGATE_BYPASS=1: it ran, but nobody on the team decided.
+  bypassed: {
+    label: "Bypassed",
+    icon: ShieldOff,
+    stripe: "bg-gate-denied",
+    chip: "bg-gate-denied-bg text-gate-denied-fg",
   },
 };
 

@@ -15,6 +15,7 @@ import {
   type Preset,
 } from "../../../features/gates/shared/presets";
 import { redact, truncate } from "../../../features/gates/shared/redact";
+import type { OutboxItem, SendResult } from "./outbox";
 import type { SessionNotes } from "./session";
 import { EDIT_TOOLS, readToolCall, type ToolCall } from "./tool-call";
 
@@ -63,6 +64,7 @@ export type HookApi = {
   getGate(id: string): Promise<HookGateStatus>;
   park(id: string): Promise<{ status: string }>;
   reportOutcome(body: ReportOutcomeInput): Promise<unknown>;
+  reportBypass(body: Record<string, unknown>): Promise<unknown>;
 };
 
 export type HookDeps = {
@@ -81,6 +83,13 @@ export type HookDeps = {
   sleep(ms: number): Promise<void>;
   audit(event: string, detail: Record<string, unknown>): void;
   progress(message: string): void;
+  // 32 letters and digits, for a bypass report's id (the server records each id once).
+  newId(): string;
+  // Reports waiting to reach the server (outbox.ts).
+  outbox?: {
+    add(item: OutboxItem): void;
+    flush(send: (item: OutboxItem) => Promise<SendResult>): Promise<unknown>;
+  };
   // This machine's notes on what the agent was asked and just did (session.ts).
   notes?: {
     read(sessionId: string): SessionNotes;
@@ -224,15 +233,89 @@ export function rememberTask(input: HookInput, deps: HookDeps): boolean {
   }
 }
 
+// What a gate (or a bypass report) says about the call, redacted on this machine first.
+function gateFields(found: GatedCall, input: HookInput, deps: HookDeps, secrets: string[]) {
+  const { config, call, match, cwd, command, isBash } = found;
+  const redactedCommand = redact(call.subject, secrets);
+  const redactedCwd = redact(cwd, secrets);
+  // A command's context comes from what actually runs, so "pnpm db:deploy" still shows the
+  // migration SQL. An edit's context is the change itself.
+  const context = redact(
+    isBash ? deps.context(`${command}\n${match.segment}`, config.repoRoot) : call.detail,
+    secrets,
+  );
+  const via =
+    match.via.length > 0
+      ? {
+          from: redact(match.via.join(" → "), secrets),
+          runs: redact(match.segment, secrets),
+        }
+      : null;
+  const branch = deps.gitBranch(config.repoRoot);
+  // The agent's own reason, shown to approvers as its claim (it can be wrong).
+  const description = isBash ? input.tool_input?.description : undefined;
+  const intent =
+    typeof description === "string" && description.trim()
+      ? redact(description.trim(), secrets)
+      : null;
+  return {
+    preset: match.preset.name,
+    // Only sent when it isn't a command, so servers from before file gates still accept it.
+    ...(call.tool === "bash" ? {} : { tool: call.tool }),
+    env: match.env,
+    command: truncate(redactedCommand.text, 4000),
+    cwd: truncate(redactedCwd.text, 500),
+    branch: branch ? truncate(redact(branch, secrets).text, 200) : null,
+    context: truncate(context.text, 2048),
+    intent: intent ? truncate(intent.text, 300) : null,
+    via: via
+      ? [{ from: truncate(via.from.text, 300), runs: truncate(via.runs.text, 1000) }]
+      : undefined,
+    redactions:
+      redactedCommand.count +
+      redactedCwd.count +
+      context.count +
+      (intent?.count ?? 0) +
+      (via ? via.from.count + via.runs.count : 0),
+    sessionId: input.session_id,
+  };
+}
+
+// TOLLGATE_BYPASS=1: the call goes through, and the team hears about it. Queued here without
+// touching the network (it's an emergency, and the server may be why), sent after the call.
+function queueBypass(found: GatedCall, input: HookInput, deps: HookDeps): boolean {
+  const { config, call, cwd } = found;
+  if (config.error || !deps.outbox || !deps.loadToken(config.repoRoot)) return false;
+  try {
+    const at = deps.now();
+    deps.outbox.add({
+      kind: "bypass",
+      repoRoot: config.repoRoot,
+      server: config.server,
+      at,
+      body: {
+        ...gateFields(found, input, deps, deps.envSecrets(config.repoRoot)),
+        id: deps.newId(),
+        at,
+        cmdHash: commandHash({ repo: config.repo, cwd, command: call.hashSource }),
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function decide(input: HookInput, deps: HookDeps): Promise<Decision> {
   const found = findGatedCall(input, deps);
   if ("none" in found) return found.note ? { kind: "none", note: found.note } : { kind: "none" };
-  const { config, call, match, cwd, command, isBash } = found;
+  const { config, call, match, cwd } = found;
 
   // A human can start Claude Code with TOLLGATE_BYPASS=1 in an emergency. The agent can't
   // set it: the hook inherits Claude Code's environment, not the Bash tool's shell.
   if (deps.env.TOLLGATE_BYPASS === "1") {
-    deps.audit("bypass", { preset: match.preset.name, repo: config.repo });
+    const queued = queueBypass(found, input, deps);
+    deps.audit("bypass", { preset: match.preset.name, repo: config.repo, reported: queued });
     return { kind: "none", note: "TOLLGATE_BYPASS=1" };
   }
 
@@ -260,57 +343,17 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
     }
 
     const secrets = deps.envSecrets(config.repoRoot);
-    const redactedCommand = redact(call.subject, secrets);
-    const redactedCwd = redact(cwd, secrets);
-    // A command's context comes from what actually runs, so "pnpm db:deploy" still shows the
-    // migration SQL. An edit's context is the change itself.
-    const context = redact(
-      isBash ? deps.context(`${command}\n${match.segment}`, config.repoRoot) : call.detail,
-      secrets,
-    );
-    const via =
-      match.via.length > 0
-        ? {
-            from: redact(match.via.join(" → "), secrets),
-            runs: redact(match.segment, secrets),
-          }
-        : null;
     const shared =
       grant.shareTask && input.session_id && deps.notes
         ? agentTask(deps.notes.read(input.session_id), secrets)
         : null;
-    const branch = deps.gitBranch(config.repoRoot);
-    // The agent's own reason, shown to approvers as its claim (it can be wrong).
-    const description = isBash ? input.tool_input?.description : undefined;
-    const intent =
-      typeof description === "string" && description.trim()
-        ? redact(description.trim(), secrets)
-        : null;
 
     let gate = await api.createGate({
-      preset: match.preset.name,
-      // Only sent when it isn't a command, so servers from before file gates still accept it.
-      ...(call.tool === "bash" ? {} : { tool: call.tool }),
+      ...gateFields(found, input, deps, secrets),
       quorum: match.quorum,
-      env: match.env,
-      command: truncate(redactedCommand.text, 4000),
-      cwd: truncate(redactedCwd.text, 500),
-      branch: branch ? truncate(redact(branch, secrets).text, 200) : null,
-      context: truncate(context.text, 2048),
-      intent: intent ? truncate(intent.text, 300) : null,
-      via: via
-        ? [{ from: truncate(via.from.text, 300), runs: truncate(via.runs.text, 1000) }]
-        : undefined,
-      redactions:
-        redactedCommand.count +
-        redactedCwd.count +
-        context.count +
-        (intent?.count ?? 0) +
-        (via ? via.from.count + via.runs.count : 0),
       // Only to servers that asked for it, which also know these fields.
       ...(shared ? { task: shared.task, steps: shared.steps } : {}),
       cmdHash,
-      sessionId: input.session_id,
       waitSec: Math.round((deadline - started) / 1000),
     });
     deps.progress(
@@ -395,6 +438,8 @@ export function describeRun(
 // After a call ran (async PostToolUse / PostToolUseFailure): note it for this session and,
 // when it was gated, tell the server how it went. Prints nothing and never throws.
 export async function reportRun(input: HookInput, deps: HookDeps): Promise<boolean> {
+  // Queued bypasses first, so this call's outcome finds its bypassed gate on the server.
+  await sendOutbox(deps);
   const read = readCall(input, deps);
   if ("none" in read || read.config.error) return false;
   const { config, call, cwd } = read;
@@ -419,6 +464,41 @@ export async function reportRun(input: HookInput, deps: HookDeps): Promise<boole
     return true;
   } catch {
     return false;
+  }
+}
+
+// What to do with a queued report the server answered: keep it only when trying again later
+// can work (offline, the server erroring or busy). A server too old to know bypasses, or a
+// token that's gone, won't change by retrying.
+export function outboxResult(error: unknown): SendResult {
+  const status = (error as { status?: unknown } | null)?.status;
+  if (typeof status !== "number") return "retry";
+  if (status === 429 || status >= 500) return "retry";
+  return "drop";
+}
+
+export async function sendOutbox(deps: HookDeps): Promise<void> {
+  if (!deps.outbox) return;
+  try {
+    await deps.outbox.flush(async (item) => {
+      const token = deps.loadToken(item.repoRoot);
+      if (!token) return "drop";
+      const config: RepoConfig = {
+        repoRoot: item.repoRoot,
+        server: item.server,
+        repo: "",
+        presets: [],
+        hookTimeoutSec: 300,
+      };
+      try {
+        await deps.api(config, token).reportBypass(item.body);
+        return "sent";
+      } catch (error) {
+        return outboxResult(error);
+      }
+    });
+  } catch {
+    // the outbox is retried on the next call
   }
 }
 

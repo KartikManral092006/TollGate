@@ -66,7 +66,7 @@ export type ConsumeGrantResponse =
 export type HookGateStatus = {
   id: string;
   code: number;
-  status: "pending" | "approved" | "denied" | "parked" | "expired";
+  status: "pending" | "approved" | "denied" | "parked" | "expired" | "bypassed";
   quorum: number;
   approvals: number;
   denyReason: string | null;
@@ -96,3 +96,17 @@ export const reportOutcomeSchema = z
   .strict();
 
 export type ReportOutcomeInput = z.infer<typeof reportOutcomeSchema>;
+
+// Someone started Claude Code with TOLLGATE_BYPASS=1 and a gated call went through without the
+// team (CLI 0.3+). Queued on the laptop and sent after the call, so an emergency never waits
+// on the network. `id` is made by the hook: sending the same report twice records it once.
+export const reportBypassSchema = createGateSchema
+  .omit({ quorum: true, waitSec: true, task: true, steps: true })
+  .extend({
+    id: z.string().regex(GATE_ID_RE),
+    // When it happened (ms since epoch); a queued report can arrive later.
+    at: z.number().int().positive(),
+  })
+  .strict();
+
+export type ReportBypassInput = z.infer<typeof reportBypassSchema>;

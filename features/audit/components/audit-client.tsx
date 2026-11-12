@@ -31,6 +31,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "approved", label: "Approved" },
   { value: "denied", label: "Denied" },
   { value: "expired", label: "Expired" },
+  { value: "bypassed", label: "Bypassed" },
 ];
 
 const DOT: Record<GateDisplayStatus, string> = {
@@ -40,6 +41,7 @@ const DOT: Record<GateDisplayStatus, string> = {
   denied: "bg-gate-denied",
   parked: "bg-gate-parked",
   expired: "bg-gate-parked",
+  bypassed: "bg-gate-denied",
 };
 
 function duration(sec: number): string {

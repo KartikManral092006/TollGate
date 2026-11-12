@@ -7,7 +7,7 @@
 //                                      ──deny───────────▶ denied
 //                                      ──24 h───────────▶ expired
 
-export type GateStatus = "pending" | "approved" | "denied" | "parked" | "expired";
+export type GateStatus = "pending" | "approved" | "denied" | "parked" | "expired" | "bypassed";
 export type Decision = "approve" | "deny";
 export type CastVote = { userId: string; decision: Decision };
 

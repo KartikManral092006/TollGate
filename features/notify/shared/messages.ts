@@ -130,3 +130,24 @@ export function gateParkedNotice(
       .join("\n"),
   };
 }
+
+// To approvers: a gated call went through with TOLLGATE_BYPASS=1. It already ran; someone
+// should look at it.
+export function bypassNotice(input: Omit<GateNoticeInput, "quorum">) {
+  const where = input.env === "prod" ? "PROD" : input.env;
+  const headline = `TG-${input.code} ran without approval: ${input.requester} bypassed Tollgate for ${input.preset} on ${where}`;
+  const command = shorten(input.command, 300);
+  const next = "It has already run. Look at what it did and mark it reviewed.";
+  return {
+    push: shorten(`TG-${input.code} bypassed · ${input.requester}: ${command}`, 120),
+    chat: [headline, command, next, input.url].join("\n"),
+    subject: `TG-${input.code} ran without approval (${input.repo})`,
+    text: [headline, "", `  ${command}`, "", next, "", `Review: ${input.url}`].join("\n"),
+    html: [
+      `<p><strong>${escapeHtml(headline)}</strong></p>`,
+      `<pre style="background:#f4f4f5;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-all">${escapeHtml(command)}</pre>`,
+      `<p>${escapeHtml(next)}</p>`,
+      `<p><a href="${escapeHtml(input.url)}">Review TG-${input.code}</a></p>`,
+    ].join("\n"),
+  };
+}

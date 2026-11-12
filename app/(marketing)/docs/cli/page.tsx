@@ -83,6 +83,11 @@ export default function CliPage() {
           ],
           [<C key="4">audit.log</C>, "~/.config/tollgate/", "Local record of bypasses"],
           [
+            <C key="6">outbox.jsonl</C>,
+            "~/.config/tollgate/ (only you can read it)",
+            "Bypass reports waiting to reach the server; status shows how many",
+          ],
+          [
             <C key="5">sessions/</C>,
             "~/.config/tollgate/ (only you can read it)",
             "Per Claude Code session: your last instruction to the agent and its last five calls, redacted. Sent only if your team shares the agent's task; deleted after a week",
@@ -96,7 +101,7 @@ export default function CliPage() {
         rows={[
           [
             <C key="1">TOLLGATE_BYPASS=1</C>,
-            "Set when starting Claude Code: lets gated commands through. Emergencies only; logged.",
+            "Set when starting Claude Code: lets gated commands through. Emergencies only; logged and reported to your team for review.",
           ],
           [
             <C key="2">TOLLGATE_HOME</C>,

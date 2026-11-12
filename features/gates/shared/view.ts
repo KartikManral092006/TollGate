@@ -10,7 +10,7 @@ export function toolOf(value: string | undefined): GateTool {
   return (GATE_TOOLS as readonly string[]).includes(value ?? "") ? (value as GateTool) : "bash";
 }
 
-export type GateStatusView = "pending" | "approved" | "denied" | "parked" | "expired";
+export type GateStatusView = "pending" | "approved" | "denied" | "parked" | "expired" | "bypassed";
 
 export type GateVoteView = {
   userId: string;
@@ -98,6 +98,8 @@ export type GateView = {
   insights?: GateInsights | null;
   // What happened when the approved call ran (CLI 0.3+); null until the hook reports it.
   ran?: GateRunView | null;
+  // A bypassed gate's after-the-fact review, once someone has looked at it.
+  review?: { by: string; at: string; note: string | null } | null;
 };
 
 export type GateRunView = {
@@ -160,6 +162,9 @@ export type GateRow = {
   seen?: { userId: string; seenAt: DateLike; user: { name: string } }[];
   parksAt?: DateLike | null;
   parkedAt: DateLike | null;
+  reviewedAt?: DateLike | null;
+  reviewNote?: string | null;
+  reviewedBy?: { name: string } | null;
   outcome?: string | null;
   outcomeAt?: DateLike | null;
   exitCode?: number | null;
@@ -295,6 +300,13 @@ export function toGateView(row: GateRow): GateView {
       })),
     createdAt: iso(row.createdAt),
     ran: runView(row),
+    review: row.reviewedAt
+      ? {
+          by: row.reviewedBy?.name.trim() || "A teammate",
+          at: iso(row.reviewedAt),
+          note: row.reviewNote ?? null,
+        }
+      : null,
   };
 }
 
@@ -316,4 +328,9 @@ export function displayStatus(gate: Pick<GateView, "status" | "question">): Gate
 
 export function isOpenStatus(status: GateStatusView): boolean {
   return status === "pending" || status === "parked";
+}
+
+// A bypass nobody on the team has looked at yet.
+export function needsReview(gate: Pick<GateView, "status" | "review">): boolean {
+  return gate.status === "bypassed" && !gate.review;
 }

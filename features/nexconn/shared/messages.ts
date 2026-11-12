@@ -12,7 +12,14 @@ export type TgMessageType = (typeof TG)[keyof typeof TG];
 export const MAX_CONTENT_BYTES = 10 * 1024;
 export const MAX_CUSTOM_TYPE_LENGTH = 32;
 
-export const gateStatusSchema = z.enum(["pending", "approved", "denied", "parked", "expired"]);
+export const gateStatusSchema = z.enum([
+  "pending",
+  "approved",
+  "denied",
+  "parked",
+  "expired",
+  "bypassed",
+]);
 export type GateStatusValue = z.infer<typeof gateStatusSchema>;
 
 // The card the bot sends to a team's group. Everything here is already redacted.
@@ -130,6 +137,8 @@ export type GateMetadataInput = {
   seen?: number;
   // What happened when the approved call ran: s(ucceeded), f(ailed) or i(nterrupted).
   outcome?: string | null;
+  // A bypassed gate someone on the team has reviewed.
+  reviewed?: boolean;
 };
 
 export function gateMetadata(input: GateMetadataInput): Record<string, string> {
@@ -145,6 +154,7 @@ export function gateMetadata(input: GateMetadataInput): Record<string, string> {
   if (input.grantExpiresAt) values.exp = String(input.grantExpiresAt.getTime());
   if (input.seen) values.sn = String(input.seen);
   if (input.outcome) values.out = input.outcome.charAt(0);
+  if (input.reviewed) values.rv = "1";
   return toMetadata(values);
 }
 

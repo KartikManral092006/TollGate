@@ -5,6 +5,7 @@ import { sendSystemMessage } from "@/features/nexconn/server/api";
 import { SYSTEM_USER_ID } from "@/features/nexconn/shared/config";
 import { encodeContent } from "@/features/nexconn/shared/messages";
 import {
+  bypassNotice,
   gateParkedNotice,
   gateWaitingNotice,
   parkedDecisionNotice,
@@ -144,5 +145,40 @@ export async function notifyGateParked(deps: NotifyDeps, gateId: string, late = 
     ...voters.map((v) =>
       deps.email({ userId: v.user.id, address: v.user.email }, notice, { kind: "reminder" }),
     ),
+  ]);
+}
+
+// A call went through with TOLLGATE_BYPASS=1: everyone who could have decided hears about it.
+export async function notifyBypass(deps: NotifyDeps, gateId: string) {
+  const gate = await deps.db.gate.findUnique({
+    where: { id: gateId },
+    include: {
+      repo: { select: { name: true } },
+      requester: { select: { id: true, name: true } },
+    },
+  });
+  if (!gate || gate.status !== "bypassed") return;
+  const voters = await deps.db.membership.findMany({
+    where: {
+      teamId: gate.teamId,
+      role: { in: [...VOTING_ROLES] },
+      userId: { not: gate.requesterId },
+    },
+    select: { user: { select: { id: true, email: true, nexconnUserId: true } } },
+  });
+  const notice = bypassNotice({
+    code: gate.code,
+    env: gate.env,
+    preset: gate.preset,
+    repo: gate.repo.name,
+    command: gate.command,
+    requester: displayName(gate.requester.name, gate.requester.id),
+    url: deps.gateUrl(gate.teamId, gate.id),
+    intent: gate.intent,
+  });
+  const nexconnIds = voters.flatMap((v) => (v.user.nexconnUserId ? [v.user.nexconnUserId] : []));
+  await Promise.allSettled([
+    systemMessage(deps, nexconnIds, notice),
+    ...voters.map((v) => deps.email({ userId: v.user.id, address: v.user.email }, notice)),
   ]);
 }

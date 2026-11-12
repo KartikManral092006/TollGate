@@ -6,6 +6,7 @@ import {
   type NotifyDeps,
 } from "@/features/notify/server/notify";
 import {
+  bypassNotice,
   escapeHtml,
   gateParkedNotice,
   gateWaitingNotice,
@@ -26,6 +27,16 @@ const base = {
 };
 
 describe("notice copy", () => {
+  it("says a bypassed call already ran and asks for a review", () => {
+    const notice = bypassNotice({ ...base, command: "vercel --prod <script>" });
+    expect(notice.subject).toBe("TG-17 ran without approval (acme/billing)");
+    expect(notice.chat).toContain("Kartik bypassed Tollgate for db-migrate on PROD");
+    expect(notice.text).toContain("It has already run.");
+    expect(notice.html).toContain("&lt;script&gt;");
+    expect(notice.html).not.toContain("<script>");
+    expect(notice.push.length).toBeLessThanOrEqual(120);
+  });
+
   it("says who, what, where and links to the gate", () => {
     const notice = gateWaitingNotice(base);
     expect(notice.subject).toBe("TG-17 is waiting on you (acme/billing)");

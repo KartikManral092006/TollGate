@@ -18,8 +18,38 @@ type Event = { at: string | null; text: string; tone: "neutral" | "good" | "bad"
 // Everything that happened to a gate, oldest first.
 export function timeline(gate: GateView): Event[] {
   const events: Event[] = [
-    { at: gate.createdAt, text: `${gate.requester.name}'s agent raised it`, tone: "wait" },
+    gate.status === "bypassed"
+      ? {
+          at: gate.createdAt,
+          text: `${gate.requester.name}'s agent ran it without approval (TOLLGATE_BYPASS=1)`,
+          tone: "bad",
+        }
+      : { at: gate.createdAt, text: `${gate.requester.name}'s agent raised it`, tone: "wait" },
   ];
+  if (gate.review) {
+    events.push({
+      at: gate.review.at,
+      text: `${gate.review.by} reviewed it${gate.review.note ? `: "${gate.review.note}"` : ""}`,
+      tone: "good",
+    });
+  }
+  if (gate.ran) {
+    events.push({
+      at: gate.ran.at,
+      text:
+        gate.ran.outcome === "succeeded"
+          ? "It ran and succeeded"
+          : gate.ran.outcome === "failed"
+            ? `It ran and failed${gate.ran.exitCode ? ` (exit ${gate.ran.exitCode})` : ""}`
+            : "It was stopped before it finished",
+      tone:
+        gate.ran.outcome === "failed"
+          ? "bad"
+          : gate.ran.outcome === "succeeded"
+            ? "good"
+            : "neutral",
+    });
+  }
   for (const vote of gate.votes) {
     const asked = gate.question && vote.decision === "deny";
     events.push({
