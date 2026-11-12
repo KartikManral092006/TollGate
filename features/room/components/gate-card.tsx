@@ -346,7 +346,7 @@ export function GateCard({
               <span className="text-muted-foreground">
                 {gate.status === "bypassed" ? RAN[gate.tool] : WANTS[gate.tool]}
               </span>{" "}
-              <span className="font-mono font-bold">TG-{gate.code}</span>
+              <span className="font-mono font-bold whitespace-nowrap">TG-{gate.code}</span>
             </p>
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span

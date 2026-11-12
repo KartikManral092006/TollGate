@@ -377,7 +377,9 @@ export function AuditClient({
                       className="flex w-full flex-col gap-1.5 py-3.5 text-start outline-none focus-visible:bg-muted"
                     >
                       <span className="flex items-center gap-2 text-sm">
-                        <span className="font-mono font-bold">TG-{gate.code}</span>
+                        <span className="font-mono font-bold whitespace-nowrap">
+                          TG-{gate.code}
+                        </span>
                         <span className="text-xs text-muted-foreground">{gate.env}</span>
                         <span className="ms-auto text-xs text-muted-foreground">
                           {timeAgo(gate.createdAt)}
@@ -449,7 +451,9 @@ export function AuditClient({
                           </button>
                         </td>
                         <td className="py-3.5">
-                          <span className="font-mono font-bold">TG-{gate.code}</span>
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            TG-{gate.code}
+                          </span>
                           <span className="block text-xs text-muted-foreground">{gate.env}</span>
                         </td>
                         <td className="max-w-0 py-3.5 pe-6">

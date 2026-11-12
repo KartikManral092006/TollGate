@@ -195,9 +195,15 @@ export function ReviewClient({
       <PageHeader
         title="Review"
         description={
-          queue.length === 0
-            ? "Nothing is waiting."
-            : `${queue.length} waiting, oldest first. Use the keyboard to move and decide.`
+          queue.length === 0 ? (
+            "Nothing is waiting."
+          ) : (
+            <>
+              {queue.length} waiting, oldest first.
+              {/* Phones have no keyboard to move with. */}
+              <span className="hidden sm:inline"> Use the keyboard to move and decide.</span>
+            </>
+          )
         }
         actions={
           queue.length > 0 && (

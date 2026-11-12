@@ -14,6 +14,7 @@ export async function loadActivity(db: PrismaClient, userId: string): Promise<Ac
     select: {
       id: true,
       code: true,
+      command: true,
       teamId: true,
       status: true,
       question: true,
@@ -44,6 +45,7 @@ export async function loadActivity(db: PrismaClient, userId: string): Promise<Ac
         id: gate.requester.id,
         name: displayName(gate.requester.name, gate.requester.id),
       },
+      command: gate.command,
       status: gate.status,
       question: gate.question,
       createdAt: gate.createdAt.toISOString(),
