@@ -21,7 +21,8 @@ export function PersonAvatar({
       <AvatarFallback
         title={name}
         className={cn("font-medium text-white", textClassName)}
-        style={{ backgroundColor: `oklch(0.55 0.13 ${hue})` }}
+        // Dark enough for white initials to pass WCAG AA at every hue.
+        style={{ backgroundColor: `oklch(0.5 0.12 ${hue})` }}
       >
         {initials(name)}
       </AvatarFallback>

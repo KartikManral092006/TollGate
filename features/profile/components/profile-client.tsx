@@ -241,7 +241,7 @@ export function ProfileClient({ profile }: { profile: ProfileView }) {
                       className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 text-xs leading-6 font-semibold transition-colors outline-none hover:bg-white/25 focus-visible:ring-2 focus-visible:ring-white"
                     >
                       {team.name}
-                      <span className="font-normal text-white/75">
+                      <span className="font-normal text-white">
                         {ROLE_LABEL[team.role] ?? team.role}
                       </span>
                     </Link>

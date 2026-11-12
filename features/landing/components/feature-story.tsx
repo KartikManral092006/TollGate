@@ -139,7 +139,7 @@ export function FeatureStory() {
                 onViewportEnter={() => show(index)}
               >
                 <motion.div
-                  animate={{ opacity: on ? 1 : 0.28, x: on ? 0 : -6 }}
+                  animate={{ opacity: on || reduced ? 1 : 0.28, x: on || reduced ? 0 : -6 }}
                   transition={{ duration: 0.4 }}
                   className="flex gap-5"
                 >

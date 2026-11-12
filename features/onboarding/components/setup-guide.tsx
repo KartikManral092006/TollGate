@@ -46,14 +46,15 @@ const TITLES: Record<SetupStepId, string> = {
 const POLL_MS = 4000;
 const HIDE_KEY = (teamId: string) => `tollgate:setup-hidden:${teamId}`;
 
+// The copy button is always shown, with a word on it: this is the one thing to copy.
 function Command({ value }: { value: string }) {
   return (
     <CodeBlock size="sm" className="bg-asphalt text-white">
-      <CodeBlockContent wrap className="pe-11! text-xs break-all">
+      <CodeBlockContent wrap className="pe-22! text-xs break-all">
         {value}
       </CodeBlockContent>
-      <CodeBlockActions>
-        <CodeBlockCopyButton value={value} />
+      <CodeBlockActions className="[[data-slot=code-block]>&]:opacity-100">
+        <CodeBlockCopyButton value={value} size="xs" labelled className="text-foreground" />
       </CodeBlockActions>
     </CodeBlock>
   );
@@ -276,7 +277,14 @@ export function SetupGuide({
               This step ticks itself off as soon as your computer connects.
             </p>
             {command ? (
-              <Command value={command} />
+              <>
+                <Command value={command} />
+                <p className="text-xs text-muted-foreground">
+                  Needs Node.js 20.19 or later (<code className="font-mono">node -v</code> shows
+                  yours). If Claude Code is already open in that folder, restart it afterwards so it
+                  picks Tollgate up.
+                </p>
+              </>
             ) : (
               <p className="rounded-lg bg-muted px-3 py-2">
                 Lost the command? Get a new one with <strong>New token</strong> next to your repo in{" "}

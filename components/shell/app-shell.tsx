@@ -123,11 +123,11 @@ function SidebarBody({
         <button
           type="button"
           onClick={onSearch}
-          className="flex h-9 items-center gap-2.5 rounded-md bg-white/5 px-3 text-sm text-white/55 ring-1 ring-white/10 transition-colors outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-signal"
+          className="flex h-9 items-center gap-2.5 rounded-md bg-white/5 px-3 text-sm text-white/70 ring-1 ring-white/10 transition-colors outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-signal"
         >
           <Search className="size-4" aria-hidden />
           <span className="flex-1 text-start">Search…</span>
-          <kbd className="rounded bg-white/10 px-1.5 text-[11px] text-white/60">⌘K</kbd>
+          <kbd className="rounded bg-white/10 px-1.5 text-[11px] text-white/80">⌘K</kbd>
         </button>
         <NavItem
           link={{ href: "/home", label: "All teams", icon: LayoutGrid }}
@@ -135,7 +135,7 @@ function SidebarBody({
         />
 
         <div className="flex flex-col gap-0.5">
-          <p className="px-3 pb-1.5 text-xs font-semibold text-white/45">Your teams</p>
+          <p className="px-3 pb-1.5 text-xs font-semibold text-white/65">Your teams</p>
           {teams.map((team) => {
             const isCurrent = team.id === currentTeamId;
             return (
@@ -180,7 +180,7 @@ function SidebarBody({
           })}
           <Link
             href="/home#new-team"
-            className="flex h-9 items-center gap-2.5 rounded-md px-3 text-sm text-white/50 transition-colors outline-none hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-signal"
+            className="flex h-9 items-center gap-2.5 rounded-md px-3 text-sm text-white/70 transition-colors outline-none hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-signal"
           >
             <Plus className="size-4" aria-hidden />
             New team
@@ -203,7 +203,7 @@ function SidebarBody({
             <span className="block truncate text-sm font-medium text-white">
               {user.name || "You"}
             </span>
-            <span className="block truncate text-xs text-white/50">
+            <span className="block truncate text-xs text-white/70">
               {current ? (ROLE_LABEL[current.role] ?? current.role) : "Your profile"}
             </span>
           </span>

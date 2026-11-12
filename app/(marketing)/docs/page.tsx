@@ -46,7 +46,7 @@ export default function QuickstartPage() {
       <Steps>
         <Step title="Sign in and create a team">
           <p>
-            <Link href="/sign-in" className="text-[#f2c14e] underline-offset-4 hover:underline">
+            <Link href="/sign-in" className="text-[#f2c14e] underline underline-offset-4">
               Sign in
             </Link>{" "}
             with Google, GitHub or an email link, then create a team. The team&apos;s room is where
