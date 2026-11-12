@@ -200,7 +200,7 @@ export function SetupGuide({
         return;
       }
       setCommand(
-        `npx tollgate-cli init --server ${body.serverUrl ?? serverUrl} --token ${body.token}`,
+        `npx -y tollgate-cli@latest init --server ${body.serverUrl ?? serverUrl} --token ${body.token}`,
       );
       await refresh();
     } finally {
@@ -305,7 +305,7 @@ export function SetupGuide({
         return (
           <div className="flex flex-col gap-2">
             <p>Send a harmless test command (it only prints text) from the same folder:</p>
-            <Command value="npx tollgate-cli test" />
+            <Command value="npx -y tollgate-cli test" />
             <p className="text-xs text-muted-foreground">
               A card appears below in a moment. Later, Claude Code&apos;s risky commands show up the
               same way.
