@@ -67,39 +67,40 @@
 }
 
 /* Road signage: lane white, asphalt, highway green, signal amber, barrier red.
-   Every text/background pair below is checked for WCAG AA. */
+   Every text/background pair below is checked for WCAG AA. Light mode avoids pure white:
+   surfaces are a dimmed, warm paper so large areas don't glare. */
 :root {
   --radius: 0.75rem;
-  --background: #f4f5f2;
-  --foreground: #23272b;
-  --card: #ffffff;
-  --card-foreground: #23272b;
-  --popover: #ffffff;
-  --popover-foreground: #23272b;
+  --background: #e9e8e2;
+  --foreground: #24282c;
+  --card: #f4f3ee;
+  --card-foreground: #24282c;
+  --popover: #f6f5f0;
+  --popover-foreground: #24282c;
   --primary: #00704a;
   --primary-foreground: #ffffff;
-  --secondary: #e8eae6;
-  --secondary-foreground: #23272b;
-  --muted: #eceeea;
-  --muted-foreground: #5b636a;
-  --accent: #e3f3ea;
+  --secondary: #dddcd4;
+  --secondary-foreground: #24282c;
+  --muted: #e0dfd8;
+  --muted-foreground: #525a60;
+  --accent: #d6e8dd;
   --accent-foreground: #0b4f35;
-  --destructive: #c8102e;
-  --border: #dadfd8;
-  --input: #d3d8d1;
+  --destructive: #b50e29;
+  --border: #d2d0c8;
+  --input: #c9c7bf;
   --ring: #00704a;
   --chart-1: #00704a;
   --chart-2: #f2a900;
-  --chart-3: #c8102e;
-  --chart-4: #5b636a;
-  --chart-5: #23272b;
-  --sidebar: #eceeea;
-  --sidebar-foreground: #23272b;
+  --chart-3: #b50e29;
+  --chart-4: #525a60;
+  --chart-5: #24282c;
+  --sidebar: #e0dfd8;
+  --sidebar-foreground: #24282c;
   --sidebar-primary: #00704a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e3f3ea;
+  --sidebar-accent: #d6e8dd;
   --sidebar-accent-foreground: #0b4f35;
-  --sidebar-border: #dadfd8;
+  --sidebar-border: #d2d0c8;
   --sidebar-ring: #00704a;
   --brand: #00704a;
   --brand-foreground: #ffffff;
@@ -107,17 +108,17 @@
   --signal-foreground: #2b2100;
   --asphalt: #2b2f33;
   --gate-pending: #f2a900;
-  --gate-pending-fg: #7a5300;
-  --gate-pending-bg: #fff6db;
+  --gate-pending-fg: #6e4a00;
+  --gate-pending-bg: #f5e9c4;
   --gate-approved: #00704a;
-  --gate-approved-fg: #005c3d;
-  --gate-approved-bg: #e3f3ea;
-  --gate-denied: #c8102e;
-  --gate-denied-fg: #a50e26;
-  --gate-denied-bg: #fbe7ea;
+  --gate-approved-fg: #005235;
+  --gate-approved-bg: #d6e8dd;
+  --gate-denied: #b50e29;
+  --gate-denied-fg: #990c23;
+  --gate-denied-bg: #f0dadd;
   --gate-parked: #8a9096;
-  --gate-parked-fg: #4f565c;
-  --gate-parked-bg: #eceeea;
+  --gate-parked-fg: #4a5157;
+  --gate-parked-bg: #e0dfd8;
 }
 
 .dark {
