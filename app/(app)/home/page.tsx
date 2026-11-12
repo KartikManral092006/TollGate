@@ -9,6 +9,7 @@ import { Section } from "@/components/shell/section";
 import { buttonVariants } from "@/components/ui/button";
 import { NamePrompt } from "@/features/auth/components/name-prompt";
 import { verifySession } from "@/features/auth/server/session";
+import { FirstRun } from "@/features/onboarding/components/first-run";
 import { CreateTeamForm } from "@/features/teams/components/create-team-form";
 import { loadShell } from "@/features/teams/server/shell";
 import { listTeamsForUser } from "@/features/teams/server/teams";
@@ -117,13 +118,17 @@ export default async function HomePage() {
           </Section>
         )}
 
-        <Section
-          id="new-team"
-          title="Start a new team"
-          description="Usually your project or company. You can link a repo and invite the people who should approve next."
-        >
-          <CreateTeamForm />
-        </Section>
+        {memberships.length === 0 ? (
+          <FirstRun />
+        ) : (
+          <Section
+            id="new-team"
+            title="Start a new team"
+            description="Usually your project or company. You can link a repo and invite the people who should approve next."
+          >
+            <CreateTeamForm />
+          </Section>
+        )}
       </main>
     </AppShell>
   );

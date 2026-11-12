@@ -568,7 +568,7 @@ export function GateCard({
         </div>
 
         <AnimatePresence initial={false}>
-          {showContext && (
+          {showContext && gate.context.trim() !== "" && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}

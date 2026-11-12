@@ -2,15 +2,28 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function CreateTeamForm() {
+export function CreateTeamForm({
+  autoFocus = false,
+  placeholder = "e.g. Billing",
+}: {
+  autoFocus?: boolean;
+  placeholder?: string;
+} = {}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  // Ready to type with a mouse and keyboard; on a phone the keyboard would cover the page
+  // before it has been read.
+  useEffect(() => {
+    if (autoFocus && window.matchMedia("(pointer: fine)").matches) input.current?.focus();
+  }, [autoFocus]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -23,6 +36,7 @@ export function CreateTeamForm() {
         body: JSON.stringify({ name }),
       });
       if (!response.ok) {
+        setBusy(false);
         setError(
           response.status === 429
             ? "You've created a lot of teams today. Try again tomorrow."
@@ -31,8 +45,10 @@ export function CreateTeamForm() {
         return;
       }
       const team = (await response.json()) as { id: string };
+      // Stays busy until the room opens, so the button can't be pressed twice.
       router.push(`/teams/${team.id}`);
-    } finally {
+    } catch {
+      setError("Couldn't reach Tollgate. Check your connection and try again.");
       setBusy(false);
     }
   }
@@ -44,8 +60,9 @@ export function CreateTeamForm() {
           id="team-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="e.g. Billing"
+          placeholder={placeholder}
           aria-label="Team name"
+          ref={input}
           maxLength={64}
           required
           className="h-10"
