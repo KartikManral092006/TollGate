@@ -19,7 +19,7 @@ const DIGESTS: Record<string, string> = {
 };
 
 // ChatUI shows only DMs, where TG:* cards never appear, so no element is registered: an
-// entry without `component` creates no tag (docs/nexconn.md §5.5).
+// entry without `component` creates no tag (ChatUI's custom message docs).
 export function chatUIRegistrations(): ChatUICustomMessageRegistration[] {
   return TG_REGISTRATIONS.map((registration) => ({
     ...registration,

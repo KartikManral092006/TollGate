@@ -10,7 +10,7 @@ import {
 } from "@/features/nexconn/client/engine";
 import { DEV_TEST_USERS, type DevTestUser } from "@/features/nexconn/shared/config";
 
-// Spike T6 (PLAN.md §13): with the overridden peer versions, does a ChatUI DM render AND does
+// A test page: with the overridden peer versions, does a ChatUI DM render AND does
 // a 1:1 audio call connect, in one page sharing one NCEngine? Dev routes only. Calls placed
 // here skip the server permit, so run T7 (Console shows $0) before pressing Ring.
 export function CallLab() {

@@ -205,7 +205,7 @@ function addCallHandler(engine: NexconnCall.NCCallEngine) {
       mic: user.isMicrophoneEnabled,
     })),
   });
-  // Set straight after initialize, or onCallReceived never fires (docs/nexconn.md §6).
+  // Set straight after initialize, or onCallReceived never fires (the Call SDK's documented setup order).
   engine.setCallEventHandler({
     onCallReceived({ session, extra }) {
       nexconnEvents.emit("callReceived", { ...describe(session), extra: extra ?? null });

@@ -27,7 +27,7 @@ export const ClientCode = {
   TranslateTextMissing: 35060,
 } as const;
 
-// Call SDK result codes we branch on (/callsdk-web/code.md, as summarised in docs/nexconn.md).
+// Call SDK result codes we branch on (Nexconn docs: /callsdk-web/code.md).
 export const CallCode = {
   Ok: 0,
   AlreadyInCall: 80002,
