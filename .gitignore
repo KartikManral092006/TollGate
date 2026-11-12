@@ -58,3 +58,9 @@ next-env.d.ts
 
 # CLI bundle (built by pnpm cli:build)
 packages/cli/dist
+
+# Private working notes, kept locally (challenge plan, dev log, SDK research)
+/PLAN.md
+/PROGRESS.md
+/docs/nexconn.md
+/docs/demo-video.md

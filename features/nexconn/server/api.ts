@@ -61,7 +61,7 @@ export async function joinGroup(
   }
 }
 
-// Takes people out of a group (docs/nexconn.md: /v4/group-channel/leave). A group that no
+// Takes people out of a group (Nexconn server API: /v4/group-channel/leave). A group that no
 // longer exists has nobody left to remove.
 export async function leaveGroup(
   client: NexconnClient,
@@ -75,7 +75,7 @@ export async function leaveGroup(
   }
 }
 
-// Removes a deleted team's chat group (docs/nexconn.md: /v4/group-channel/dismiss). Already
+// Removes a deleted team's chat group (Nexconn server API: /v4/group-channel/dismiss). Already
 // gone is done.
 export async function dismissGroup(
   client: NexconnClient,

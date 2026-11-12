@@ -1,6 +1,7 @@
 import type { GateView } from "./view";
 
-// The success metrics from PLAN.md §12, computed from the audit rows a team can see.
+// How well a team's gating works (decision time, denials, rubber stamps), computed from the
+// audit rows the team can see.
 
 // An approval this fast was almost certainly not read.
 export const RUBBER_STAMP_MS = 3000;
