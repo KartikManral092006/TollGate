@@ -10,6 +10,7 @@ Approve it, or deny it with a reason, and the agent changes its plan.
 [![CI](https://github.com/KartikManral092006/TollGate/actions/workflows/ci.yml/badge.svg)](https://github.com/KartikManral092006/TollGate/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/tollgate-cli?label=tollgate-cli)](https://www.npmjs.com/package/tollgate-cli)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520.19-339933)](packages/cli/package.json)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 [Live app](https://toll-gate-mo7d.vercel.app) ·
 [Try it in your browser](https://toll-gate-mo7d.vercel.app/#demo) ·
@@ -336,4 +337,5 @@ Please report security problems privately to the maintainer rather than in a pub
 
 ## License
 
-The CLI in [`packages/cli`](packages/cli) is released under the [MIT License](packages/cli/LICENSE).
+Tollgate, including the web app and the CLI, is released under the [MIT License](LICENSE).
+Third-party packages it depends on, such as the Nexconn SDKs, keep their own licenses.
