@@ -294,6 +294,8 @@ model Gate {
   @@index([followUpOfId])
   // The per-minute sweep: expire and remind parked gates without scanning every gate.
   @@index([status, parkedAt])
+  // A person's profile: the gates their agent raised, newest first.
+  @@index([requesterId, createdAt(sort: Desc)])
   @@map("gates")
 }
 
