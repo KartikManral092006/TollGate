@@ -28,6 +28,8 @@ export type HookPrincipal = {
   mode: "guard" | "delegate";
   presets: unknown;
   requesterId: string;
+  // The team shows approvers the developer's last instruction to the agent (opt-in).
+  shareTask: boolean;
 };
 
 export function bearerToken(header: string | null): string | null {
@@ -51,7 +53,7 @@ export async function authenticateHookToken(
   const row = await db.hookToken.findUnique({
     where: { tokenHash },
     include: {
-      repo: true,
+      repo: { include: { team: { select: { shareAgentTask: true } } } },
       createdBy: {
         select: {
           memberships: {
@@ -78,6 +80,7 @@ export async function authenticateHookToken(
     mode: row.repo.mode,
     presets: row.repo.presets,
     requesterId: row.createdById,
+    shareTask: row.repo.team.shareAgentTask,
   };
 }
 

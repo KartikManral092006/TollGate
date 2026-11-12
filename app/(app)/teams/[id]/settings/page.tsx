@@ -47,6 +47,7 @@ export default async function SettingsPage({ params }: PageProps<"/teams/[id]/se
       invites={settings.invites}
       ai={toAiConfigView(ai)}
       policy={policy}
+      sharing={{ shareAgentTask: membership.team.shareAgentTask }}
     />
   );
 }

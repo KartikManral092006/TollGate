@@ -48,6 +48,7 @@ import { ContextView } from "@/features/room/components/context-view";
 import { EnvBadge, STATUS } from "@/features/room/components/gate-status";
 import { ParkCountdown } from "@/features/room/components/park-countdown";
 import { PersonAvatar } from "@/features/room/components/person-avatar";
+import { AgentTask } from "@/features/room/components/agent-task";
 import { RunResult } from "@/features/room/components/run-result";
 import { clockTime, timeAgo } from "@/features/room/shared/format";
 import { cn } from "@/lib/utils";
@@ -444,6 +445,8 @@ export function GateCard({
             </Note>
           )
         )}
+
+        <AgentTask gate={gate} />
 
         {open && gate.insights && <RiskSignals signals={gate.insights.signals} />}
         {open && gate.insights?.precedent && (

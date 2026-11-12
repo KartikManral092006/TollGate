@@ -1,5 +1,7 @@
 import {
   commandHash,
+  STEP_MAX,
+  TASK_MAX,
   type HookGateStatus,
   type ReportOutcomeInput,
 } from "../../../features/gates/shared/hook-api";
@@ -13,6 +15,7 @@ import {
   type Preset,
 } from "../../../features/gates/shared/presets";
 import { redact, truncate } from "../../../features/gates/shared/redact";
+import type { SessionNotes } from "./session";
 import { EDIT_TOOLS, readToolCall, type ToolCall } from "./tool-call";
 
 // The PreToolUse decision. Spike T0 (Nov 3) showed two facts this file is built around:
@@ -33,6 +36,8 @@ export type HookInput = {
   error?: unknown;
   is_interrupt?: unknown;
   duration_ms?: unknown;
+  // UserPromptSubmit: what the developer just asked the agent.
+  prompt?: unknown;
 };
 
 export type Decision =
@@ -51,7 +56,9 @@ export type RepoConfig = {
 };
 
 export type HookApi = {
-  consumeGrant(cmdHash: string): Promise<{ ok: boolean; mode?: "guard" | "delegate" }>;
+  consumeGrant(
+    cmdHash: string,
+  ): Promise<{ ok: boolean; mode?: "guard" | "delegate"; shareTask?: boolean }>;
   createGate(body: Record<string, unknown>): Promise<HookGateStatus>;
   getGate(id: string): Promise<HookGateStatus>;
   park(id: string): Promise<{ status: string }>;
@@ -74,6 +81,12 @@ export type HookDeps = {
   sleep(ms: number): Promise<void>;
   audit(event: string, detail: Record<string, unknown>): void;
   progress(message: string): void;
+  // This machine's notes on what the agent was asked and just did (session.ts).
+  notes?: {
+    read(sessionId: string): SessionNotes;
+    saveTask(sessionId: string, text: string): void;
+    recordStep(sessionId: string, text: string): void;
+  };
 };
 
 // 2 s keeps a 5-minute wait at ~150 requests (and Redis commands) per gate.
@@ -107,21 +120,18 @@ export function failClosedMessage(server: string, error: unknown, tool: GateTool
   return `Tollgate could not reach ${server} (${detail}), so this risky ${NOUN[tool]} was blocked to be safe. Tell the user; do not try to work around it.`;
 }
 
-type GatedCall = {
+type ReadCall = {
   config: RepoConfig;
   call: ToolCall;
-  match: CommandMatch;
   cwd: string;
   command: string;
   isBash: boolean;
 };
 
-// Whether this tool call is one the repo's presets gate. Shared by the decision before the
-// call and the report after it, so both see exactly the same calls.
-function findGatedCall(
-  input: HookInput,
-  deps: HookDeps,
-): GatedCall | { none: true; note?: string } {
+type GatedCall = ReadCall & { match: CommandMatch };
+
+// A Bash call, file edit or MCP call in a linked repo, in the shape presets match.
+function readCall(input: HookInput, deps: HookDeps): ReadCall | { none: true; note?: string } {
   const toolName = input.tool_name ?? "";
   const isBash = toolName === "Bash";
   if (!isBash && !EDIT_TOOLS.has(toolName) && !toolName.startsWith("mcp__")) {
@@ -139,8 +149,12 @@ function findGatedCall(
     ? { tool: "bash", subject: command, hashSource: command, detail: "" }
     : readToolCall(toolName, input.tool_input, { cwd, repoRoot: config.repoRoot, home: deps.home });
   if (!call) return { none: true };
+  return { config, call, cwd, command, isBash };
+}
 
-  const match = matchCommand(withDefaultPresets(config.presets), {
+function matchCall(read: ReadCall, deps: HookDeps): CommandMatch | null {
+  const { config, call, cwd, isBash } = read;
+  return matchCommand(withDefaultPresets(config.presets), {
     command: call.subject,
     cwd,
     repoRoot: config.repoRoot,
@@ -148,8 +162,66 @@ function findGatedCall(
     readScripts:
       isBash && deps.readScripts ? (dir) => deps.readScripts!(dir, config.repoRoot) : undefined,
   });
-  if (!match) return { none: true };
-  return { config, call, match, cwd, command, isBash };
+}
+
+// Whether this tool call is one the repo's presets gate. Shared by the decision before the
+// call and the report after it, so both see exactly the same calls.
+function findGatedCall(
+  input: HookInput,
+  deps: HookDeps,
+): GatedCall | { none: true; note?: string } {
+  const read = readCall(input, deps);
+  if ("none" in read) return read;
+  const match = matchCall(read, deps);
+  return match ? { ...read, match } : { none: true };
+}
+
+// One line per call for the notes: a command's first line, an edit's path, an MCP tool's
+// name (never its arguments). Redacted before it's written.
+export function stepText(
+  call: Pick<ToolCall, "tool" | "subject">,
+  event: string | undefined,
+  interrupted = false,
+): string {
+  const what =
+    call.tool === "bash"
+      ? `$ ${call.subject.split("\n")[0]!.trim()}`
+      : call.tool === "mcp"
+        ? call.subject.split(" ")[0]!
+        : call.subject;
+  const how = event === "PostToolUseFailure" ? (interrupted ? " (stopped)" : " (failed)") : "";
+  const room = STEP_MAX - how.length;
+  return `${what.length > room ? `${what.slice(0, room - 1)}…` : what}${how}`;
+}
+
+// What the gate carries when the team shares the agent's task: the developer's last
+// instruction and the calls since, redacted again with this repo's secrets.
+export function agentTask(
+  notes: SessionNotes,
+  secrets: readonly string[],
+): { task: string | null; steps: string[] } {
+  const task = notes.task ? redact(notes.task.text, secrets).text.trim() : "";
+  return {
+    task: task ? truncate(task, TASK_MAX) : null,
+    steps: notes.steps
+      .map((step) => truncate(redact(step.text, secrets).text.trim(), STEP_MAX))
+      .filter(Boolean),
+  };
+}
+
+// UserPromptSubmit (async): remember the developer's instruction for this session, in a
+// linked repo only. Prints nothing, so nothing is added to the prompt.
+export function rememberTask(input: HookInput, deps: HookDeps): boolean {
+  const prompt = typeof input.prompt === "string" ? input.prompt : "";
+  if (!prompt.trim() || !input.session_id || !deps.notes) return false;
+  const config = deps.loadConfig(input.cwd || process.cwd());
+  if (!config || config.error) return false;
+  try {
+    deps.notes.saveTask(input.session_id, redact(prompt, deps.envSecrets(config.repoRoot)).text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function decide(input: HookInput, deps: HookDeps): Promise<Decision> {
@@ -203,6 +275,10 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
             runs: redact(match.segment, secrets),
           }
         : null;
+    const shared =
+      grant.shareTask && input.session_id && deps.notes
+        ? agentTask(deps.notes.read(input.session_id), secrets)
+        : null;
     const branch = deps.gitBranch(config.repoRoot);
     // The agent's own reason, shown to approvers as its claim (it can be wrong).
     const description = isBash ? input.tool_input?.description : undefined;
@@ -231,6 +307,8 @@ export async function decide(input: HookInput, deps: HookDeps): Promise<Decision
         context.count +
         (intent?.count ?? 0) +
         (via ? via.from.count + via.runs.count : 0),
+      // Only to servers that asked for it, which also know these fields.
+      ...(shared ? { task: shared.task, steps: shared.steps } : {}),
       cmdHash,
       sessionId: input.session_id,
       waitSec: Math.round((deadline - started) / 1000),
@@ -314,17 +392,27 @@ export function describeRun(
   };
 }
 
-// After a gated call ran: tell the server how it went. Runs as an async hook, so it never
-// slows the agent down, prints nothing and never throws.
+// After a call ran (async PostToolUse / PostToolUseFailure): note it for this session and,
+// when it was gated, tell the server how it went. Prints nothing and never throws.
 export async function reportRun(input: HookInput, deps: HookDeps): Promise<boolean> {
-  const found = findGatedCall(input, deps);
-  if ("none" in found || found.config.error) return false;
-  const { config, call, cwd } = found;
+  const read = readCall(input, deps);
+  if ("none" in read || read.config.error) return false;
+  const { config, call, cwd } = read;
+  const secrets = deps.envSecrets(config.repoRoot);
+  if (deps.notes && input.session_id) {
+    try {
+      const line = stepText(call, input.hook_event_name, input.is_interrupt === true);
+      deps.notes.recordStep(input.session_id, redact(line, secrets).text);
+    } catch {
+      // notes are a nicety; never fail the hook over them
+    }
+  }
+  if (!matchCall(read, deps)) return false;
   const token = deps.loadToken(config.repoRoot);
   if (!token) return false;
   const report: ReportOutcomeInput = {
     cmdHash: commandHash({ repo: config.repo, cwd, command: call.hashSource }),
-    ...describeRun(input, call.tool, deps.envSecrets(config.repoRoot)),
+    ...describeRun(input, call.tool, secrets),
   };
   try {
     await deps.api(config, token).reportOutcome(report);

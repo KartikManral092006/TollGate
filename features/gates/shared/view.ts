@@ -47,6 +47,9 @@ export type GateView = {
   intent: string | null;
   // What a wrapper or package script really runs, one "from → runs" line each.
   via: string | null;
+  // The developer's last instruction to the agent and its calls since (opt-in, CLI 0.3+).
+  task?: string | null;
+  steps?: string[];
   redactions: number;
   quorum: number;
   approvals: number;
@@ -124,6 +127,8 @@ export type GateRow = {
   context: string;
   intent?: string | null;
   via?: string | null;
+  task?: string | null;
+  steps?: string | null;
   redactions: number;
   quorum: number;
   denyReason: string | null;
@@ -236,6 +241,8 @@ export function toGateView(row: GateRow): GateView {
     context: row.context,
     intent: row.intent ?? null,
     via: row.via ?? null,
+    task: row.task ?? null,
+    steps: row.steps ? row.steps.split("\n").filter(Boolean) : [],
     redactions: row.redactions,
     quorum: row.quorum,
     approvals: row.votes.filter((vote) => vote.decision === "approve").length,

@@ -16,6 +16,10 @@ export function commandHash(input: { repo: string; cwd: string; command: string 
     .digest("hex");
 }
 
+export const TASK_MAX = 500;
+export const STEP_MAX = 160;
+export const STEPS_MAX = 5;
+
 export const createGateSchema = z
   .object({
     preset: z.string().min(1).max(40),
@@ -37,6 +41,10 @@ export const createGateSchema = z
       )
       .max(5)
       .optional(),
+    // The developer's last instruction to the agent and its last few calls, redacted by the
+    // hook. Only sent when the server said the team shares them (CLI 0.3+).
+    task: z.string().max(TASK_MAX).nullable().optional(),
+    steps: z.array(z.string().min(1).max(STEP_MAX)).max(STEPS_MAX).optional(),
     redactions: z.number().int().min(0).max(10_000).default(0),
     cmdHash: z.string().regex(SHA256_RE),
     sessionId: z.string().max(200).optional(),
@@ -48,6 +56,12 @@ export const createGateSchema = z
 export type CreateGateInput = z.infer<typeof createGateSchema>;
 
 export const consumeGrantSchema = z.object({ cmdHash: z.string().regex(SHA256_RE) }).strict();
+
+// The grant check is the hook's first call for every gated command, so it also says whether
+// the team wants the agent's task on the card (servers before 0.3 leave it out: false).
+export type ConsumeGrantResponse =
+  | { ok: true; gateId: string; mode: "guard" | "delegate"; shareTask?: boolean }
+  | { ok: false; shareTask?: boolean };
 
 export type HookGateStatus = {
   id: string;
