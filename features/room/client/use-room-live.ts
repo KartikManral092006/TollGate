@@ -17,6 +17,7 @@ import {
   normalizeChatText,
   replyExtra,
   replyText,
+  normalizeWhyText,
   TEXT_MESSAGE_TYPE,
   type ChatLine,
   type Quote,
@@ -124,6 +125,28 @@ export function useRoomLive(input: {
         scheduleRefresh();
         return;
       }
+      // A shared explanation arriving a chunk at a time: the delta carries the text so far.
+      if (event.kind === "streamDelta") {
+        const { messageId, text } = event.data as { messageId: string; text?: string };
+        if (typeof text !== "string") return;
+        setLines((current) =>
+          current.map((line) =>
+            line.id === messageId && line.why ? { ...line, text: normalizeWhyText(text) } : line,
+          ),
+        );
+        return;
+      }
+      if (event.kind === "streamComplete") {
+        const { messageId } = event.data as { messageId: string };
+        setLines((current) =>
+          current.map((line) =>
+            line.id === messageId && line.why
+              ? { ...line, why: { ...line.why, complete: true } }
+              : line,
+          ),
+        );
+        return;
+      }
       if (event.kind !== "message") return;
       if (data.messageType === TG.Gate || data.messageType === TG.Huddle) {
         scheduleRefresh();
@@ -134,6 +157,12 @@ export function useRoomLive(input: {
         selfRef.current,
       );
       if (line) setLines((current) => mergeChat(current, [line]));
+      // A stream still in progress: ask for its chunks (they arrive as streamDelta events).
+      if (line?.why && !line.why.complete) {
+        void getReceivedMessage(line.id)
+          ?.requestStreamMessage?.()
+          .catch(() => undefined);
+      }
     });
 
     (async () => {
@@ -242,6 +271,7 @@ export function useRoomLive(input: {
         edited: false,
         attachment: null,
         quote: quote ?? null,
+        why: null,
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
@@ -330,6 +360,7 @@ export function useRoomLive(input: {
         teamOnly: false,
         edited: false,
         quote: null,
+        why: null,
         attachment: isImage
           ? { kind: "image", url: "", thumb: null }
           : { kind: "file", url: "", name: file.name, size: file.size },

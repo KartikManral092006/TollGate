@@ -153,12 +153,17 @@ export async function deleteMessageMetadata(
   await client.call("/v4/channel-type/message/metadata/delete", input, { retryOnFailover: true });
 }
 
+// One chunk of a stream message (docs.nexconn.ai: /v4/group-channel/message/stream/send).
+// `seq` starts at 1 and rises by 1; chunks after the first carry the first one's messageId;
+// `type`, `user` and `extra` belong on the first chunk only; extra's keys and values are strings.
 export type StreamChunk = {
   content: string;
   seq: number;
   complete: boolean;
   type?: "text" | "markdown" | "html";
   messageId?: string;
+  user?: { id: string; name: string };
+  extra?: Record<string, string>;
 };
 
 export async function sendGroupStreamChunk(

@@ -397,6 +397,7 @@ export function RoomClient({
                                     : undefined
                                 }
                                 onWhy={actions.explain}
+                                onShareWhy={live === "live" ? actions.shareWhy : undefined}
                                 presence={presenceOf(item.gate.id)}
                                 footer={
                                   callsEnabled &&

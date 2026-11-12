@@ -6,6 +6,9 @@ export const FILE_MESSAGE_TYPE = "RC:FileMsg";
 // A reply that quotes an earlier message (Nexconn reference message).
 export const REFERENCE_MESSAGE_TYPE = "RC:ReferenceMsg";
 export const QUOTE_MAX_CHARS = 160;
+// A "Why?" explanation shared with the room, streamed in by the Tollgate bot.
+export const STREAM_MESSAGE_TYPE = "RC:StreamMsg";
+export const WHY_MAX_CHARS = 4000;
 
 // A picture or file sent into the room. Links are only ever https (a client could send
 // anything), and the thumbnail is plain base64.
@@ -36,7 +39,68 @@ export type ChatLine = {
   attachment: Attachment | null;
   // The message this one quotes (a Nexconn reference message): who wrote it and a snippet.
   quote: Quote | null;
+  // A shared "Why?" explanation (a Nexconn stream message): who shared it, and whether the
+  // stream has finished.
+  why: { by: string; complete: boolean } | null;
 };
+
+// Extra from a stream message: an object of strings (or, from older clients, a JSON string).
+function streamExtra(extra: unknown): Record<string, string> {
+  let value = extra;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+}
+
+// Explanation text: kept whole up to WHY_MAX_CHARS, control characters removed.
+export function normalizeWhyText(raw: string): string {
+  return Array.from(raw.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " "))
+    .slice(0, WHY_MAX_CHARS)
+    .join("");
+}
+
+// A shared explanation as a chat line, from the stream message (its first chunk or, from
+// history, the whole text).
+function whyLine(
+  message: RawMessage,
+  content: Record<string, unknown> | null,
+  selfId: string | null,
+): ChatLine | null {
+  if (!message.messageId || !message.senderUserId) return null;
+  const extra = streamExtra(content?.extra);
+  const gateId = extra.gateId && GATE_ID_RE.test(extra.gateId) ? extra.gateId : null;
+  const raw = typeof content?.content === "string" ? content.content : "";
+  return {
+    id: message.messageId,
+    senderId: message.senderUserId,
+    text: normalizeWhyText(raw),
+    sentTime: message.sentTime ?? Date.now(),
+    mine: message.senderUserId === selfId,
+    local: null,
+    gateId,
+    gateCode: Number(extra.code) || null,
+    mentions: [],
+    readBy: [],
+    teamOnly: false,
+    edited: false,
+    attachment: null,
+    quote: null,
+    why: {
+      by: normalizeChatText(extra.by ?? "").slice(0, 80) || "A teammate",
+      complete: content?.isCompleted === true || content?.complete === true,
+    },
+  };
+}
 
 export type Quote = { id: string; senderId: string; text: string };
 
@@ -200,6 +264,7 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     teamOnly: Array.isArray(message.directedUserIds) && message.directedUserIds.length > 0,
     edited: false,
     quote: null,
+    why: null,
   };
   const attachment = attachmentFrom(
     message.messageType,
@@ -207,6 +272,9 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
   );
   // A picture or file attached to a gate carries the gate's id in extra, like a reply.
   if (attachment) return { ...base, text: "", gateCode: null, attachment };
+  if (message.messageType === STREAM_MESSAGE_TYPE) {
+    return whyLine(message, (content ?? null) as Record<string, unknown> | null, selfId);
+  }
   const isQuote = message.messageType === REFERENCE_MESSAGE_TYPE;
   if (message.messageType !== TEXT_MESSAGE_TYPE && !isQuote) return null;
   const updated = (message.updateInfo as { content?: { text?: unknown; content?: unknown } } | null)
@@ -236,6 +304,7 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     edited: typeof newest === "string" || message.hasChanged === true,
     attachment: null,
     quote: isQuote ? quoteFrom((content ?? null) as Record<string, unknown> | null) : null,
+    why: null,
   };
 }
 

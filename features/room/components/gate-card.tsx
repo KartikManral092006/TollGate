@@ -18,6 +18,7 @@ import {
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
@@ -211,6 +212,7 @@ export function GateCard({
   onAsk,
   onRing,
   onWhy,
+  onShareWhy,
   onEndWindow,
   footer,
   invite,
@@ -241,6 +243,8 @@ export function GateCard({
   seenBy?: string[];
   // Plain-language explanation: the team's AI provider, or the built-in rules.
   onWhy?: (gate: GateView) => Promise<WhyResult | null>;
+  // Post the explanation into the team's room for everyone (streamed by the Tollgate bot).
+  onShareWhy?: (gate: GateView) => Promise<boolean>;
   onApprove: (gate: GateView, note?: string, windowMinutes?: number) => Promise<void>;
   onDeny: (gate: GateView) => void;
   // End an approval window opened from this gate before its time.
@@ -257,6 +261,13 @@ export function GateCard({
     state: "loading" | "done" | "error";
     result?: WhyResult;
   } | null>(null);
+  const [shared, setShared] = useState<"idle" | "sharing" | "shared">("idle");
+
+  async function shareWhy() {
+    if (!onShareWhy || shared !== "idle") return;
+    setShared("sharing");
+    setShared((await onShareWhy(gate)) ? "shared" : "idle");
+  }
 
   async function explain() {
     if (!onWhy || why?.state === "loading") return;
@@ -614,6 +625,21 @@ export function GateCard({
                     Your team&apos;s AI provider didn&apos;t answer, so this is the built-in
                     explanation.
                   </p>
+                )}
+                {onShareWhy && why.state === "done" && (
+                  <button
+                    type="button"
+                    onClick={() => void shareWhy()}
+                    disabled={shared !== "idle"}
+                    className="mt-1.5 inline-flex items-center gap-1 rounded-sm text-xs font-medium text-brand underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:no-underline disabled:opacity-70"
+                  >
+                    {shared === "sharing" ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Share2 className="size-3.5" aria-hidden />
+                    )}
+                    {shared === "shared" ? "Shared in the room" : "Share with the team"}
+                  </button>
                 )}
               </Note>
             </motion.div>

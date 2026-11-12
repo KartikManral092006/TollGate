@@ -29,6 +29,7 @@ const line = (id: string, sentTime: number, overrides: Partial<ChatLine> = {}): 
   edited: false,
   attachment: null,
   quote: null,
+  why: null,
   ...overrides,
 });
 
@@ -112,6 +113,7 @@ describe("chatLineFromMessage", () => {
       edited: false,
       attachment: null,
       quote: null,
+      why: null,
     });
     expect(
       chatLineFromMessage(
@@ -294,5 +296,50 @@ describe("quote replies (Nexconn reference messages)", () => {
       null,
     );
     expect(line?.quote).toBeNull();
+  });
+});
+
+describe("shared explanations (Nexconn stream messages)", () => {
+  const gateId = "a".repeat(32);
+  it("reads the first chunk with the gate and who shared it", () => {
+    const line = chatLineFromMessage(
+      {
+        messageId: "S1",
+        messageType: "RC:StreamMsg",
+        senderUserId: "tollgatebot",
+        sentTime: 5,
+        content: {
+          content: "Deploys this code.",
+          isCompleted: false,
+          extra: { gateId, code: "42", by: "Arjun Mehta" },
+        },
+      },
+      "U1",
+    );
+    expect(line).toMatchObject({
+      text: "Deploys this code.",
+      gateId,
+      gateCode: 42,
+      why: { by: "Arjun Mehta", complete: false },
+    });
+  });
+
+  it("accepts extra as a JSON string, ignores a bad gate id, and keeps long text", () => {
+    const line = chatLineFromMessage(
+      {
+        messageId: "S2",
+        messageType: "RC:StreamMsg",
+        senderUserId: "tollgatebot",
+        content: {
+          content: "x".repeat(900),
+          complete: true,
+          extra: JSON.stringify({ gateId: "nope", code: "7" }),
+        },
+      },
+      null,
+    );
+    expect(line?.gateId).toBeNull();
+    expect(line?.why).toEqual({ by: "A teammate", complete: true });
+    expect(line?.text.length).toBe(900);
   });
 });

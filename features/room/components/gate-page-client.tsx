@@ -148,6 +148,7 @@ export function GatePageClient({
           onDeny={actions.deny}
           onAsk={actions.ask}
           onWhy={actions.explain}
+          onShareWhy={actions.shareWhy}
           presence={presence}
         />
         <aside className="py-5">
