@@ -141,6 +141,34 @@ export default function ApproversPage() {
         <C>K</C> to move, <C>A</C> to approve and <C>D</C> to deny.
       </P>
 
+      <H2 id="bypassed">Bypassed calls</H2>
+      <P>
+        Someone who starts Claude Code with <C>TOLLGATE_BYPASS=1</C> skips the team. The call shows
+        up anyway, in red as <strong>Bypassed</strong>, with what ran and how it went, and you get a
+        notification. It stays under <em>Bypassed, needs review</em> beside the thread until someone
+        who can approve (not the person who bypassed) looks at it and presses{" "}
+        <strong>Mark reviewed</strong>, with a note on what they checked.
+      </P>
+
+      <H2 id="freeze">Freeze and incident mode</H2>
+      <P>
+        For a release week, a holiday or an outage, an owner or approver can turn on a freeze or
+        incident mode in <strong>Settings › Freeze</strong> for 1 hour to 3 days, with a reason
+        everyone sees. While it&apos;s on, a banner sits above the room and:
+      </P>
+      <List>
+        <li>Nothing is approved automatically: team rules and approval windows are paused.</li>
+        <li>New approval windows can&apos;t be opened.</li>
+        <li>
+          A production gate needs two approvals, or one from an owner (never more than the people
+          who can vote on it, so it can&apos;t get stuck).
+        </li>
+      </List>
+      <P>
+        A gate keeps the rules it was raised under, even if the freeze ends while it waits. Owners
+        and approvers can end it early from the banner.
+      </P>
+
       <Callout title="Clients">
         Client accounts approve and deny like teammates. They don&apos;t receive team-only messages.
       </Callout>

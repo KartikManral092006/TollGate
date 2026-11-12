@@ -46,6 +46,8 @@ import { useViewingGate } from "@/features/presence/client/use-viewing";
 import { presenceFor } from "@/features/presence/shared/presence";
 import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { useRoomLive } from "@/features/room/client/use-room-live";
+import { FreezeBanner } from "@/features/room/components/freeze-banner";
+import type { FreezeView } from "@/features/teams/shared/freeze";
 import { repliesTo, replyBody, type ChatLine } from "@/features/room/shared/chat";
 import { dayLabel } from "@/features/room/shared/format";
 import { GateInvite } from "@/features/teams/components/gate-invite";
@@ -74,6 +76,7 @@ export function RoomClient({
   viewer,
   members,
   initialGates,
+  initialFreeze = null,
   highlightGateId,
   callsEnabled,
   setup,
@@ -85,6 +88,7 @@ export function RoomClient({
   viewer: Viewer;
   members: Member[];
   initialGates: GateView[];
+  initialFreeze?: FreezeView | null;
   highlightGateId: string | null;
   callsEnabled: boolean;
   setup: SetupState;
@@ -93,12 +97,30 @@ export function RoomClient({
   // Arrived from an invite made for the highlighted gate.
   welcome?: boolean;
 }) {
-  const { gates, lines, live, refresh, send, sendFile, edit, remove, selfNexconnId } = useRoomLive({
+  const {
+    gates,
+    lines,
+    live,
+    refresh,
+    send,
+    sendFile,
+    edit,
+    remove,
+    selfNexconnId,
+    freeze,
+    setFreeze,
+  } = useRoomLive({
     teamId: team.id,
     channelId: team.channelId,
     initialGates,
+    initialFreeze,
     callsEnabled,
   });
+  // No new approval windows while the team is frozen.
+  const cardViewer = useMemo(
+    () => ({ ...viewer, canOpenWindows: viewer.canOpenWindows === true && freeze === null }),
+    [viewer, freeze],
+  );
   const alerts = useAlerts({
     gates,
     viewerId: viewer.id,
@@ -265,6 +287,13 @@ export function RoomClient({
         }
       />
 
+      <FreezeBanner
+        teamId={team.id}
+        freeze={freeze}
+        canEnd={viewer.canOpenWindows === true}
+        onChange={setFreeze}
+      />
+
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           {items.length === 0 ? (
@@ -336,7 +365,7 @@ export function RoomClient({
                             ) : item.kind === "gate" ? (
                               <GateCard
                                 gate={item.gate}
-                                viewer={viewer}
+                                viewer={cardViewer}
                                 highlighted={
                                   item.gate.id === highlightGateId || item.gate.id === flashId
                                 }

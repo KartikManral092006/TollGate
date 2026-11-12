@@ -36,7 +36,9 @@ import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { timeAgo } from "@/features/room/shared/format";
 import { AiSettings } from "@/features/settings/components/ai-card";
 import { CopyField } from "@/features/settings/components/copy-field";
+import { FreezeSettings } from "@/features/settings/components/freeze-card";
 import { RulesSettings } from "@/features/settings/components/rules-card";
+import type { FreezeView } from "@/features/teams/shared/freeze";
 import type { InviteRow, RepoRow } from "@/features/teams/server/settings";
 import { REPO_NAME_RE } from "@/features/teams/shared/schemas";
 import type { AiConfigView } from "@/features/why/shared/providers";
@@ -638,12 +640,14 @@ export function SettingsClient({
   ai,
   policy,
   sharing,
+  freeze,
 }: {
   teamId: string;
   teamName: string;
   ai: AiConfigView;
   policy: PolicyState;
   sharing: { shareAgentTask: boolean };
+  freeze: FreezeView | null;
   viewer: { id: string; role: string };
   members: Member[];
   repos: RepoRow[];
@@ -656,6 +660,7 @@ export function SettingsClient({
     { id: "repos", label: "Linked repos" },
     ...(isOwner ? [{ id: "invite", label: "Invite people" }] : []),
     { id: "rules", label: "Rules" },
+    { id: "freeze", label: "Freeze" },
     { id: "sharing", label: "What approvers see" },
     { id: "ai", label: "AI explanations" },
     { id: "members", label: "Members" },
@@ -700,6 +705,17 @@ export function SettingsClient({
             description="When your team approves the same kind of command every time, waiting adds little. Suggested after 10 approvals in 30 days with no denials; never for production, publishing, infrastructure or deletes outside the repo."
           >
             <RulesSettings teamId={teamId} isOwner={isOwner} state={policy} />
+          </Section>
+          <Section
+            id="freeze"
+            title="Freeze and incident mode"
+            description="For a release week, a holiday or an outage: for a while, people decide everything, and production asks for more."
+          >
+            <FreezeSettings
+              teamId={teamId}
+              canManage={viewer.role === "owner" || viewer.role === "approver"}
+              initial={freeze}
+            />
           </Section>
           <Section
             id="sharing"

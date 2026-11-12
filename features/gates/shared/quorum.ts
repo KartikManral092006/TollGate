@@ -26,12 +26,19 @@ export function evaluate(input: {
   quorum: number;
   requesterId: string;
   votes: CastVote[];
+  // One approval from any of these is enough (an owner, on a production gate raised during a
+  // freeze: features/teams/shared/freeze.ts).
+  soloApprovers?: readonly string[];
 }): Evaluation {
   const votes = input.votes.filter((vote) => vote.userId !== input.requesterId);
   const approvals = votes.filter((vote) => vote.decision === "approve").length;
   const denial = votes.find((vote) => vote.decision === "deny");
   if (denial) return { status: "denied", approvals, deniedBy: denial.userId };
   if (approvals >= input.quorum) return { status: "approved", approvals };
+  const solo = input.soloApprovers ?? [];
+  if (votes.some((vote) => vote.decision === "approve" && solo.includes(vote.userId))) {
+    return { status: "approved", approvals };
+  }
   return { status: input.status === "parked" ? "parked" : "pending", approvals };
 }
 

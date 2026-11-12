@@ -25,6 +25,18 @@ export function clockTime(iso: string | number): string {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+// An end time: just the time when it's today, with the day when it isn't ("Sat 6:00 PM").
+export function untilTime(iso: string | number, now: Date = new Date()): string {
+  const date = new Date(iso);
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) return clockTime(iso);
+  const day = date.toLocaleDateString([], {
+    weekday: "short",
+    ...(date.getTime() - now.getTime() > 6 * 86_400_000 ? { day: "numeric", month: "short" } : {}),
+  });
+  return `${day} ${clockTime(iso)}`;
+}
+
 export function dayLabel(iso: string | number, now: Date = new Date()): string {
   const date = new Date(iso);
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
