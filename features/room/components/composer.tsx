@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Lock, MessageSquareReply, Paperclip, X } from "lucide-react";
+import { ArrowUp, Lock, MessageSquareReply, Paperclip, Quote as QuoteIcon, X } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -24,6 +24,8 @@ export function Composer({
   onSend,
   reply = null,
   onCancelReply,
+  quote = null,
+  onCancelQuote,
   members = [],
   hasClients = false,
   onAttach,
@@ -41,6 +43,9 @@ export function Composer({
   // Replying on a gate card: the message is sent as "TG-17 · …" attached to that gate.
   reply?: { id: string; code: number } | null;
   onCancelReply?: () => void;
+  // Quoting an earlier message: who wrote it and a snippet.
+  quote?: { id: string; name: string; text: string } | null;
+  onCancelQuote?: () => void;
 }) {
   const [text, setText] = useState("");
   const [teamOnly, setTeamOnly] = useState(false);
@@ -82,8 +87,8 @@ export function Composer({
   }
 
   useEffect(() => {
-    if (reply) field.current?.focus();
-  }, [reply]);
+    if (reply || quote) field.current?.focus();
+  }, [reply, quote]);
 
   async function send() {
     const value = text.trim();
@@ -102,6 +107,33 @@ export function Composer({
         void send();
       }}
     >
+      <AnimatePresence initial={false}>
+        {quote && (
+          <motion.div
+            key={`quote-${quote.id}`}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-start gap-1.5 pb-1.5 text-xs text-muted-foreground">
+              <QuoteIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <p className="min-w-0 flex-1">
+                Quoting <span className="font-medium text-foreground">{quote.name}</span>
+                {quote.text && <span className="block truncate">{quote.text}</span>}
+              </p>
+              <button
+                type="button"
+                onClick={onCancelQuote}
+                aria-label={`Stop quoting ${quote.name}`}
+                className="rounded-sm p-0.5 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AnimatePresence initial={false}>
         {reply && (
           <motion.div

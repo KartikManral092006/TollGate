@@ -48,7 +48,7 @@ import { useGateActions } from "@/features/room/client/use-gate-actions";
 import { useRoomLive } from "@/features/room/client/use-room-live";
 import { FreezeBanner } from "@/features/room/components/freeze-banner";
 import type { FreezeView } from "@/features/teams/shared/freeze";
-import { repliesTo, replyBody, type ChatLine } from "@/features/room/shared/chat";
+import { quoteSnippet, repliesTo, replyBody, type ChatLine } from "@/features/room/shared/chat";
 import { dayLabel } from "@/features/room/shared/format";
 import { GateInvite } from "@/features/teams/components/gate-invite";
 
@@ -142,6 +142,8 @@ export function RoomClient({
 
   // Gate threads: chat replies attached to a card, by the id they carry or their "TG-17" code.
   const [replying, setReplying] = useState<{ id: string; code: number } | null>(null);
+  // The message being quoted in the next reply.
+  const [quoting, setQuoting] = useState<ChatLine | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const replies = useMemo(() => {
     const byGate = new Map<string, { id: string; name: string; text: string }[]>();
@@ -440,6 +442,14 @@ export function RoomClient({
                                     : undefined
                                 }
                                 onHideTranslation={translator.hide}
+                                onQuote={live === "live" ? setQuoting : undefined}
+                                quotedName={
+                                  item.line.quote
+                                    ? item.line.quote.senderId === selfNexconnId
+                                      ? "You"
+                                      : (names.get(item.line.quote.senderId) ?? "A teammate")
+                                    : undefined
+                                }
                               />
                             )}
                           </MessageScrollerItem>
@@ -478,6 +488,18 @@ export function RoomClient({
                 disabled={live !== "live"}
                 reply={replying}
                 onCancelReply={() => setReplying(null)}
+                quote={
+                  quoting
+                    ? {
+                        id: quoting.id,
+                        name: quoting.mine
+                          ? "yourself"
+                          : (names.get(quoting.senderId) ?? "a teammate"),
+                        text: quoteSnippet(replyBody(quoting.text)),
+                      }
+                    : null
+                }
+                onCancelQuote={() => setQuoting(null)}
                 members={mentionable}
                 onAttach={(file) => {
                   void sendFile(file, replying ?? undefined).then((sent) => {
@@ -494,8 +516,18 @@ export function RoomClient({
                       ? { ids: mentions, from: names.get(viewer.id) ?? "A teammate" }
                       : undefined,
                     teamOnly ? teamMembers : undefined,
+                    quoting
+                      ? {
+                          id: quoting.id,
+                          senderId: quoting.senderId,
+                          text: quoteSnippet(replyBody(quoting.text)),
+                        }
+                      : undefined,
                   );
-                  if (sent) setReplying(null);
+                  if (sent) {
+                    setReplying(null);
+                    setQuoting(null);
+                  }
                   return sent;
                 }}
               />

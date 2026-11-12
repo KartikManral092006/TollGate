@@ -3,6 +3,9 @@ export const CHAT_KEEP = 200;
 export const TEXT_MESSAGE_TYPE = "RC:TxtMsg";
 export const IMAGE_MESSAGE_TYPE = "RC:ImgMsg";
 export const FILE_MESSAGE_TYPE = "RC:FileMsg";
+// A reply that quotes an earlier message (Nexconn reference message).
+export const REFERENCE_MESSAGE_TYPE = "RC:ReferenceMsg";
+export const QUOTE_MAX_CHARS = 160;
 
 // A picture or file sent into the room. Links are only ever https (a client could send
 // anything), and the thumbnail is plain base64.
@@ -31,7 +34,37 @@ export type ChatLine = {
   // Changed by its sender after sending.
   edited: boolean;
   attachment: Attachment | null;
+  // The message this one quotes (a Nexconn reference message): who wrote it and a snippet.
+  quote: Quote | null;
 };
+
+export type Quote = { id: string; senderId: string; text: string };
+
+// The words shown for a quoted message: one line, at most QUOTE_MAX_CHARS characters.
+export function quoteSnippet(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  const chars = Array.from(flat);
+  return chars.length > QUOTE_MAX_CHARS ? `${chars.slice(0, QUOTE_MAX_CHARS - 1).join("")}…` : flat;
+}
+
+// What a reference message quotes: the id and sender it names, and the quoted words from the
+// message object it carries (`referMsg`), whatever shape another client sent it in.
+function quoteFrom(content: Record<string, unknown> | null): Quote | null {
+  if (!content) return null;
+  const id = content.referMsgId ?? content.referMsgUid;
+  const senderId = content.referMsgSenderId ?? content.referMsgUserId;
+  if (typeof id !== "string" || !id || typeof senderId !== "string" || !senderId) return null;
+  const refer = content.referMsg as Record<string, unknown> | string | null | undefined;
+  const raw =
+    typeof refer === "string"
+      ? refer
+      : typeof refer?.text === "string"
+        ? refer.text
+        : typeof refer?.content === "string"
+          ? refer.content
+          : "";
+  return { id, senderId, text: quoteSnippet(normalizeChatText(raw)) };
+}
 
 function safeUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 2048) return null;
@@ -166,6 +199,7 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     readBy: [],
     teamOnly: Array.isArray(message.directedUserIds) && message.directedUserIds.length > 0,
     edited: false,
+    quote: null,
   };
   const attachment = attachmentFrom(
     message.messageType,
@@ -173,7 +207,8 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
   );
   // A picture or file attached to a gate carries the gate's id in extra, like a reply.
   if (attachment) return { ...base, text: "", gateCode: null, attachment };
-  if (message.messageType !== TEXT_MESSAGE_TYPE) return null;
+  const isQuote = message.messageType === REFERENCE_MESSAGE_TYPE;
+  if (message.messageType !== TEXT_MESSAGE_TYPE && !isQuote) return null;
   const updated = (message.updateInfo as { content?: { text?: unknown; content?: unknown } } | null)
     ?.content;
   const newest = updated?.text ?? updated?.content;
@@ -200,6 +235,7 @@ export function chatLineFromMessage(message: RawMessage, selfId: string | null):
     teamOnly: Array.isArray(message.directedUserIds) && message.directedUserIds.length > 0,
     edited: typeof newest === "string" || message.hasChanged === true,
     attachment: null,
+    quote: isQuote ? quoteFrom((content ?? null) as Record<string, unknown> | null) : null,
   };
 }
 

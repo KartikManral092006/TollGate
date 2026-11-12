@@ -17,7 +17,9 @@ import {
   normalizeChatText,
   replyExtra,
   replyText,
+  TEXT_MESSAGE_TYPE,
   type ChatLine,
+  type Quote,
 } from "@/features/room/shared/chat";
 
 export type LiveState = "connecting" | "live" | "offline";
@@ -218,6 +220,8 @@ export function useRoomLive(input: {
       mention?: { ids: string[]; from: string },
       // Only these members receive it (the team without its clients).
       onlyTo?: string[],
+      // A reply that quotes an earlier message: sent as a Nexconn reference message.
+      quote?: Quote,
     ): Promise<boolean> => {
       const body = normalizeChatText(raw);
       if (!body) return false;
@@ -237,28 +241,55 @@ export function useRoomLive(input: {
         teamOnly: Boolean(onlyTo?.length),
         edited: false,
         attachment: null,
+        quote: quote ?? null,
       };
       setLines((current) => mergeChat(current, [optimistic]));
       try {
         const { chat } = await startNexconn({ withChatUI: false, withCall: callsEnabled });
         const channel = new chat.GroupChannel(channelId);
-        const params = new chat.SendTextMessageParams({
-          text,
-          ...(gate ? { extra: replyExtra(gate.id) } : {}),
-          ...(mention?.ids.length
-            ? { mentionedInfo: { type: MENTION_PEOPLE, userIdList: mention.ids } }
-            : {}),
-        });
-        if (onlyTo?.length) params.directedUserIds = onlyTo;
-        if (mention?.ids.length) {
-          params.needReceipt = true;
-          params.pushConfig = {
-            pushTitle: `${mention.from} mentioned you`,
-            pushContent: Array.from(text).slice(0, 120).join(""),
-            pushData: "",
-          };
-        }
-        const result = await channel.sendMessage(params);
+        // Delivery options shared by plain and quoting messages.
+        const deliver = <P extends { directedUserIds?: string[]; needReceipt?: boolean }>(
+          params: P & { pushConfig?: unknown },
+        ): P => {
+          if (onlyTo?.length) params.directedUserIds = onlyTo;
+          if (mention?.ids.length) {
+            params.needReceipt = true;
+            params.pushConfig = {
+              pushTitle: `${mention.from} mentioned you`,
+              pushContent: Array.from(text).slice(0, 120).join(""),
+              pushData: "",
+            };
+          }
+          return params;
+        };
+        const mentionedInfo = mention?.ids.length
+          ? { mentionedInfo: { type: MENTION_PEOPLE, userIdList: mention.ids } }
+          : {};
+        const extra = gate ? { extra: replyExtra(gate.id) } : {};
+        // The quoted message's type comes from the SDK's own copy when we have it.
+        const result = quote
+          ? await channel.sendMessage(
+              deliver(
+                new chat.SendReferenceMessageParams({
+                  text,
+                  ...extra,
+                  ...mentionedInfo,
+                  referMsgId: quote.id,
+                  referMsgType: messages.current.get(quote.id)?.messageType ?? TEXT_MESSAGE_TYPE,
+                  referMsgSenderId: quote.senderId,
+                  referMsg: { text: quote.text, content: quote.text },
+                } as ConstructorParameters<typeof chat.SendReferenceMessageParams>[0]),
+              ),
+            )
+          : await channel.sendMessage(
+              deliver(
+                new chat.SendTextMessageParams({
+                  text,
+                  ...extra,
+                  ...mentionedInfo,
+                } as ConstructorParameters<typeof chat.SendTextMessageParams>[0]),
+              ),
+            );
         if (!result.isOk || !result.data) throw new Error(`send failed: ${result.code}`);
         const sent = result.data;
         messages.current.set(sent.messageId, sent as unknown as ChatMessage);
@@ -298,6 +329,7 @@ export function useRoomLive(input: {
         readBy: [],
         teamOnly: false,
         edited: false,
+        quote: null,
         attachment: isImage
           ? { kind: "image", url: "", thumb: null }
           : { kind: "file", url: "", name: file.name, size: file.size },

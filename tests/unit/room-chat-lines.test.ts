@@ -5,6 +5,7 @@ import {
   chatLineFromMessage,
   mergeChat,
   normalizeChatText,
+  QUOTE_MAX_CHARS,
   mentionedIds,
   repliesTo,
   replyBody,
@@ -27,6 +28,7 @@ const line = (id: string, sentTime: number, overrides: Partial<ChatLine> = {}): 
   teamOnly: false,
   edited: false,
   attachment: null,
+  quote: null,
   ...overrides,
 });
 
@@ -109,6 +111,7 @@ describe("chatLineFromMessage", () => {
       teamOnly: false,
       edited: false,
       attachment: null,
+      quote: null,
     });
     expect(
       chatLineFromMessage(
@@ -227,5 +230,69 @@ describe("chatLineFromMessage", () => {
     ["a non-text content", { content: { text: 42 } }],
   ])("ignores %s", (_label, overrides) => {
     expect(chatLineFromMessage({ ...message, ...overrides }, "me")).toBeNull();
+  });
+});
+
+describe("quote replies (Nexconn reference messages)", () => {
+  const reference = (content: Record<string, unknown>) => ({
+    messageId: "M2",
+    messageType: "RC:ReferenceMsg",
+    senderUserId: "U2",
+    sentTime: 2000,
+    content,
+  });
+
+  it("reads the reply text and what it quotes, in the SDK's shape", () => {
+    const line = chatLineFromMessage(
+      reference({
+        text: "Agreed, keep the column",
+        referMsgId: "M1",
+        referMsgType: "RC:TxtMsg",
+        referMsgSenderId: "U1",
+        referMsg: { text: "finance still reads legacy_total" },
+      }),
+      "U2",
+    );
+    expect(line).toMatchObject({
+      text: "Agreed, keep the column",
+      mine: true,
+      quote: { id: "M1", senderId: "U1", text: "finance still reads legacy_total" },
+    });
+  });
+
+  it("accepts the engine's field names from other clients", () => {
+    const line = chatLineFromMessage(
+      reference({
+        content: "ok",
+        referMsgUid: "M1",
+        referMsgUserId: "U1",
+        referMsg: { content: "deploy after lunch?" },
+      }),
+      "U9",
+    );
+    expect(line?.quote).toEqual({ id: "M1", senderId: "U1", text: "deploy after lunch?" });
+  });
+
+  it("keeps the reply when the quote can't be identified, and shortens long quotes", () => {
+    expect(chatLineFromMessage(reference({ text: "hi" }), null)?.quote).toBeNull();
+    const long = chatLineFromMessage(
+      reference({
+        text: "hi",
+        referMsgId: "M1",
+        referMsgSenderId: "U1",
+        referMsg: { text: "word ".repeat(100) },
+      }),
+      null,
+    );
+    expect(Array.from(long?.quote?.text ?? "").length).toBe(QUOTE_MAX_CHARS);
+    expect(long?.quote?.text.endsWith("…")).toBe(true);
+  });
+
+  it("is not a quote for a plain text message", () => {
+    const line = chatLineFromMessage(
+      { messageId: "M3", messageType: "RC:TxtMsg", senderUserId: "U1", content: { text: "hi" } },
+      null,
+    );
+    expect(line?.quote).toBeNull();
   });
 });

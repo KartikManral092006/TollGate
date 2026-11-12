@@ -9,6 +9,7 @@ import {
   Lock,
   MoreHorizontal,
   Pencil,
+  Quote as QuoteIcon,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
@@ -65,6 +66,8 @@ export function ChatLineView({
   translation,
   onTranslate,
   onHideTranslation,
+  onQuote,
+  quotedName,
 }: {
   line: ChatLine;
   name: string;
@@ -80,6 +83,10 @@ export function ChatLineView({
   translation?: Translation;
   onTranslate?: (messageId: string, text: string) => void;
   onHideTranslation?: (messageId: string) => void;
+  // Reply quoting this message (sent as a Nexconn reference message).
+  onQuote?: (line: ChatLine) => void;
+  // Who wrote the message this one quotes.
+  quotedName?: string;
 }) {
   const code = gate?.code ?? line.gateCode;
   const body = code !== null ? replyBody(line.text) : line.text;
@@ -89,6 +96,7 @@ export function ChatLineView({
   const canChange = line.mine && line.local === null && (onEdit || onDelete);
   const canTranslate =
     !line.mine && onTranslate !== undefined && !translation && line.attachment === null;
+  const canQuote = onQuote !== undefined && line.local === null && line.attachment === null;
 
   async function save() {
     if (editing === null || !onEdit) return;
@@ -134,7 +142,7 @@ export function ChatLineView({
               {line.edited && " (edited)"}
             </span>
           )}
-          {(canChange || canTranslate) && editing === null && (
+          {(canChange || canTranslate || canQuote) && editing === null && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -149,12 +157,17 @@ export function ChatLineView({
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
+                {canQuote && (
+                  <DropdownMenuItem onClick={() => onQuote(line)}>
+                    <QuoteIcon /> Quote in reply
+                  </DropdownMenuItem>
+                )}
                 {canTranslate && (
                   <DropdownMenuItem onClick={() => onTranslate(line.id, body)}>
                     <Languages /> Translate
                   </DropdownMenuItem>
                 )}
-                {canChange && onEdit && line.attachment === null && (
+                {canChange && onEdit && line.attachment === null && line.quote === null && (
                   <DropdownMenuItem onClick={() => setEditing(body)}>
                     <Pencil /> Edit
                   </DropdownMenuItem>
@@ -168,6 +181,12 @@ export function ChatLineView({
             </DropdownMenu>
           )}
         </p>
+        {line.quote && (
+          <blockquote className="mt-1 mb-1 border-s-2 border-border ps-2.5 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground/80">{quotedName ?? "A teammate"}</span>
+            {line.quote.text ? <span className="block truncate">{line.quote.text}</span> : null}
+          </blockquote>
+        )}
         <p
           className={cn(
             "text-sm whitespace-pre-wrap",
