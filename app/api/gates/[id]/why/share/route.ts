@@ -36,6 +36,13 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
   const member = await requireMember(gate.teamId, auth.user.id);
   if (!member.ok) return member.response;
   if (!gate.team.nexconnGroupReadyAt) return json({ error: "chat_unavailable" }, 409);
+  // Checked before answering, so nobody is told it's being shared when it can't be.
+  let client;
+  try {
+    client = getNexconn();
+  } catch {
+    return json({ error: "chat_unavailable" }, 409);
+  }
 
   const fresh = await redis
     .set(`why:shared:${gate.id}`, "1", "EX", SHARE_WINDOW_SECONDS, "NX")
@@ -47,7 +54,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gates/[id]/
   after(async () => {
     try {
       await streamWhyToRoom(
-        { client: getNexconn(), sleep: (ms) => new Promise((done) => setTimeout(done, ms)) },
+        { client, sleep: (ms) => new Promise((done) => setTimeout(done, ms)) },
         {
           channelId: gate.team.nexconnChannelId,
           gateId: gate.id,
