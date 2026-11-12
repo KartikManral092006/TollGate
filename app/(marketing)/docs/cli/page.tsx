@@ -26,7 +26,7 @@ export default function CliPage() {
       </P>
 
       <H2 id="init">init</H2>
-      <Command value="npx tollgate-cli init --token tg_… [--server <url>] [--repo <owner/name>]" />
+      <Command value="npx -y tollgate-cli@latest init --token tg_… [--server <url>] [--repo <owner/name>]" />
       <P>
         Links this repo on this machine: saves your token, writes <C>.tollgate.json</C>, and
         registers the hook in <C>.claude/settings.json</C>. <C>--repo</C> is only needed when the
@@ -35,11 +35,11 @@ export default function CliPage() {
       </P>
 
       <H2 id="status">status</H2>
-      <Command value="npx tollgate-cli status" />
+      <Command value="npx -y tollgate-cli status" />
       <P>Shows the linked repo, server and presets, and checks your token with the server.</P>
 
       <H2 id="test">test</H2>
-      <Command value="npx tollgate-cli test" />
+      <Command value="npx -y tollgate-cli test" />
       <P>
         Raises a harmless gate for <C>echo tollgate-test</C> and waits for your team, like the agent
         would.
@@ -49,7 +49,7 @@ export default function CliPage() {
       </Output>
 
       <H2 id="unlink">unlink</H2>
-      <Command value="npx tollgate-cli unlink" />
+      <Command value="npx -y tollgate-cli unlink" />
       <P>
         Removes this repo&apos;s token from this machine. Revoke it in Settings too, so it
         can&apos;t be used elsewhere.

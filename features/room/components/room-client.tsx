@@ -292,7 +292,7 @@ export function RoomClient({
                     <EmptyContent>
                       <p className="text-xs text-muted-foreground">
                         Send a test one with{" "}
-                        <code className="font-mono">npx tollgate-cli test</code>.
+                        <code className="font-mono">npx -y tollgate-cli test</code>.
                       </p>
                     </EmptyContent>
                   </Empty>

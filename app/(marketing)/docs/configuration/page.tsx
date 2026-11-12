@@ -72,8 +72,8 @@ export default function ConfigurationPage() {
       <H2 id="timeout">How long the agent waits</H2>
       <P>
         Set <C>hookTimeoutSec</C> in <C>.tollgate.json</C> (30 to 600 seconds, default 300), then
-        run <C>npx tollgate-cli init</C> again so Claude Code&apos;s hook timeout matches. The hook
-        parks the gate 15 seconds before that timeout.
+        run <C>npx -y tollgate-cli@latest init</C> again so Claude Code&apos;s hook timeout matches.
+        The hook parks the gate 15 seconds before that timeout.
       </P>
 
       <H2 id="modes">Guard and Delegate mode</H2>

@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { DEFAULT_PRESETS } from "../../../features/gates/shared/presets";
-import { createApi, whoAmI } from "./api";
+import { createApi, describeSetupError, whoAmI, type WhoAmI } from "./api";
 import {
   buildContext,
   envSecrets,
@@ -32,10 +32,10 @@ declare const TOLLGATE_VERSION: string;
 const HELP = `tollgate ${TOLLGATE_VERSION}: your team approves risky agent commands before they run
 
 Usage:
-  npx tollgate-cli init --token <tg_…> [--server <url>] [--repo <owner/name>]
-  npx tollgate-cli status
-  npx tollgate-cli test        Raise a harmless test gate (echo tollgate-test)
-  npx tollgate-cli unlink      Forget this repo's token on this machine
+  npx -y tollgate-cli@latest init --token <tg_…> [--server <url>] [--repo <owner/name>]
+  npx -y tollgate-cli status
+  npx -y tollgate-cli test        Raise a harmless test gate (echo tollgate-test)
+  npx -y tollgate-cli unlink      Forget this repo's token on this machine
   tollgate hook                Claude Code PreToolUse hook (reads JSON on stdin)
 `;
 
@@ -129,7 +129,14 @@ async function runInit(argv: string[]): Promise<void> {
       "Missing --token or --server. Copy the full command from your team's Settings › Repos page.",
     );
   }
-  const who = await whoAmI(server, token);
+  // Say what's happening first, so a slow network or cold server never looks like a hang.
+  process.stdout.write(`Checking your token with ${server}…\n`);
+  let who: WhoAmI;
+  try {
+    who = await whoAmI(server, token);
+  } catch (error) {
+    throw new Error(describeSetupError(error, server));
+  }
   const repo = values.repo ?? who.repo.name ?? gitRepoName(repoRoot) ?? "repo";
 
   const bundle = installBundle(resolve(process.argv[1] ?? ""), tollgateHome());
@@ -143,7 +150,7 @@ async function runInit(argv: string[]): Promise<void> {
       `✓ Presets in ${files.configPath}: commit this file so your team shares them`,
       `✓ Hook registered in ${files.settingsPath} (timeout ${files.timeoutSec} s)`,
       "",
-      "Next: restart Claude Code in this repo, then run `npx tollgate-cli test`.",
+      "Next: restart Claude Code in this repo, then run `npx -y tollgate-cli test`.",
       "",
     ].join("\n"),
   );
@@ -175,7 +182,7 @@ async function runStatus(): Promise<void> {
       `Token ${token.slice(0, 10)}… OK: team "${who.team.name}", ${who.repo.mode} mode\n`,
     );
   } catch (error) {
-    process.stdout.write(`Token check failed: ${error instanceof Error ? error.message : error}\n`);
+    process.stdout.write(`Token check failed: ${describeSetupError(error, config.server)}\n`);
     process.exitCode = 1;
   }
 }

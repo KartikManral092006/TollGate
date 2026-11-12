@@ -112,7 +112,10 @@ export function LandingFooter() {
               Approval gates for Claude Code. Your agent moves fast; production waits for your team.
             </p>
             <div className="max-w-sm">
-              <CopyField value="npx tollgate-cli init --token tg_…" label="setup command" />
+              <CopyField
+                value="npx -y tollgate-cli@latest init --token tg_…"
+                label="setup command"
+              />
             </div>
             <p
               className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/65"

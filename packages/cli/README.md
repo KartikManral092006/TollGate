@@ -24,13 +24,13 @@ An approval covers that exact edit or call only. Custom presets take `"tool": "e
 2. Run it in the repo:
 
    ```bash
-   npx tollgate-cli init --server https://your-tollgate.example --token tg_…
+   npx -y tollgate-cli@latest init --server https://your-tollgate.example --token tg_…
    ```
 
 3. Restart Claude Code in the repo, then check the whole loop:
 
    ```bash
-   npx tollgate-cli test
+   npx -y tollgate-cli test
    ```
 
 `init` writes:

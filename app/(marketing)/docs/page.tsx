@@ -65,7 +65,7 @@ export default function QuickstartPage() {
           </p>
         </Step>
         <Step title="Run the command in the repo folder">
-          <Command value="npx tollgate-cli init --server https://toll-gate-mo7d.vercel.app --token tg_…" />
+          <Command value="npx -y tollgate-cli@latest init --server https://toll-gate-mo7d.vercel.app --token tg_…" />
           <p>It prints what it set up:</p>
           <Output>{`✓ Linked acme/billing to team "Billing" (guard mode) as Priya
 ✓ Token saved to ~/.config/tollgate/tokens.json (only readable by you; never in the repo)
@@ -82,7 +82,7 @@ export default function QuickstartPage() {
           </p>
         </Step>
         <Step title="Raise a harmless test gate">
-          <Command value="npx tollgate-cli test" />
+          <Command value="npx -y tollgate-cli test" />
           <p>
             It raises a gate for <C>echo tollgate-test</C> and waits. A card appears in your
             team&apos;s room within a second or two.

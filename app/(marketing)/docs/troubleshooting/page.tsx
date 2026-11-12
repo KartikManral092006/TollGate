@@ -22,11 +22,28 @@ export default function TroubleshootingPage() {
       <DocTitle href="/docs/troubleshooting" />
 
       <P>Start here: it checks the link, the server and your token in one go.</P>
-      <Command value="npx tollgate-cli status" />
+      <Command value="npx -y tollgate-cli status" />
       <Output>{`Repo acme/billing at /work/billing
 Server https://toll-gate-mo7d.vercel.app
 Presets tollgate-test, staging-deploy, prod-deploy, db-migrate, …
 Token tg_7Hq2Kd… OK: team "Billing", guard mode`}</Output>
+
+      <H2 id="init-stuck">
+        <C>init</C> seems stuck
+      </H2>
+      <P>
+        Without <C>-y</C>, the first <C>npx tollgate-cli</C> run (and the first after a new release)
+        stops at a question and waits for you to type <C>y</C>:
+      </P>
+      <Output>{`Need to install the following packages:
+tollgate-cli@0.2.4
+Ok to proceed? (y)`}</Output>
+      <P>
+        Press <C>y</C>, or run the command with <C>-y</C> as Settings shows it. In a project with a
+        big <C>node_modules</C>, npx also spends a few seconds looking there first. That&apos;s
+        normal. Installing it once with <C>npm i -g tollgate-cli</C> and running{" "}
+        <C>tollgate init …</C> skips npx entirely.
+      </P>
 
       <H2 id="401">&ldquo;Tollgate could not reach … (401 unauthorized)&rdquo;</H2>
       <P>The server doesn&apos;t accept the token. Usually one of these:</P>
@@ -56,7 +73,7 @@ Token tg_7Hq2Kd… OK: team "Billing", guard mode`}</Output>
         </li>
         <li>
           File edits and MCP tools aren&apos;t gated? Their hook needs CLI 0.2.4 or newer: run{" "}
-          <C>npx tollgate-cli@latest init</C> again, then restart Claude Code.
+          <C>npx -y tollgate-cli@latest init</C> again, then restart Claude Code.
         </li>
         <li>
           The command may not match a preset (see{" "}
@@ -66,7 +83,7 @@ Token tg_7Hq2Kd… OK: team "Billing", guard mode`}</Output>
           >
             Configuration
           </a>
-          ). Confirm the whole path works with <C>npx tollgate-cli test</C>.
+          ). Confirm the whole path works with <C>npx -y tollgate-cli test</C>.
         </li>
       </List>
 
@@ -112,7 +129,7 @@ Token tg_7Hq2Kd… OK: team "Billing", guard mode`}</Output>
 
       <H2 id="old-cli">Something described here is missing</H2>
       <P>You may have an older CLI cached. Run the latest:</P>
-      <Command value="npx tollgate-cli@latest status" />
+      <Command value="npx -y tollgate-cli@latest status" />
 
       <PrevNext href="/docs/troubleshooting" />
     </article>

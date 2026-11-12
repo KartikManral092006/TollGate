@@ -201,7 +201,10 @@ export default function LandingPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <p className="text-sm text-white/55">In your project:</p>
-                  <CopyField value="npx tollgate-cli init --token tg_…" label="setup command" />
+                  <CopyField
+                    value="npx -y tollgate-cli@latest init --token tg_…"
+                    label="setup command"
+                  />
                   <p className="text-xs text-white/45">
                     Settings gives you the exact command with your team&apos;s token.
                   </p>

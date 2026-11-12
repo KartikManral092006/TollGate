@@ -106,7 +106,7 @@ function ConfirmRevoke({
 }
 
 function initCommand(data: Record<string, unknown>): string {
-  return `npx tollgate-cli init --server ${String(data.serverUrl)} --token ${String(data.token)}`;
+  return `npx -y tollgate-cli@latest init --server ${String(data.serverUrl)} --token ${String(data.token)}`;
 }
 
 // A freshly minted token's command. The token is shown this once.
@@ -141,7 +141,7 @@ function IssuedCommand({
       </CodeBlock>
       <p className="text-xs text-muted-foreground">
         Shown once. If you lose it, create another token and revoke this one. Then restart Claude
-        Code and run <code className="font-mono">npx tollgate-cli test</code>.
+        Code and run <code className="font-mono">npx -y tollgate-cli test</code>.
       </p>
       <Button variant="outline" size="sm" className="self-start" onClick={onDone}>
         Done
