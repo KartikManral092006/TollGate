@@ -1,6 +1,15 @@
 "use client";
 
-import { AtSign, Bell, BellOff, BellRing, Check, ListChecks } from "lucide-react";
+import {
+  AtSign,
+  Bell,
+  BellOff,
+  BellRing,
+  Check,
+  ListChecks,
+  MessageSquare,
+  MessageSquareOff,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,8 +64,9 @@ export function RoomHeader({
   chatNotify?: ChatNotify | null;
   onChatNotify?: (next: ChatNotify) => void;
 }) {
+  // A chat bubble, not a bell: the bells in the top bar are for gates and alerts.
   const NotifyIcon =
-    chatNotify === "none" ? BellOff : chatNotify === "mentions" ? AtSign : BellRing;
+    chatNotify === "none" ? MessageSquareOff : chatNotify === "mentions" ? AtSign : MessageSquare;
   return (
     <header className="flex shrink-0 items-center gap-3 border-b bg-background/90 px-4 py-3 backdrop-blur sm:px-6 lg:px-10">
       <div className="min-w-0 flex-1">
@@ -127,7 +137,8 @@ export function RoomHeader({
       )}
       {onEnableAlerts && (
         <Button variant="outline" size="sm" onClick={onEnableAlerts} className="gap-1.5">
-          <Bell /> <span className="hidden sm:inline">Turn on alerts</span>
+          <Bell /> <span className="sm:hidden">Alerts</span>
+          <span className="hidden sm:inline">Turn on alerts</span>
         </Button>
       )}
     </header>

@@ -91,7 +91,9 @@ export function RoomRail({
                     />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold">TG-{gate.code}</span>
+                        <span className="shrink-0 font-mono text-sm font-bold whitespace-nowrap">
+                          TG-{gate.code}
+                        </span>
                         <EnvBadge env={gate.env} />
                         {gate.status === "pending" && gate.parksAt && (
                           <ParkCountdown
@@ -141,7 +143,9 @@ export function RoomRail({
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold">TG-{gate.code}</span>
+                      <span className="shrink-0 font-mono text-sm font-bold whitespace-nowrap">
+                        TG-{gate.code}
+                      </span>
                       <EnvBadge env={gate.env} />
                     </span>
                     <span className="block truncate font-mono text-xs text-muted-foreground">
