@@ -140,6 +140,22 @@ export default function ConfigurationPage() {
         </li>
       </List>
 
+      <H2 id="delete-team">Leaving or deleting a team</H2>
+      <List>
+        <li>
+          <strong>Settings › Leave team</strong>: anyone except the owner can leave. The team drops
+          off their list, their machines&apos; tokens for its repos stop working and their waiting
+          gates are cancelled.
+        </li>
+        <li>
+          <strong>Settings › Delete team</strong>: the owner types the team&apos;s name to delete it
+          for everyone, with its repos, tokens, gates and audit log. It can&apos;t be undone, so
+          download the audit log first if you need it. Agents in repos linked to the team then block
+          risky commands until the repo is linked to another team with{" "}
+          <C>npx -y tollgate-cli@latest init</C>.
+        </li>
+      </List>
+
       <H2 id="ai">The Why? explanation</H2>
       <P>
         <strong>Settings › AI explanations</strong>: the built-in explanations are free and nothing

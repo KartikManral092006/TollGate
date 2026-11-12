@@ -36,6 +36,7 @@ import { PersonAvatar } from "@/features/room/components/person-avatar";
 import { timeAgo } from "@/features/room/shared/format";
 import { AiSettings } from "@/features/settings/components/ai-card";
 import { CopyField } from "@/features/settings/components/copy-field";
+import { TeamExit } from "@/features/settings/components/delete-team-card";
 import { FreezeSettings } from "@/features/settings/components/freeze-card";
 import { RulesSettings } from "@/features/settings/components/rules-card";
 import type { FreezeView } from "@/features/teams/shared/freeze";
@@ -664,6 +665,7 @@ export function SettingsClient({
     { id: "sharing", label: "What approvers see" },
     { id: "ai", label: "AI explanations" },
     { id: "members", label: "Members" },
+    { id: "danger", label: isOwner ? "Delete team" : "Leave team" },
   ]);
   const [ids] = useState(() => sections.map((section) => section.id));
   const active = useActiveSection(ids);
@@ -743,6 +745,23 @@ export function SettingsClient({
             description="Owners, approvers and clients can vote. Nobody can approve their own agent's command."
           >
             <Members teamId={teamId} members={members} viewerId={viewer.id} isOwner={isOwner} />
+          </Section>
+          <Section
+            id="danger"
+            title={isOwner ? "Delete this team" : "Leave this team"}
+            description={
+              isOwner
+                ? "For a project that's over or a team made to try Tollgate out."
+                : "For a team you no longer approve or run commands for."
+            }
+          >
+            <TeamExit
+              teamId={teamId}
+              teamName={teamName}
+              isOwner={isOwner}
+              repos={repos.length}
+              members={members.length}
+            />
           </Section>
         </div>
       </div>

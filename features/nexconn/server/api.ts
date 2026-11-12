@@ -75,6 +75,20 @@ export async function leaveGroup(
   }
 }
 
+// Removes a deleted team's chat group (docs/nexconn.md: /v4/group-channel/dismiss). Already
+// gone is done.
+export async function dismissGroup(
+  client: NexconnClient,
+  input: { channelId: string },
+): Promise<void> {
+  try {
+    await client.call("/v4/group-channel/dismiss", input, { retryOnFailover: true });
+  } catch (error) {
+    if (isCode(error, NexconnCode.GroupMissing)) return;
+    throw error;
+  }
+}
+
 export async function sendGroupMessage(
   client: NexconnClient,
   input: {
