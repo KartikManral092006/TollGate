@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { currentStep, setupState } from "@/features/onboarding/shared/steps";
 
-const fresh = { hasName: false, repoCount: 0, tokenUsed: false, gateCount: 0, memberCount: 1, outsideVote: false };
+const fresh = {
+  hasName: false,
+  repoCount: 0,
+  tokenUsed: false,
+  gateCount: 0,
+  memberCount: 1,
+  outsideVote: false,
+};
 
 describe("setupState", () => {
   it("starts at the name step with nothing done", () => {
