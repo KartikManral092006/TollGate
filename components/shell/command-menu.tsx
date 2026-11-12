@@ -9,6 +9,7 @@ import {
   ScrollText,
   Settings2,
   ShieldAlert,
+  UserRound,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
@@ -135,6 +136,13 @@ export function CommandMenu({
             <CommandItem value="All teams home" onSelect={() => go("/home")}>
               <LayoutGrid />
               All teams
+            </CommandItem>
+            <CommandItem
+              value="Your profile account sessions tokens"
+              onSelect={() => go("/people/me")}
+            >
+              <UserRound />
+              Your profile
             </CommandItem>
             <CommandItem value="Start a new team" onSelect={() => go("/home#new-team")}>
               <Plus />

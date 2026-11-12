@@ -188,14 +188,26 @@ function SidebarBody({
         </div>
       </nav>
 
-      <div className="flex shrink-0 items-center gap-2.5 border-t border-white/10 px-3 py-3">
-        <PersonAvatar id={user.id} name={user.name || user.email} size="sm" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white">{user.name || "You"}</p>
-          <p className="truncate text-xs text-white/50">
-            {current ? (ROLE_LABEL[current.role] ?? current.role) : user.email}
-          </p>
-        </div>
+      <div className="flex shrink-0 items-center gap-1 border-t border-white/10 px-2 py-2.5">
+        <Link
+          href="/people/me"
+          aria-current={pathname === `/people/${user.id}` ? "page" : undefined}
+          title="Your profile"
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 py-1 transition-colors outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-signal",
+            pathname === `/people/${user.id}` && "bg-white/10",
+          )}
+        >
+          <PersonAvatar id={user.id} name={user.name || user.email} size="sm" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-white">
+              {user.name || "You"}
+            </span>
+            <span className="block truncate text-xs text-white/50">
+              {current ? (ROLE_LABEL[current.role] ?? current.role) : "Your profile"}
+            </span>
+          </span>
+        </Link>
         <ThemeToggle className="text-white/70 hover:bg-white/10 hover:text-white dark:hover:bg-white/10" />
         <form action={signOutAction}>
           <Button

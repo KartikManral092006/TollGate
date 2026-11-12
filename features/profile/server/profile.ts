@@ -111,6 +111,7 @@ export async function loadProfile(
       memberSince: target.createdAt.toISOString(),
     },
     isSelf,
+    viewerId: input.viewerId,
     teams: inScope.map((m) => ({
       id: m.team.id,
       name: m.team.name,
