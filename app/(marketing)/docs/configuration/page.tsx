@@ -166,6 +166,11 @@ export default function ConfigurationPage() {
         leaves the server. You can also connect your own AI provider. Either way it only explains;
         it never approves.
       </P>
+      <P>
+        Under an explanation, <strong>Share with the team</strong> posts it into the room, where it
+        appears a sentence at a time for everyone. A gate&apos;s explanation is shared at most once
+        every ten minutes.
+      </P>
 
       <H2 id="notifications">Notifications</H2>
       <List>

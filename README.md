@@ -143,6 +143,8 @@ Commands that don't match a preset run untouched; the hook adds about 50 ms to e
   gets it as its next instruction.
 - A keyboard-driven **review queue** (`J`/`K` to move, `A` to approve, `D` to deny).
 - **"Why?"** explains any command in plain words: built in and free, or with your own AI provider.
+  **Share with the team** posts the explanation into the room, where it arrives live.
+- **Quote a teammate's message** in a reply, so the discussion stays clear.
 - **Approval windows** approve one kind of command for a short time, instead of one call at a time.
 
 <br clear="right">
@@ -184,7 +186,8 @@ Commands that don't match a preset run untouched; the hook adds about 50 ms to e
   more approvals.
 - **Emergency bypass** (`TOLLGATE_BYPASS=1`) works offline, but every bypass is reported to the
   team and waits for someone else to review it.
-- **Membership controls:** owners can remove members, revoke a lost laptop's token or delete a team.
+- **Membership controls:** owners can rename or delete a team, remove members and revoke a lost
+  laptop's token.
   Members can leave a team.
 
 ## What gets gated
@@ -231,9 +234,12 @@ The team room runs on the [Nexconn](https://nexconn.ai) Chat and Call SDKs:
 
 | Nexconn feature                 | Where Tollgate uses it                                                                    |
 | ------------------------------- | ----------------------------------------------------------------------------------------- |
-| Group channels                  | One room per team: gate cards, replies and team chat                                      |
+| Group channels                  | One room per team: gate cards, replies and team chat; renaming a team renames its group   |
 | Custom message types + metadata | Gate cards whose status, votes and outcome update live on every device                    |
 | Server API, sending as a bot    | Gate cards and decisions posted by the server, not by a person                            |
+| Stream messages                 | A gate's "Why?" explanation shared with the room, arriving a sentence at a time           |
+| Reference (quote) messages      | Reply to a teammate by quoting their message                                              |
+| Mentions, read receipts, files  | Pull someone into a decision, see that they read it, attach a screenshot or log           |
 | System messages                 | "Waiting on you", reminders for parked gates, decisions on parked gates and bypass alerts |
 | Online status                   | Who is online to approve, shown in the room                                               |
 | Machine translation             | Read a teammate's message in your own language                                            |
