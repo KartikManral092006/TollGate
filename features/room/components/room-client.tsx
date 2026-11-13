@@ -2,7 +2,8 @@
 
 import { ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Empty,
   EmptyContent,
@@ -156,7 +157,12 @@ export function RoomClient({
         gate.id,
         thread.map((line) => ({
           id: line.id,
-          name: line.mine ? "You" : (names.get(line.senderId) ?? "Teammate"),
+          // A shared explanation is the Tollgate bot's message, not a teammate's.
+          name: line.why
+            ? "Tollgate"
+            : line.mine
+              ? "You"
+              : (names.get(line.senderId) ?? "Teammate"),
           text: replyBody(line.text),
         })),
       );
@@ -207,6 +213,21 @@ export function RoomClient({
   );
   const people = usePresence(team.id, { viewing, typing: actions.composing?.id ?? null });
   const online = useMemo(() => new Set(people.map((p) => p.userId)), [people]);
+
+  // Someone who joined while this room was open (they show up present, or write) isn't in
+  // the member list the page loaded with: fetch it again, once per newcomer, so their name
+  // and role show instead of "Teammate".
+  const router = useRouter();
+  const lookedUp = useRef(new Set<string>());
+  useEffect(() => {
+    const newcomers = [
+      ...people.map((p) => p.userId),
+      ...lines.filter((line) => !line.mine && !line.why).map((line) => line.senderId),
+    ].filter((id) => !names.has(id) && !lookedUp.current.has(id));
+    if (newcomers.length === 0) return;
+    for (const id of newcomers) lookedUp.current.add(id);
+    router.refresh();
+  }, [people, lines, names, router]);
   const others = useMemo(
     () => members.filter((m) => m.id !== viewer.id).map((m) => m.id),
     [members, viewer.id],

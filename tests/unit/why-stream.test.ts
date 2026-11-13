@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NexconnClient } from "@/features/nexconn/server/client";
 import { streamWhyToRoom } from "@/features/why/server/share";
+import { streamSummary } from "@/features/room/shared/chat";
 import { WHY_STREAM_MAX_CHUNKS, whyChunks } from "@/features/why/shared/stream";
 
 vi.mock("server-only", () => ({}));
@@ -75,5 +76,29 @@ describe("streamWhyToRoom", () => {
     );
     expect(id).toBeNull();
     expect(call).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("streamSummary", () => {
+  it("reads the finished text Nexconn reports as a stream message's metadata", () => {
+    const raw = JSON.stringify({ complete: true, summary: "Drops a column.\nCan't be undone." });
+    expect(streamSummary(raw)).toEqual({
+      text: "Drops a column.\nCan't be undone.",
+      complete: true,
+    });
+  });
+
+  it("treats a summary without complete: true as still arriving", () => {
+    expect(streamSummary(JSON.stringify({ summary: "So far" }))).toEqual({
+      text: "So far",
+      complete: false,
+    });
+  });
+
+  it("ignores anything that isn't a summary", () => {
+    expect(streamSummary(undefined)).toBeNull();
+    expect(streamSummary("not json")).toBeNull();
+    expect(streamSummary(JSON.stringify({ complete: true }))).toBeNull();
+    expect(streamSummary(JSON.stringify({ summary: 42 }))).toBeNull();
   });
 });
