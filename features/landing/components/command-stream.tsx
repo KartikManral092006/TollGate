@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { CommandStream as Stream } from "@/features/landing/components/command-stream-scene";
+import { prefersLightEffects, whenIdle } from "@/lib/device";
 
 // The hero background: agent commands streaming through a gate (WebGL). Pauses off screen
 // and in hidden tabs; one still frame for reduced motion; a plain glow without WebGL.
@@ -14,6 +15,7 @@ export function CommandStream({ className }: { className?: string }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (prefersLightEffects()) return;
     const probe = document.createElement("canvas");
     if (!(probe.getContext("webgl2") ?? probe.getContext("webgl"))) return;
     let cancelled = false;
@@ -40,20 +42,24 @@ export function CommandStream({ className }: { className?: string }) {
     };
     host.addEventListener("pointermove", onPointer);
 
-    import("@/features/landing/components/command-stream-scene")
-      .then(({ createCommandStream }) => {
-        if (cancelled) return;
-        stream = createCommandStream(canvas, {
-          reduced,
-          density: window.innerWidth < 640 ? 0.45 : 1,
-        });
-        setReady(true);
-        sync();
-      })
-      .catch(() => undefined);
+    // The scene starts once the page is usable, so it never delays the first tap.
+    const cancelIdle = whenIdle(() => {
+      import("@/features/landing/components/command-stream-scene")
+        .then(({ createCommandStream }) => {
+          if (cancelled) return;
+          stream = createCommandStream(canvas, {
+            reduced,
+            density: window.innerWidth < 640 ? 0.45 : 1,
+          });
+          setReady(true);
+          sync();
+        })
+        .catch(() => undefined);
+    });
 
     return () => {
       cancelled = true;
+      cancelIdle();
       intersection.disconnect();
       document.removeEventListener("visibilitychange", sync);
       host.removeEventListener("pointermove", onPointer);

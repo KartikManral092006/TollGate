@@ -39,6 +39,43 @@ const STEPS = [
 ];
 
 const pct = (value: number, of: number) => `${(value / of) * 100}%`;
+
+// Where along the track each station sits, as 0..1. getPointAtLength is slow on phones, so the
+// track is sampled once, coarsely, for every station together, then each station's best sample
+// is refined between its neighbours: about 180 reads instead of 2,000 while the page starts.
+function stationPositions(track: SVGPathElement, length: number): number[] {
+  const COARSE = 120;
+  const FINE = 12;
+  const distanceAt = (t: number, station: { x: number; y: number }) => {
+    const point = track.getPointAtLength(t * length);
+    return Math.hypot(point.x - station.x, point.y - station.y);
+  };
+  const samples = Array.from({ length: COARSE + 1 }, (_, i) =>
+    track.getPointAtLength((i / COARSE) * length),
+  );
+  return STATIONS.map((station) => {
+    let best = 0;
+    let bestDistance = Infinity;
+    samples.forEach((point, i) => {
+      const distance = Math.hypot(point.x - station.x, point.y - station.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = i / COARSE;
+      }
+    });
+    const from = Math.max(0, best - 1 / COARSE);
+    const to = Math.min(1, best + 1 / COARSE);
+    for (let i = 0; i <= FINE; i++) {
+      const t = from + ((to - from) * i) / FINE;
+      const distance = distanceAt(t, station);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = t;
+      }
+    }
+    return best;
+  });
+}
 // The visual's own size; it's scaled to fit its column.
 const DESIGN = { w: 720, h: 432 };
 
@@ -66,20 +103,7 @@ export function Pipeline() {
       const token = q("[data-token]")[0] as HTMLElement | undefined;
       if (!track || !token) return;
       const length = track.getTotalLength();
-      // Where along the track each station sits, as 0..1.
-      const at = STATIONS.map((station) => {
-        let best = 0;
-        let bestDistance = Infinity;
-        for (let i = 0; i <= 400; i++) {
-          const point = track.getPointAtLength((i / 400) * length);
-          const distance = Math.hypot(point.x - station.x, point.y - station.y);
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            best = i / 400;
-          }
-        }
-        return best;
-      });
+      const at = stationPositions(track, length);
       const travel = { p: 0 };
       const place = () => {
         const point = track.getPointAtLength(travel.p * length);

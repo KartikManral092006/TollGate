@@ -2,6 +2,7 @@
 
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { prefersLightEffects, whenIdle } from "@/lib/device";
 import { cn } from "@/lib/utils";
 
 type Lift = { play(): void; dispose(): void };
@@ -24,18 +25,22 @@ export function BarrierLift({
     const canvas = canvasRef.current;
     if (!canvas) return;
     let cancelled = false;
+    if (prefersLightEffects()) return;
     const probe = document.createElement("canvas");
     if (!(probe.getContext("webgl2") ?? probe.getContext("webgl"))) return;
-    import("@/components/road/barrier-lift-scene")
-      .then(({ createBarrierLift }) => {
-        if (cancelled) return;
-        liftRef.current = createBarrierLift(canvas, { reduced });
-        setReady(true);
-        liftRef.current.play();
-      })
-      .catch(() => undefined);
+    const cancelIdle = whenIdle(() => {
+      import("@/components/road/barrier-lift-scene")
+        .then(({ createBarrierLift }) => {
+          if (cancelled) return;
+          liftRef.current = createBarrierLift(canvas, { reduced });
+          setReady(true);
+          liftRef.current.play();
+        })
+        .catch(() => undefined);
+    });
     return () => {
       cancelled = true;
+      cancelIdle();
       liftRef.current?.dispose();
       liftRef.current = null;
     };
