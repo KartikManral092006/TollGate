@@ -69,6 +69,21 @@ export function normalizeWhyText(raw: string): string {
     .join("");
 }
 
+// The metadata key under which Nexconn reports a stream message's finished text to web
+// clients: a JSON string, {"complete": true, "summary": "…"}.
+export const STREAM_SUMMARY_KEY = "RC_Ext_StreamMsgSummary";
+
+export function streamSummary(raw: unknown): { text: string; complete: boolean } | null {
+  if (typeof raw !== "string") return null;
+  try {
+    const parsed = JSON.parse(raw) as { summary?: unknown; complete?: unknown };
+    if (typeof parsed?.summary !== "string") return null;
+    return { text: parsed.summary, complete: parsed.complete === true };
+  } catch {
+    return null;
+  }
+}
+
 // A shared explanation as a chat line, from the stream message (its first chunk or, from
 // history, the whole text).
 function whyLine(

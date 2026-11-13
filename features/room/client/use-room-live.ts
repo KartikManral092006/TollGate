@@ -18,6 +18,8 @@ import {
   replyExtra,
   replyText,
   normalizeWhyText,
+  STREAM_SUMMARY_KEY,
+  streamSummary,
   TEXT_MESSAGE_TYPE,
   type ChatLine,
   type Quote,
@@ -26,6 +28,8 @@ import {
 export type LiveState = "connecting" | "live" | "offline";
 
 const HISTORY_SIZE = 50;
+// A finished stream is among the newest messages; this many is plenty to find it.
+const STREAM_LOOKBACK = 20;
 const POLL_OFFLINE_MS = 4000;
 const POLL_LIVE_MS = 30_000;
 const REFRESH_DEBOUNCE_MS = 150;
@@ -49,6 +53,11 @@ export function useRoomLive(input: {
   const [gates, setGates] = useState(input.initialGates);
   const [freeze, setFreeze] = useState<FreezeView | null>(input.initialFreeze ?? null);
   const [lines, setLines] = useState<ChatLine[]>([]);
+  // The newest lines, readable from the Nexconn listener without re-subscribing.
+  const linesRef = useRef<ChatLine[]>([]);
+  useEffect(() => {
+    linesRef.current = lines;
+  }, [lines]);
   const [live, setLive] = useState<LiveState>("connecting");
   const [selfNexconnId, setSelfNexconnId] = useState<string | null>(null);
   const selfRef = useRef<string | null>(null);
@@ -81,6 +90,28 @@ export function useRoomLive(input: {
 
   useEffect(() => {
     let cancelled = false;
+
+    let chatRef: Awaited<ReturnType<typeof startNexconn>>["chat"] | null = null;
+    // The newest `size` messages, merged into the room (startup, and a stream that finished).
+    async function loadHistory(size: number): Promise<ChatLine[] | null> {
+      const chat = chatRef;
+      if (!chat) return null;
+      const result = await chat.BaseChannel.createMessagesQuery({
+        channelIdentifier: new chat.GroupChannelIdentifier(channelId),
+        pageSize: size,
+      })
+        .loadNextPage()
+        .catch(() => null);
+      if (cancelled || !result?.isOk || !result.data) return null;
+      for (const message of result.data.data) {
+        messages.current.set(message.messageId, message as ChatMessage);
+      }
+      const history = result.data.data
+        .map((message) => chatLineFromMessage(message, selfRef.current))
+        .filter((line): line is ChatLine => line !== null);
+      setLines((current) => mergeChat(current, history));
+      return history;
+    }
 
     const unsubscribe = nexconnEvents.subscribe((event) => {
       if (event.kind === "connection") {
@@ -122,6 +153,32 @@ export function useRoomLive(input: {
         return;
       }
       if (event.kind === "metadataUpdated") {
+        const { messageId, metadata } = event.data as {
+          messageId: string;
+          metadata?: Record<string, string>;
+        };
+        // The web SDK doesn't hand a stream message to the browser as it arrives: it reports
+        // the finished text as the message's stream summary. Show it from there, fetching the
+        // message (who shared it, which gate) from history the first time.
+        const summary = streamSummary(metadata?.[STREAM_SUMMARY_KEY]);
+        if (summary) {
+          const apply = () =>
+            setLines((current) =>
+              current.map((line) =>
+                line.id === messageId && line.why
+                  ? {
+                      ...line,
+                      text: normalizeWhyText(summary.text),
+                      why: { ...line.why, complete: line.why.complete || summary.complete },
+                    }
+                  : line,
+              ),
+            );
+          // History may hold only the first chunk's text; the summary is the whole of it.
+          if (linesRef.current.some((line) => line.id === messageId)) apply();
+          else void loadHistory(STREAM_LOOKBACK).then(apply);
+          return;
+        }
         scheduleRefresh();
         return;
       }
@@ -180,19 +237,9 @@ export function useRoomLive(input: {
         setLive("live");
 
         const { chat } = session;
-        const query = chat.BaseChannel.createMessagesQuery({
-          channelIdentifier: new chat.GroupChannelIdentifier(channelId),
-          pageSize: HISTORY_SIZE,
-        });
-        const result = await query.loadNextPage();
-        if (cancelled || !result.isOk || !result.data) return;
-        for (const message of result.data.data) {
-          messages.current.set(message.messageId, message as ChatMessage);
-        }
-        const history = result.data.data
-          .map((message) => chatLineFromMessage(message, session.userId))
-          .filter((line): line is ChatLine => line !== null);
-        setLines((current) => mergeChat(current, history));
+        chatRef = chat;
+        const history = await loadHistory(HISTORY_SIZE);
+        if (cancelled || !history) return;
 
         // Who has read your recent @mentions: only the sender may ask, which is you.
         const mine = history.filter((line) => line.mine && line.mentions.length > 0).slice(-10);
