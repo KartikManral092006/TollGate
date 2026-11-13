@@ -222,6 +222,7 @@ export function GateCard({
   seenBy = [],
   contextOpen = false,
   presence,
+  arriving = false,
 }: {
   gate: GateView;
   viewer: Viewer;
@@ -230,6 +231,9 @@ export function GateCard({
   contextOpen?: boolean;
   // Teammates (by name) looking at this gate or writing a reason or question for it.
   presence?: { looking: string[]; typing: string[] };
+  // A gate that came in live slides in; ones already there when the page loaded just show,
+  // so the server-rendered card is visible straight away.
+  arriving?: boolean;
   footer?: React.ReactNode;
   // Under the requester's own waiting gate when nobody else can decide it.
   invite?: React.ReactNode;
@@ -315,10 +319,11 @@ export function GateCard({
   }
 
   return (
+    // No layout animation: measuring every card on each render of a busy room cost more than
+    // the motion was worth on phones.
     <motion.article
-      layout="position"
       id={`gate-${gate.id}`}
-      initial={{ opacity: 0, y: 8 }}
+      initial={arriving ? { opacity: 0, y: 8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
       aria-label={`Gate TG-${gate.code}, ${meta.label}`}
@@ -337,9 +342,8 @@ export function GateCard({
         >
           <PersonAvatar id={gate.requester.id} name={gate.requester.name} />
         </Link>
-        <motion.span
+        <span
           aria-hidden
-          layout
           className={cn("w-0.5 flex-1 rounded-full transition-colors duration-300", DOT[shown])}
         />
       </div>

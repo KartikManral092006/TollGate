@@ -56,7 +56,6 @@ export function SessionStrip({
               key={gate.id}
               type="button"
               tabIndex={-1}
-              layout
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               onClick={() => onJump(gate.id)}
