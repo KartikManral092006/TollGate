@@ -369,7 +369,11 @@ export function AuditClient({
               {rows.map((gate) => {
                 const open = openId === gate.id;
                 return (
-                  <li key={gate.id}>
+                  // Rows off screen skip layout and paint until scrolled near (long logs).
+                  <li
+                    key={gate.id}
+                    className="[contain-intrinsic-size:auto_5rem] [content-visibility:auto]"
+                  >
                     <button
                       type="button"
                       onClick={() => toggle(gate.id)}

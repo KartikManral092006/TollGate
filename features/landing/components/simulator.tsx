@@ -364,6 +364,7 @@ export function Simulator() {
               <GateCard
                 key={card.id}
                 gate={card}
+                arriving
                 viewer={{ id: "demo-you", canVote: true }}
                 onApprove={approve}
                 onDeny={setDenying}

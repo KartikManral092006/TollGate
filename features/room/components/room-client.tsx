@@ -116,6 +116,8 @@ export function RoomClient({
     initialFreeze,
     callsEnabled,
   });
+  // Gates already here when the page loaded show at once; only later ones slide in.
+  const [loadedGateIds] = useState(() => new Set(initialGates.map((gate) => gate.id)));
   // No new approval windows while the team is frozen.
   const cardViewer = useMemo(
     () => ({ ...viewer, canOpenWindows: viewer.canOpenWindows === true && freeze === null }),
@@ -368,6 +370,7 @@ export function RoomClient({
                               <GateCard
                                 gate={item.gate}
                                 viewer={cardViewer}
+                                arriving={!loadedGateIds.has(item.gate.id)}
                                 highlighted={
                                   item.gate.id === highlightGateId || item.gate.id === flashId
                                 }
