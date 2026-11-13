@@ -94,12 +94,16 @@ export function Hero() {
             <span aria-hidden data-line-one className="block">
               {LINE_ONE}
             </span>
-            <span
-              aria-hidden
-              data-line-two
-              className="block bg-gradient-to-r from-[#f2a900] via-[#ffd27a] to-[#2ee59d] bg-clip-text text-transparent"
-            >
-              {LINE_TWO}
+            {/* An invisible copy holds the line's space, so the scramble typing over it can
+                never push the content below around (no layout shift). */}
+            <span aria-hidden className="relative block">
+              <span className="invisible block">{LINE_TWO}</span>
+              <span
+                data-line-two
+                className="absolute inset-x-0 top-0 block bg-gradient-to-r from-[#f2a900] via-[#ffd27a] to-[#2ee59d] bg-clip-text text-transparent"
+              >
+                {LINE_TWO}
+              </span>
             </span>
           </h1>
           <p data-rise className="text-lg leading-relaxed text-pretty text-white/70">

@@ -35,7 +35,8 @@ export function CopyField({
         value={value}
         aria-label={label}
         onFocus={(event) => event.currentTarget.select()}
-        className={mono ? "font-mono text-xs" : undefined}
+        // 16px on phones: iOS Safari zooms the page into any focused field smaller than that.
+        className={mono ? "font-mono text-base sm:text-xs" : undefined}
       />
       <InputGroupAddon align="inline-end">
         <InputGroupButton
